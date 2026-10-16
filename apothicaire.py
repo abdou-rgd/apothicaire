@@ -13,7 +13,8 @@ Usage:
   python apothicaire.py say "message"      one turn
   python apothicaire.py tools              print the exposed tools and the static prompt size
 Environment: APOTHICAIRE_MCP (path of caladrius-mcp), APOTHICAIRE_DATA (memory folder),
-OPTCHAT_URL (llama-server, default http://127.0.0.1:18435).
+OPTCHAT_URL (llama-server, default http://127.0.0.1:18435), APOTHICAIRE_GATE (v1, the default: the number gate of
+gate.py; v2: the typed rendering of gate_v2.py, see GATE_V2.md).
 """
 import json, os, subprocess, sys, threading, argparse
 
@@ -22,7 +23,7 @@ OFFICINA = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(OFFICINA, "optchat"))
 import optchat  # noqa: E402
 sys.path.insert(0, HERE)
-import gate  # noqa: E402
+import gate, gate_v2  # noqa: E402
 from numtext import value_text  # noqa: E402
 
 optchat.CFG["data_dir"] = os.environ.get("APOTHICAIRE_DATA", os.path.join(HERE, "data"))
@@ -41,6 +42,26 @@ SYSTEM_ADDITION = """
 
 You are Apothicaire, a DMPK assistant. Never compute pharmacokinetic numbers yourself: import the data and call Caladrius tools, then explain the results in the user's language, with units, and mention quality flags.
 Caladrius workflow: data_import (CSV text in `csv`; give the units the user states in `columns`, e.g. {"name":"time","unit":"h"}) returns a worksheet id; nca_run(worksheet, dose, route, options) returns an analysis id and the parameters by PKNCA name; to redo an analysis with other options call nca_run again. Worksheets and analyses persist during the chat: reuse their ids, do not import the same data twice. NCA parameters come with their unit (aucpext.* are percentages); when the dose unit is unknown to Caladrius, CL and V are in dose unit/(...). Quote tool values verbatim and never convert units (no mg to ug, no h to min, no L/h from dose unit/...); if a unit is missing, say so. You may round a value, saying so. Never state a value that no tool returned. Differences, percentages and ratios between two results come from analysis_compare (b minus a, per parameter, with units), never from you."""
+
+# Gate v2 (typed rendering, GATE_V2.md): the model cites tool values by reference, the client prints them.
+SYSTEM_ADDITION_V2 = """
+
+You are Apothicaire, a DMPK assistant. Never compute pharmacokinetic numbers yourself: import the data and call Caladrius tools, then explain the results in the user's language and mention quality flags.
+Caladrius workflow: data_import (CSV text in `csv`; give the units the user states in `columns`, e.g. {"name":"time","unit":"h"}) returns a worksheet id; nca_run(worksheet, dose, route, options) returns an analysis id and the parameters by PKNCA name; to redo an analysis with other options call nca_run again. Worksheets and analyses persist during the chat: reuse their ids, do not import the same data twice. Differences, percentages and ratios between two results come from analysis_compare (b minus a, per parameter), never from you.
+Numbers: never type a value a tool returned, not even rounded. Cite it as {{ref.name}} with the "ref" of the tool result; the client prints the value with its unit. Examples: Cmax = {{call_3.cmax}}; {{call_3.aucinf.obs}}; several subjects: {{call_3.subject=2.cmax}}; from analysis_compare: {{call_5.auclast.difference}}, .percent, .ratio, .a, .b. Write no unit, sign, digit or arithmetic next to a reference. The only digits you may type are those of the user's message. If a value is missing, say that Caladrius did not return it."""
+
+_ADDITIONS = (SYSTEM_ADDITION, SYSTEM_ADDITION_V2)
+
+def install_prompt(addition):
+    """optchat.SYSTEM_PROMPT = the base prompt + one addition (whichever was installed before is removed first)."""
+    base = optchat.SYSTEM_PROMPT
+    for a in _ADDITIONS: base = base.replace(a, "")
+    optchat.SYSTEM_PROMPT = base + addition
+
+def gate_version_of(value=None):
+    v = (value or os.environ.get("APOTHICAIRE_GATE") or "v1").strip().lower()
+    if v not in ("v1", "v2"): raise ValueError(f"APOTHICAIRE_GATE must be v1 or v2, not {value!r}")
+    return v
 
 # ---------------------------------------------------------------- MCP stdio client
 class MCPError(Exception): pass
@@ -75,11 +96,20 @@ class MCPClient:
                 if "error" in msg: raise MCPError(f"{msg['error'].get('code')}: {msg['error'].get('message')}")
                 return msg["result"]
 
-    def call(self, name, args):
-        """Returns (ok, text). A tool error (isError) is returned as text, not raised."""
+    def call_full(self, name, args):
+        """Returns (ok, text, structuredContent or None). A tool error (isError) is returned as text, not raised."""
         res = self.request("tools/call", {"name": name, "arguments": args})
         text = "\n".join(c.get("text", "") for c in res.get("content", []) if c.get("type") == "text")
-        return (not res.get("isError", False)), text
+        return (not res.get("isError", False)), text, res.get("structuredContent")
+
+    def call(self, name, args):
+        """Returns (ok, text)."""
+        ok, text, _ = self.call_full(name, args)
+        return ok, text
+
+    def output_schemas(self):
+        """tool name -> outputSchema, for the tools that publish one (gate v2 checks the cited paths against it)."""
+        return {n: t["outputSchema"] for n, t in self.tools.items() if isinstance(t.get("outputSchema"), dict)}
 
     def close(self):
         try: self.p.stdin.close(); self.p.wait(timeout=5)
@@ -203,12 +233,7 @@ def digest_compare(d, units=None):
     what nca_run called through this client does) the unit is labelled from the worksheet like in the NCA digest, but only
     when both analyses come from the same worksheet (`units[("analysis", id)]` -> worksheet id, filled by render_tool_result).
     No value is converted."""
-    ids = [(d.get(k) or {}).get("analysis") for k in ("a", "b")]
-    wsids = [(units or {}).get(("analysis", i)) for i in ids]
-    wu = (units or {}).get(wsids[0]) if wsids[0] is not None and wsids[0] == wsids[1] else None
-    def label(name, unit):
-        if unit is not None or wu is None: return unit
-        u = param_unit(name, wu); return None if u == "?" else u
+    label = _compare_labels(d, units)
     def val(x, unit=None):
         if x is None: return None
         return f"{_shown(x)} {unit}".strip() if unit else _shown(x)
@@ -229,10 +254,45 @@ def digest_compare(d, units=None):
         out["parameters"][r.get("parameter")] = " | ".join(parts)
     return out
 
-def render_tool_result(name, ok, text, units):
+def _compare_labels(d, units):
+    """Unit labeller of an analysis_compare answer: the engine's unit when it reports one, else the worksheet's label
+    when both analyses come from the same worksheet (`units[("analysis", id)]` -> worksheet id), else None."""
+    ids = [(d.get(k) or {}).get("analysis") for k in ("a", "b")]
+    wsids = [(units or {}).get(("analysis", i)) for i in ids]
+    wu = (units or {}).get(wsids[0]) if wsids[0] is not None and wsids[0] == wsids[1] else None
+    def label(name, unit):
+        if unit is not None or wu is None: return unit
+        u = param_unit(name, wu); return None if u == "?" else u
+    return label
+
+def ref_record(ref, name, structured, units):
+    """The record gate v2 resolves a reference against: the structuredContent of the call as the server sent it, plus the
+    unit labels the client computes for it (the same labels as the digest shows; nothing converted). Built after
+    render_tool_result has remembered the worksheet's units."""
+    rec = {"ref": ref, "name": name, "structured": structured, "units": {}}
+    d = structured
+    if isinstance(d, dict) and d.get("kind") == "nca" and isinstance(d.get("result"), dict):
+        u = units.get((d.get("spec") or {}).get("worksheet")) or {}
+        pu = {}
+        for s in d["result"].get("subjects") or []:
+            for p in ((s.get("outcome") or {}).get("ok") or {}).get("parameters") or []:
+                un = p.get("unit") or param_unit(p["name"], u)
+                pu[p["name"]] = "" if un == "?" else un
+        rec["units"] = {"dose": u.get("dose") or "", "parameters": pu}
+    elif isinstance(d, dict) and isinstance(d.get("rows"), list) and "a" in d and "b" in d:
+        label = _compare_labels(d, units); rows = {}
+        for r in d["rows"]:
+            pn = r.get("parameter"); ua, ub = label(pn, r.get("unit_a")), label(pn, r.get("unit_b"))
+            rows[pn] = {"a": ua or "", "b": ub or "", "difference": r.get("difference_unit") or (ua if ua == ub else None) or "",
+                        "relative_percent": "%", "ratio": ""}
+        rec["units"] = {"rows": rows}
+    return rec
+
+def render_tool_result(name, ok, text, units, ref=None):
     """What the model is shown for an MCP answer. `units` (worksheet id -> units, updated in place)
     remembers the units a worksheet reported; an NCA analysis is digested with the units of its
-    worksheet; any other answer is the compact JSON of the same content."""
+    worksheet; any other answer is the compact JSON of the same content. With `ref` (gate v2) the JSON
+    starts with "ref": the handle the model cites, and each subject of a multi-subject analysis has its own."""
     if not ok: return text
     try:
         d = json.loads(text)
@@ -248,6 +308,9 @@ def render_tool_result(name, ok, text, units):
             wid = (d.get("spec") or {}).get("worksheet")
             units[("analysis", d.get("id"))] = wid                  # lets analysis_compare label units
             d = digest_analysis(d, units.get(wid))
+            if ref and len(d.get("subjects") or []) > 1:
+                d["subjects"] = [{"ref": f"{ref}.subject={s.get('subject')}", **s} for s in d["subjects"]]
+        if ref and isinstance(d, dict): d = {"ref": ref, **d}
         return json.dumps(d, ensure_ascii=False, separators=(",", ":"))
     except Exception:
         return text
@@ -262,23 +325,48 @@ def gate_context(log, mcp_tool_names):
     return tools, users
 
 def _counts(g):
-    return {"numbers_total": g["numbers_total"], "numbers_unverified": g["numbers_unverified"],
-            "numbers_exempt": g["numbers_exempt"]}
+    c = {"numbers_total": g["numbers_total"], "numbers_unverified": g["numbers_unverified"],
+         "numbers_exempt": g["numbers_exempt"]}
+    if "references_total" in g:                                       # gate v2
+        c["references_total"] = g["references_total"]; c["references_unresolved"] = g["references_unresolved"]
+    return c
 
 # ---------------------------------------------------------------- agent
 class Apothicaire(optchat.Agent):
-    def __init__(self, cfg=optchat.CFG, mcp_bin=MCP_BIN):
+    def __init__(self, cfg=optchat.CFG, mcp_bin=MCP_BIN, gate_version=None):
+        self.gate_version = gate_version_of(gate_version)             # "v1" (gate.py) or "v2" (gate_v2.py), APOTHICAIRE_GATE
         self.mcp = MCPClient([mcp_bin])
         self.mcp_tools = [to_openai(self.mcp.tools[n]) for n in EXPOSED if n in self.mcp.tools]
         # optchat reads these module globals at call time (in turn() and build_messages())
         optchat.TOOLS = optchat.TOOLS[:2] + self.mcp_tools
-        if SYSTEM_ADDITION not in optchat.SYSTEM_PROMPT:
-            optchat.SYSTEM_PROMPT = optchat.SYSTEM_PROMPT + SYSTEM_ADDITION
+        install_prompt(SYSTEM_ADDITION_V2 if self.gate_version == "v2" else SYSTEM_ADDITION)
         self.tool_log = []           # every MCP call of the session: turn, name, args, ok, text, shown
         self.units = {}              # worksheet id -> derived units reported by Caladrius
         self.gate_log = []           # one record per turn: the gate's counts and findings
         self._gate_rec = None
+        self.refs = {}               # gate v2: ref ("call_3") -> record (structuredContent + unit labels), persisted in refs.jsonl
+        self.schemas = self.mcp.output_schemas() if self.gate_version == "v2" else {}
+        self.decimal_mark = "," if str(cfg.get("digest_lang", "")).lower().startswith("fr") else "."
         super().__init__(cfg)
+        if self.gate_version == "v2": self._load_refs()
+
+    # -- gate v2: the citable results of the whole chat memory survive a restart
+    def _refs_path(self): return os.path.join(self.cfg["data_dir"], "refs.jsonl")
+
+    def _load_refs(self):
+        try:
+            with open(self._refs_path(), encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        rec = json.loads(line); self.refs[rec["ref"]] = rec
+        except OSError: pass
+
+    def _remember_ref(self, rec):
+        self.refs[rec["ref"]] = rec
+        try:
+            with open(self._refs_path(), "a", encoding="utf-8") as f:
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        except OSError: pass
 
     def _tool(self, name, args):
         if name not in self.mcp.tools: return super()._tool(name, args)
@@ -290,11 +378,15 @@ class Apothicaire(optchat.Agent):
         if name == "nca_run":
             err = self._nca_route(args)
             if err: return err
-        try: ok, text = self.mcp.call(name, args)
-        except MCPError as e: ok, text = False, f"mcp error: {e}"
-        shown = render_tool_result(name, ok, text, self.units)
+        try: ok, text, structured = self.mcp.call_full(name, args)
+        except MCPError as e: ok, text, structured = False, f"mcp error: {e}", None
+        ref = None
+        if self.gate_version == "v2" and ok and structured is not None:    # a citable result gets the next ref
+            ref = f"call_{len(self.refs) + 1}"
+        shown = render_tool_result(name, ok, text, self.units, ref=ref)
+        if ref: self._remember_ref(ref_record(ref, name, structured, self.units))
         self.tool_log.append({"turn": len(self.turn_stats), "name": name, "args": args, "ok": ok,
-                              "text": text, "shown": shown})
+                              "text": text, "shown": shown, "ref": ref})
         return shown if ok else f"TOOL ERROR: {text}"
 
     @staticmethod
@@ -318,16 +410,25 @@ class Apothicaire(optchat.Agent):
         if m.get("tool_calls"): return m                      # a tool round, not an answer
         draft = (m.get("content") or "").strip()
         tool_texts, users = gate_context(self.store.log, self.mcp.tools)
-        allowed = gate.allowed_numbers(tool_texts, users)
-        g1 = gate.check(draft, allowed=allowed)
-        rec = {"before": _counts(g1), "after": _counts(g1), "regenerated": False, "kept": "first",
+        if self.gate_version == "v2":
+            # typed rendering: the sources are the user's messages only; tool values are cited and rendered
+            allowed = gate_v2.user_numbers(users)
+            run = lambda text: gate_v2.check(text, self.refs, schemas=self.schemas, decimal_mark=self.decimal_mark, allowed=allowed)
+            remind = lambda findings: gate_v2.reminder(findings, self.refs)
+        else:
+            allowed = gate.allowed_numbers(tool_texts, users)
+            run = lambda text: gate.check(text, allowed=allowed)
+            remind = gate.reminder
+        g1 = run(draft)
+        rec = {"version": self.gate_version, "before": _counts(g1), "after": _counts(g1), "regenerated": False, "kept": "first",
                "findings": g1["findings"]}
+        if "rendered" in g1: rec["rendered"] = g1["rendered"]
         if g1["findings"]:
             # one regeneration. The reminder is appended at the END of the messages (the system prompt and
             # the tool definitions, hence the cached prefix, are untouched) and is not stored in the memory.
             first_last = dict(self.llm.last)
             msgs2 = list(msgs) + [{"role": "assistant", "content": draft},
-                                  {"role": "user", "content": gate.reminder(g1["findings"])}]
+                                  {"role": "user", "content": remind(g1["findings"])}]
             try:
                 m2 = self.llm.chat(msgs2, slot=0, tools=None, max_tokens=self.cfg["agent_max_tokens"],
                                    think=self.cfg["agent_think"])
@@ -338,10 +439,11 @@ class Apothicaire(optchat.Agent):
             self.llm.last = first_last                        # turn() reads the stats of the first call
             rec.update(regenerated=True, first_answer=draft, first_findings=g1["findings"], regen_stats=regen_stats)
             if new:
-                g2 = gate.check(new, allowed=allowed)
+                g2 = run(new)
                 rec["after_regeneration"] = _counts(g2)
                 if g2["numbers_unverified"] <= g1["numbers_unverified"]:   # keep the better of the two
                     rec.update(kept="regenerated", after=_counts(g2), findings=g2["findings"])
+                    if "rendered" in g2: rec["rendered"] = g2["rendered"]
                     m = {**m, "content": new}
         self._gate_rec = rec
         return m
@@ -354,7 +456,10 @@ class Apothicaire(optchat.Agent):
             stat["gate"] = rec
             self.gate_log.append({"turn": len(self.turn_stats), **rec})
             self._append_gate_jsonl(self.gate_log[-1])
-            if rec["findings"]:                               # shown, not stored in the memory
+            if rec.get("version") == "v2" and "rendered" in rec:
+                ans = rec["rendered"]                         # the memory keeps the references; the user sees the values
+                if rec["findings"]: ans = ans + "\n\n" + gate_v2.badge(rec["findings"])
+            elif rec["findings"]:                             # shown, not stored in the memory
                 ans = ans + "\n\n" + gate.badge(rec["findings"])
         return ans, stat
 

@@ -1,0 +1,462 @@
+"""Tests of gate v2 (gate_v2.py): typed rendering. Spec: GATE_V2.md.
+
+The tool results are SYNTHETIC structuredContent payloads in the server's shape (invented values), the user message is
+a synthetic CSV; the public goldens (tests/golden) are used only to check that every computed parameter of a real
+answer resolves to the text the digest shows and that the outputSchema walk accepts the real shapes.
+The class TestAuditBlindSpots replays the kinds of sentences the audit of 2026-10-14 used to show what gate v1 cannot
+see (right number on the wrong parameter, changed unit, inverted sign, numbers in words, small integers, years,
+2-digit coincidences): each one passes v1 (shown by running gate.check on the same sources) and is rejected by v2,
+or cannot be written at all with references.
+"""
+import copy, glob, json, os, sys, unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(HERE)); sys.path.insert(0, HERE)
+import gate, gate_v2, apothicaire, optchat  # noqa: E402
+import test_digest as td                     # noqa: E402
+
+SCHEMAS = {t["name"]: t["outputSchema"] for t in td.load("tools_list.json")["tools"] if "outputSchema" in t}
+
+# ---------------------------------------------------------------- synthetic payloads
+UNITS = {"time": "h", "conc": "ng/mL", "dose": None,
+         "derived": {"auc": "h*ng/mL", "aumc": "h^2*ng/mL", "half_life": "h", "lambda_z": "1/h", "mrt": "h"}, "warnings": []}
+PARAMS = {"cmax": 12.3456789, "tmax": 1.5, "tlast": 24.0, "auclast": 98.7654321, "aucall": 101.234567, "aucinf.obs": 123.456789,
+          "half.life": 6.54321, "cl.obs": 0.81, "aucpext.obs": 22.5, "lambda.z.n.points": 4, "r.squared": 0.998765,
+          "c0": "not_applicable_to_route"}
+PARAMS_B = dict(PARAMS, auclast=97.0123456, aucall=99.5)              # the same data with lin-up/log-down
+
+def subject(label, dose, params):
+    plist = [{"name": n, "value": ({"not_calculated": v} if isinstance(v, str) else {"value": v})} for n, v in params.items()]
+    return {"subject": label, "dose": dose, "route": "extravascular", "flag_messages": [], "not_calculated_messages": {},
+            "outcome": {"ok": {"flags": [{"code": "high_extrapolation", "parameter": "aucpext.obs", "threshold": 20.0, "value": 22.5}],
+                               "lambda_z_candidates": [], "parameters": plist, "profile": [], "removed": []}}}
+
+def nca(aid, subjects, method="linear"):
+    return {"id": aid, "kind": "nca", "label": "NCA of syn", "name": None,
+            "spec": {"kind": "nca", "worksheet": 4, "dose": 100.0, "route": "extravascular", "subject": None,
+                     "options": {"auc_method": method, "quality": {"max_extrapolated_percent": 20.0, "min_adj_r_squared": 0.9}}},
+            "status": {"state": "fresh"}, "result": {"kind": "nca", "subjects": subjects}}
+
+NCA = nca(7, [subject("1", 100.0, PARAMS)])
+NCA_B = nca(8, [subject("1", 100.0, PARAMS_B)], "lin_up_log_down")
+MULTI = nca(9, [subject("1", 100.0, dict(PARAMS, cmax=15.5)), subject("2", 100.0, dict(PARAMS, cmax=9.25)),
+                subject("3", 100.0, dict(PARAMS, cmax=11.0, tmax="no_rise"))])
+IMPORT = {"delimiter": ",", "notes": [],
+          "worksheet": {"id": 4, "name": "syn", "revision": 0, "rows": 9, "subjects": ["1"],
+                        "columns": [{"name": "time", "role": "time", "unit": "h", "type": "number", "missing": 0},
+                                    {"name": "conc", "role": "concentration", "unit": "ng/mL", "type": "number", "missing": 0}],
+                        "unit_warnings": [], "derived_units": UNITS["derived"]}}
+def row(p, a, b, d, pct, r, nc=None):
+    return {"parameter": p, "a": a, "b": b, "unit_a": None, "unit_b": None, "difference": d, "difference_unit": None,
+            "relative_percent": pct, "ratio": r, "not_comparable": nc}
+COMPARE = {"a": {"analysis": 7, "kind": "nca", "label": "NCA of syn", "status": "fresh", "subject": "1"},
+           "b": {"analysis": 8, "kind": "nca", "label": "NCA of syn", "status": "fresh", "subject": "1"},
+           "rows": [row("auclast", 98.7654321, 97.0123456, -1.7530865, -1.775, 0.98225),
+                    row("cmax", 12.3456789, 12.3456789, 0.0, 0.0, 1.0),
+                    row("c0", None, None, None, None, None, "not calculated on either side")]}
+WS_UNITS = {4: UNITS, ("analysis", 7): 4, ("analysis", 8): 4, ("analysis", 9): 4}
+
+def make_calls(**extra):
+    calls = {"call_1": apothicaire.ref_record("call_1", "data_import", IMPORT, WS_UNITS),
+             "call_2": apothicaire.ref_record("call_2", "nca_run", NCA, WS_UNITS),
+             "call_3": apothicaire.ref_record("call_3", "nca_run", MULTI, WS_UNITS),
+             "call_4": apothicaire.ref_record("call_4", "analysis_compare", COMPARE, WS_UNITS),
+             "call_5": apothicaire.ref_record("call_5", "nca_run", NCA_B, WS_UNITS)}
+    calls.update(extra); return calls
+
+CALLS = make_calls()
+USER = ("Voici les données (dose 100 mg par voie orale, temps en h, concentrations en ng/mL) :\n"
+        "time,conc\n0.5,4.2\n1.5,12.35\n6,6.98\n24,0.9\nFais l'analyse non compartimentale.")
+
+def v2(text, users=(USER,), calls=CALLS, mark="."):
+    return gate_v2.check(text, calls, list(users), SCHEMAS, decimal_mark=mark)
+
+def v1(text, users=(USER,)):
+    """Gate v1 on the same synthetic sources (the payload texts are what v1 reads)."""
+    return gate.check(text, [json.dumps(NCA), json.dumps(NCA_B), json.dumps(MULTI), json.dumps(COMPARE), json.dumps(IMPORT)], list(users))
+
+class Base(unittest.TestCase):
+    def ok(self, text, expect=None, **kw):
+        r = v2(text, **kw)
+        self.assertEqual(r["findings"], [], (text, [f["reason"] for f in r["findings"]]))
+        if expect is not None: self.assertEqual(r["rendered"], expect)
+        return r
+    def bad(self, text, kind=None, reason=None, n=None, **kw):
+        r = v2(text, **kw)
+        self.assertGreaterEqual(r["numbers_unverified"], 1, text)
+        self.assertIn(gate_v2.MARK_OPEN, r["rendered"], text)
+        if n is not None: self.assertEqual(r["numbers_unverified"], n, (text, [f["reason"] for f in r["findings"]]))
+        if kind: self.assertIn(kind, [f["kind"] for f in r["findings"]], (text, r["findings"]))
+        if reason: self.assertTrue(any(reason in f["reason"] for f in r["findings"]), (text, [f["reason"] for f in r["findings"]]))
+        return r
+
+# ---------------------------------------------------------------- syntax and rendering
+class TestReferenceSyntax(Base):
+    def test_parse_ref(self):
+        for body in ("call_2.cmax", " call_2.cmax ", "call2.cmax", "call-2.cmax", "call 2.cmax", "Call_2.cmax", '"call_2".cmax', "call_2:cmax"):
+            self.assertEqual(gate_v2.parse_ref(body), ("call_2", "cmax"), body)
+        self.assertEqual(gate_v2.parse_ref("call_12"), ("call_12", ""))
+        self.assertEqual(gate_v2.parse_ref("cmax"), (None, None)); self.assertEqual(gate_v2.parse_ref("ref.cmax"), (None, None))
+        self.assertEqual(gate_v2.segments("subject=2.half.life"), ["subject=2", "half", "life"])
+        self.assertEqual(gate_v2.segments("result.subjects[0].dose"), ["result", "subjects", 0, "dose"])
+
+    def test_every_spelling_of_a_parameter_reference_renders_the_same(self):
+        for t in ("{{call_2.cmax}}", "{{ call_2.cmax }}", "{{call2.cmax}}", "{{call-2.cmax}}", "{{Call_2.CMAX}}", "{{call_2.parameters.cmax}}",
+                  "{{call_2.parameters.cmax.value}}", "{{call_2.subject=1.cmax}}", "{{call_2.subject:1.cmax}}", '{{"call_2".cmax}}', "{{call_2.cmax.value}}"):
+            with self.subTest(t): self.ok(t, "12.3457 ng/mL")
+
+    def test_dotted_pknca_names(self):
+        self.ok("{{call_2.aucinf.obs}}", "123.457 h*ng/mL"); self.ok("{{call_2.lambda.z.n.points}}", "4")
+        self.ok("{{call_2.half.life}}", "6.54321 h"); self.ok("{{call_2.r.squared}}", "0.998765"); self.ok("{{call_2.aucpext.obs}}", "22.5 %")
+        self.ok("{{call_2.cl.obs}}", "0.81 dose unit/(h*ng/mL)"); self.ok("{{call_2.tlast}}", "24 h")
+
+    def test_dose_route_subject(self):
+        self.ok("{{call_2.dose}}", "100"); self.ok("{{call_2.route}}", "extravascular"); self.ok("{{call_2.subject}}", "1")
+        calls = make_calls(call_2=apothicaire.ref_record("call_2", "nca_run", NCA, {4: dict(UNITS, dose="mg")}))
+        self.ok("{{call_2.dose}}", "100 mg", calls=calls)
+
+    def test_several_subjects(self):
+        self.ok("{{call_3.subject=2.cmax}}", "9.25 ng/mL"); self.ok("{{call_3.subject=1.cmax}}", "15.5 ng/mL")
+        self.bad("{{call_3.cmax}}", "unresolved_reference", "3 subjects")
+        self.bad("{{call_3.subject=9.cmax}}", "unresolved_reference", "no subject '9'")
+        self.bad("{{call_3.subject=3.tmax}}", "unresolved_reference", "not calculated")
+
+    def test_compare_fields(self):
+        self.ok("{{call_4.auclast.difference}}", "-1.75309 h*ng/mL"); self.ok("{{call_4.auclast.diff}}", "-1.75309 h*ng/mL")
+        self.ok("{{call_4.auclast.percent}}", "-1.775 %"); self.ok("{{call_4.auclast.relative_percent}}", "-1.775 %")
+        self.ok("{{call_4.auclast.ratio}}", "0.98225"); self.ok("{{call_4.auclast.a}}", "98.7654 h*ng/mL"); self.ok("{{call_4.auclast.b}}", "97.0123 h*ng/mL")
+        self.ok("{{call_4.cmax.difference}}", "0 ng/mL"); self.ok("{{call_4.cmax.ratio}}", "1")
+        self.bad("{{call_4.auclast}}", "unresolved_reference", "which field")
+        self.bad("{{call_4.c0.difference}}", "unresolved_reference", "not comparable")
+        self.bad("{{call_4.tmax.a}}", "unresolved_reference", "not a compared parameter")
+        self.bad("{{call_4.auclast.sum}}", "unresolved_reference", "which field")
+
+    def test_import_fields(self):
+        self.ok("{{call_1.rows}}", "9"); self.ok("{{call_1.worksheet.rows}}", "9"); self.ok("{{call_1.id}}", "4")
+        self.ok("{{call_1.subjects}}", "1"); self.ok("{{call_1.columns[1].unit}}", "ng/mL"); self.ok("{{call_1.delimiter}}", ",")
+
+    def test_plain_json_paths(self):
+        self.ok("{{call_2.spec.options.quality.max_extrapolated_percent}}", "20")
+        self.ok("{{call_2.result.subjects[0].dose}}", "100"); self.ok("{{call_2.id}}", "7"); self.ok("{{call_2.status.state}}", "fresh")
+        self.ok("{{call_2.result.subjects[0].outcome.ok.flags[0].threshold}}", "20")
+        self.ok("{{call_4.a.analysis}}", "7"); self.ok("{{call_4.rows[0].ratio}}", "0.98225")
+
+    def test_display_rules(self):
+        self.ok("{{call_2.cmax}}", "12.3457 ng/mL")                                  # 6 significant digits, never more
+        self.ok("{{call_2.tlast}}", "24 h")                                          # no ".0" after an integral value
+        self.ok("{{call_2.cmax}}", "12,3457 ng/mL", mark=",")                        # the client's decimal mark
+        self.ok("{{call_4.auclast.difference}}", "-1,75309 h*ng/mL", mark=",")       # the sign is the engine's
+        for x in (2128760.0, 1e-05, 0.0, 6.98412345, 24.0, 319.992):
+            self.assertEqual(gate_v2.render_value(x), apothicaire._shown(x), x)      # same rule as the digest
+        self.assertEqual(gate_v2.render_value(True), "true"); self.assertEqual(gate_v2.render_value([1, "a"]), "1, a")
+
+    def test_sentences_with_several_references(self):
+        r = self.ok("Cmax = {{call_2.cmax}} à Tmax = {{call_2.tmax}} ; AUC(0-tlast) = {{call_2.auclast}} et AUC(0-inf) = {{call_2.aucinf.obs}}.",
+                    "Cmax = 12.3457 ng/mL à Tmax = 1.5 h ; AUC(0-tlast) = 98.7654 h*ng/mL et AUC(0-inf) = 123.457 h*ng/mL.")
+        self.assertEqual((r["references_total"], r["references_unresolved"], r["numbers_total"], r["numbers_unverified"]), (4, 0, 4, 0))
+        self.assertEqual(r["numbers_exempt"], 2)                                     # the 0 of AUC(0-tlast) and of AUC(0-inf)
+
+# ---------------------------------------------------------------- fail-closed
+class TestFailClosed(Base):
+    def test_unknown_call(self):
+        r = self.bad("Cmax = {{call_9.cmax}}", "unresolved_reference", "not a tool result")
+        self.assertEqual(r["rendered"], "Cmax = ⟦not a tool result of this chat: {{call_9.cmax}}⟧".replace("not a tool result of this chat", "call_9 is not a tool result of this chat"))
+
+    def test_unknown_parameter_with_a_hint(self):
+        r = self.bad("{{call_2.cmaxx}}", "unresolved_reference", "no parameter 'cmaxx'")
+        self.assertIn("closest: cmax", r["findings"][0]["hint"]); self.assertNotIn("12.3457", r["rendered"])
+
+    def test_not_calculated(self):
+        self.bad("{{call_2.c0}}", "unresolved_reference", "not calculated (not_applicable_to_route)")
+
+    def test_reference_without_a_path_or_without_a_ref(self):
+        self.bad("{{call_2}}", "unresolved_reference", "needs a path"); self.bad("{{cmax}}", "unresolved_reference", "starts with the ref")
+        self.bad("{{ref.cmax}}", "unresolved_reference")
+
+    def test_malformed_braces(self):
+        for t in ("{call_2.cmax}", "{{call_2.cmax}", "{call_2.cmax}}", "{{{call_2.cmax}}}"):
+            with self.subTest(t):
+                r = self.bad(t, "malformed_reference"); self.assertNotIn("12.3457", r["rendered"]); self.assertEqual(r["references_total"], 1)
+
+    def test_objects_lists_and_nulls_are_not_values(self):
+        self.bad("{{call_2.spec}}", reason="is an object"); self.bad("{{call_2.result.subjects}}", reason="list of objects")
+        self.bad("{{call_2.name}}", reason="null"); self.bad("{{call_2.result.subjects[7].dose}}", reason="is a list of 1")
+        self.bad("{{call_2.spec.nothing}}", reason="no field 'nothing'"); self.bad("{{call_1.worksheet.columns[0].nope}}", reason="no field")
+
+    def test_schema_forbids_a_field_the_data_happens_to_have(self):
+        imp = copy.deepcopy(IMPORT); imp["worksheet"]["extra"] = 5
+        calls = make_calls(call_1=apothicaire.ref_record("call_1", "data_import", imp, WS_UNITS))
+        self.assertEqual(gate_v2.check("{{call_1.extra}}", calls, [USER], None)["rendered"], "5")        # without the schema: data only
+        self.bad("{{call_1.extra}}", "unresolved_reference", "schema has no field 'extra'", calls=calls)
+
+    def test_schema_type_must_agree_with_the_value(self):
+        n = copy.deepcopy(NCA); n["result"]["subjects"][0]["outcome"]["ok"]["parameters"][0]["value"]["value"] = "12.3"
+        calls = make_calls(call_2=apothicaire.ref_record("call_2", "nca_run", n, WS_UNITS))
+        self.bad("{{call_2.cmax}}", "unresolved_reference", "declares number, the value is a string", calls=calls)
+
+    def test_schema_without_properties_constrains_nothing(self):
+        self.assertEqual(SCHEMAS["analysis_compare"].get("properties"), None)
+        self.ok("{{call_4.auclast.percent}}", "-1.775 %")
+
+    def test_every_computed_parameter_of_the_goldens_renders_as_the_digest_shows(self):
+        for name, g in td.GOLDENS.items():
+            d, units = td.digest_of(g)
+            calls = {"call_1": apothicaire.ref_record("call_1", "nca_run", g["nca_run_result"], {g["data_import_result"]["worksheet"]["id"]: units})}
+            many = len(d["subjects"]) > 1
+            for s in d["subjects"]:
+                for pname, shown in s.get("parameters", {}).items():
+                    ref = f"{{{{call_1.{'subject=' + str(s['subject']) + '.' if many else ''}{pname}}}}}"
+                    r = gate_v2.check(ref, calls, [], SCHEMAS)
+                    with self.subTest(case=name, subject=s["subject"], parameter=pname):
+                        self.assertEqual(r["findings"], [], ref)
+                        if isinstance(shown, str): self.assertEqual(r["rendered"], shown)
+                        else: self.assertEqual(float(r["rendered"]), float(shown)); self.assertNotIn(".0", r["rendered"][-2:])   # 5, not 5.0
+                for pname in [p for ps in s.get("not_calculated", {}).values() for p in ps][:3]:
+                    ref = f"{{{{call_1.{'subject=' + str(s['subject']) + '.' if many else ''}{pname}}}}}"
+                    self.assertEqual(gate_v2.check(ref, calls, [], SCHEMAS)["references_unresolved"], 1, ref)
+
+    def test_a_tool_error_has_nothing_to_cite(self):
+        calls = make_calls(call_6={"ref": "call_6", "name": "nca_run", "structured": None, "units": {}})
+        self.bad("{{call_6.cmax}}", "unresolved_reference", "no structured result", calls=calls)
+
+# ---------------------------------------------------------------- nothing next to a reference
+class TestNothingNextToAReference(Base):
+    def test_unit_written_by_the_model_is_rejected(self):
+        for t in ("{{call_2.cmax}} ng/mL", "{{call_2.cmax}} mg/L", "{{call_2.cmax}}ng/mL", "{{call_2.aucpext.obs}}%", "{{call_2.aucpext.obs}} %",
+                  "{{call_2.half.life}} heures", "{{call_2.half.life}} h", "{{call_2.cmax}} (ng/mL)", "{{call_2.cl.obs}} L/h", "{{call_2.tmax}} hours",
+                  "{{call_2.aucpext.obs}} pour cent"):
+            with self.subTest(t):
+                r = self.bad(t, "adjacent_to_reference", "unit next to a reference", n=1); self.assertNotIn("12.3457", r["rendered"])
+
+    def test_sign_and_arithmetic_are_rejected(self):
+        for t in ("-{{call_4.auclast.difference}}", "+{{call_4.auclast.difference}}", "− {{call_4.auclast.difference}}", "{{call_2.cmax}} × 1000",
+                  "{{call_2.cmax}} x 2", "{{call_2.cmax}}*2", "{{call_2.cmax}}/{{call_2.tmax}}", "{{call_2.auclast}} - {{call_2.aucinf.obs}}",
+                  "{{call_2.cmax}} + 3", "{{call_2.cmax}}^2", "2 × {{call_2.cmax}}", "10^3 × {{call_2.cl.obs}}", "{{call_2.cmax}}e3",
+                  "{{call_2.cmax}}{{call_2.tmax}}", "{{call_2.cmax}} - 1", "({{call_2.auclast}}) - ({{call_2.aucall}})"):
+            with self.subTest(t): self.bad(t, "adjacent_to_reference")
+
+    def test_digits_glued_to_a_reference_are_rejected(self):
+        for t in ("1{{call_2.cmax}}", "{{call_2.cmax}}5", "{{call_2.cmax}}.5", "{{call_2.cmax}},5", "0.{{call_2.cmax}}"):
+            with self.subTest(t): self.bad(t, "adjacent_to_reference", "digit")
+
+    def test_ordinary_punctuation_and_words_are_fine(self):
+        for t in ("Cmax = {{call_2.cmax}}", "Cmax : {{call_2.cmax}}", "({{call_2.cmax}})", "{{call_2.cmax}}, {{call_2.tmax}} et {{call_2.auclast}}.",
+                  "{{call_2.cmax}} - c'est élevé", "{{call_2.cmax}} s'il faut", "{{call_2.tmax}} après la dose", "AUC(0-tlast) = {{call_2.auclast}}",
+                  "Cmax ≈ {{call_2.cmax}} ; demi-vie {{call_2.half.life}} (8 points)", "{{call_2.cmax}} est la Cmax", "**{{call_2.cmax}}**",
+                  "| Cmax | {{call_2.cmax}} |", "{{call_2.cmax}} mais", "{{call_2.half.life}} jusqu'à", "{{call_2.cmax}} d'après Caladrius"):
+            with self.subTest(t): self.ok(t)
+
+# ---------------------------------------------------------------- bare numbers: the user's digits only
+class TestBareNumbers(Base):
+    def test_the_users_numbers_may_be_quoted_exactly(self):
+        self.ok("La dose de 100 mg ; à 1,5 h la concentration était de 12,35 ng/mL, à 24 h 0.9 ng/mL.")
+        self.ok("dose 100.0 mg")                                                      # the same value
+        self.ok("−100 mg")                                                            # sign ignored for the user's numbers, as in v1
+
+    def test_a_tool_number_typed_by_hand_is_rejected_even_when_right(self):
+        for t in ("Cmax = 12.3457 ng/mL", "Cmax = 12,3 ng/mL", "AUC = 98.77 h*ng/mL", "Cmax = 12 ng/mL", "r² = 0,998765", "aucpext 22,5 %"):
+            with self.subTest(t):
+                self.bad(t, "bare_number", n=1); self.assertEqual(v1(t)["numbers_unverified"], 0, t)   # v1 accepts all of them
+
+    def test_no_rounding_match_on_the_users_numbers(self):
+        self.ok("6,98 ng/mL"); self.bad("7,0 ng/mL", "bare_number"); self.bad("7 ng/mL", "bare_number")
+        self.assertEqual(v1("7,0 ng/mL")["numbers_unverified"], 0)
+
+    def test_years_are_not_exempt(self):
+        self.bad("la valeur de 2000", "bare_number"); self.bad("en 2026", "bare_number")
+        self.ok("en 2026", users=(USER, "rapport de 2026"))
+        self.assertEqual(v1("en 2026")["numbers_unverified"], 0)
+
+    def test_counts_stay_exempt_but_not_after_a_pk_label(self):
+        r = self.ok("8 points, 3 sujets, AUC(0-inf), 2 analyses, 0 erreur ; étape 3 ; #17 ; le 2026-10-16 ; 10^3 ; 0,05 1/h".replace("0,05", "0.5"))
+        self.assertGreaterEqual(r["numbers_exempt"], 9)
+        for t in ("Cmax est de 12", "Cmax = 12", "la clairance : 5", "half-life of 7", "t1/2 ≈ 7", "CL/F vaut 2", "AUC(0-inf) de 15",
+                  "une demi-vie d'environ 7", "la Cmax (ng/mL) est 12", "extrapolation : 20", "le ratio est de 1"):
+            with self.subTest(t): self.bad(t, "bare_number", n=1)
+        self.bad("21 échantillons", "bare_number")
+        for t in ("Cmax est de 12", "la clairance : 5", "half-life of 7"): self.assertEqual(v1(t)["numbers_unverified"], 0, t)
+
+    def test_csv_rows_glued_by_commas(self):
+        self.ok("la ligne 1,5,12.35 du fichier")
+
+    def test_finding_fields_and_nearest(self):
+        f = self.bad("Cmax = 12,36 ng/mL", "bare_number")["findings"][0]
+        for k in ("kind", "number", "text", "value", "position", "line", "unit", "significant_digits", "nearest_allowed", "nearest_source", "hint", "reason", "ref"):
+            self.assertIn(k, f)
+        self.assertEqual((f["number"], f["unit"], f["value"], f["significant_digits"]), ("12,36", "ng/mL", "12.36", 4))
+        self.assertEqual(f["nearest_allowed"], "12.35"); self.assertIn("user message", f["nearest_source"])
+        self.assertEqual("Cmax = 12,36 ng/mL"[f["position"][0]:f["position"][1]], "12,36 ng/mL")
+
+# ---------------------------------------------------------------- numbers in words
+class TestNumberWords(Base):
+    def test_quantities_in_words_are_rejected(self):
+        for t in ("deux litres", "trois heures", "cinq pour cent", "deux fois plus élevée", "trente-deux", "deux cents", "cent", "mille",
+                  "deux virgule cinq", "twenty five", "two hundred", "half the value", "la moitié", "le double", "Cmax vaut douze",
+                  "une clairance de dix", "la demi-vie est de six", "about ten hours", "six h", "quatre-vingt-dix", "dix-sept", "twice as high",
+                  "two point five", "un tiers", "trois quarts", "sept pour cent"):
+            with self.subTest(t): self.bad(t, "number_word", n=1); self.assertEqual(v1(t)["numbers_unverified"], 0, t)
+
+    def test_counts_in_words_and_compound_words_are_fine(self):
+        for t in ("les deux analyses", "trois sujets", "deux méthodes", "la demi-vie", "half-life", "the half life", "une analyse", "one subject",
+                  "un point", "neuf", "six", "en pour cent", "aucpext en pour cent", "the two AUC methods", "zéro erreur", "quinze points",
+                  "le troisième sujet", "sixième", "centre", "millilitre", "pourcentage", "sept points de la régression"):
+            with self.subTest(t):
+                r = self.ok(t); self.assertEqual(r["numbers_unverified"], 0)
+
+# ---------------------------------------------------------------- the audit's blind spots
+class TestAuditBlindSpots(Base):
+    """Each case: (what, a sentence gate v1 accepts on these sources, v2's verdict). `v1_passes` None = the sentence only exists in v2."""
+    CASES = [
+        ("right number on the wrong parameter (aucall quoted as AUC(0-tlast))", "AUC(0-tlast) = 101,235 h*ng/mL", True, "bare_number"),
+        ("unit changed (ng/mL written as mg/L)", "Cmax = 12,3457 mg/L", True, "bare_number"),
+        ("unit written next to a reference", "{{call_2.cmax}} mg/L", None, "adjacent_to_reference"),
+        ("sign inverted (the engine's difference is negative)", "la différence est de 1,75309 h*ng/mL", True, "bare_number"),
+        ("sign written next to a reference", "−{{call_4.auclast.difference}}", None, "adjacent_to_reference"),
+        ("number spelled in words", "la clairance est d'environ deux litres par heure", True, "number_word"),
+        ("decimal spelled in words", "une Cmax de douze virgule trois ng/mL", True, "number_word"),
+        ("fraction in words", "la moitié de la Cmax est atteinte", True, "number_word"),
+        ("small integer after a label (v1 exempts 0-20)", "Cmax est de 12 (unité non précisée)", True, "bare_number"),
+        ("year exemption as a channel", "une AUC de 2000", True, "bare_number"),
+        ("2-digit coincidence with a tool number (cl.obs 0.81)", "une baisse de 0,81 %", True, "bare_number"),
+        ("2-digit coincidence (the compare ratio 1.00)", "variation de −1,00 %", True, "bare_number"),
+        ("rounding chosen by the model", "Cmax ≈ 12 ng/mL", True, "bare_number"),
+        ("the engine's difference typed instead of cited", "soit 1,75 h*ng/mL de moins", True, "bare_number"),
+        ("wrong subject (subject 1's Cmax given for subject 2)", "Cmax du sujet 2 = 15,5 ng/mL", True, "bare_number"),
+        ("wrong analysis (the linear AUC given as lin-up/log-down)", "AUC lin-up/log-down = 98,7654 h*ng/mL", True, "bare_number"),
+        ("arithmetic on references", "{{call_2.aucinf.obs}} - {{call_2.auclast}}", None, "adjacent_to_reference"),
+        ("a digit glued to a reference", "{{call_2.cmax}}0", None, "adjacent_to_reference"),
+    ]
+
+    def test_each_blind_spot_is_rejected_by_v2(self):
+        for what, sentence, v1_passes, kind in self.CASES:
+            with self.subTest(what):
+                r = v2(sentence)
+                self.assertGreaterEqual(r["numbers_unverified"], 1, (what, r["findings"]))
+                self.assertIn(kind, [f["kind"] for f in r["findings"]], what)
+                self.assertIn(gate_v2.MARK_OPEN, r["rendered"], what)
+                if v1_passes is not None:
+                    self.assertEqual(v1(sentence)["numbers_unverified"], 0, (what, "v1 was expected to accept this sentence"))
+
+    def test_the_rendered_label_is_the_selected_parameter(self):
+        # with references the model cannot attach aucall's number to the AUC(0-tlast) label without naming aucall
+        r = self.ok("AUC(0-tlast) = {{call_2.auclast}}"); self.assertIn("98.7654", r["rendered"]); self.assertNotIn("101.235", r["rendered"])
+        r = self.ok("AUC(0-tlast) = {{call_2.aucall}}"); self.assertIn("101.235", r["rendered"])      # a selection error: visible as a token
+        self.ok("Cmax du sujet 2 = {{call_3.subject=2.cmax}}", "Cmax du sujet 2 = 9.25 ng/mL")
+        self.ok("AUC lin-up/log-down = {{call_5.auclast}}", "AUC lin-up/log-down = 97.0123 h*ng/mL")
+        self.ok("différence {{call_4.auclast.difference}}", "différence -1.75309 h*ng/mL")             # the sign is the engine's
+
+# ---------------------------------------------------------------- record, badge, reminder
+class TestRecordAndMessages(Base):
+    def test_counts_and_serialisation(self):
+        r = v2("Cmax = {{call_2.cmax}} ; {{call_2.cmaxx}} ; 12,36 ng/mL ; deux litres ; 3 sujets ; dose 100 mg")
+        self.assertEqual((r["references_total"], r["references_unresolved"]), (2, 1))
+        self.assertEqual((r["numbers_total"], r["numbers_unverified"], r["numbers_exempt"]), (5, 3, 1))
+        json.dumps(r)
+        self.assertEqual(r["rendered"].count(gate_v2.MARK_OPEN), 3); self.assertIn("12.3457 ng/mL", r["rendered"]); self.assertIn("dose 100 mg", r["rendered"])
+        self.assertEqual(gate_v2.check("", CALLS, [USER]), {"rendered": "", "findings": [], "exempt": [], "numbers_total": 0, "numbers_unverified": 0,
+                                                            "numbers_exempt": 0, "references_total": 0, "references_unresolved": 0})
+
+    def test_badge_and_reminder(self):
+        r = v2("{{call_2.cmaxx}} et 12,36 ng/mL et {{call_2.cmax}} ng/mL et {{call_7.x}}")
+        b = gate_v2.badge(r["findings"])
+        self.assertTrue(b.startswith("⚠ 4 problem(s)"), b); self.assertIn("{{call_2.cmaxx}}", b); self.assertIn("12,36 ng/mL", b)
+        self.assertEqual(gate_v2.badge([]), "")
+        rem = gate_v2.reminder(r["findings"], CALLS)
+        self.assertTrue(rem.startswith("[system reminder]"))
+        self.assertIn("closest: cmax", rem); self.assertIn("computed parameters: aucall, aucinf.obs, auclast", rem)   # listed for the bad ref
+        self.assertEqual(rem.count("computed parameters:"), 1)
+        self.assertIn("Available references: call_1 (data_import, worksheet 4: rows, subjects); call_2 (nca_run, analysis 7, subject 1); "
+                      "call_3 (nca_run, analysis 9, 3 subjects: call_3.subject=1, call_3.subject=2, call_3.subject=3); "
+                      "call_4 (analysis_compare: auclast, cmax; fields .a .b .difference .percent .ratio); call_5 (nca_run, analysis 8, subject 1)", rem)
+        self.assertIn("unit next to a reference", rem); self.assertIn("not in the user's message", rem); self.assertIn("call_7 is not a tool result", rem)
+
+# ---------------------------------------------------------------- the digest and the records built by the client
+class TestDigestRef(unittest.TestCase):
+    def test_ref_is_the_first_key_and_subjects_get_their_own(self):
+        g = td.GOLDENS["edge_blq_6_subjects"]; units = {}
+        apothicaire.render_tool_result("data_import", True, json.dumps(g["data_import_result"]), units)
+        shown = apothicaire.render_tool_result("nca_run", True, json.dumps(g["nca_run_result"]), units, ref="call_2")
+        self.assertTrue(shown.startswith('{"ref":"call_2",'), shown[:40])
+        d = json.loads(shown)
+        self.assertEqual([s["ref"] for s in d["subjects"]], [f"call_2.subject={s['subject']}" for s in d["subjects"]])
+        self.assertTrue(all(list(s)[0] == "ref" for s in d["subjects"]))
+        plain = apothicaire.render_tool_result("nca_run", True, json.dumps(g["nca_run_result"]), units)       # v1: unchanged
+        self.assertNotIn('"ref"', plain)
+        self.assertEqual(json.loads(plain), {k: v for k, v in d.items() if k != "ref"} | {"subjects": [{k: v for k, v in s.items() if k != "ref"} for s in d["subjects"]]})
+        one = json.loads(apothicaire.render_tool_result("nca_run", True, json.dumps(td.GOLDENS["theoph_s1_oral_dose_arg"]["nca_run_result"]), units, ref="call_3"))
+        self.assertEqual(one["ref"], "call_3"); self.assertNotIn("ref", one["subjects"][0])                  # one subject: no per-subject ref
+        imp = json.loads(apothicaire.render_tool_result("data_import", True, json.dumps(g["data_import_result"]), units, ref="call_1"))
+        self.assertEqual(list(imp)[0], "ref")
+
+    def test_ref_record_units_are_the_digests(self):
+        g = td.GOLDENS["theoph_s1_oral_dose_arg"]; d, units = td.digest_of(g)
+        rec = apothicaire.ref_record("call_2", "nca_run", g["nca_run_result"], {1: units})
+        self.assertEqual(rec["structured"], g["nca_run_result"])
+        for pname, shown in d["subjects"][0]["parameters"].items():
+            unit = shown.partition(" ")[2] if isinstance(shown, str) else ""
+            self.assertEqual(rec["units"]["parameters"][pname], unit, pname)
+        c = td.load(os.path.join("compare", "theoph_s1_compare_linear_vs_lin_up_log_down.json"))
+        u = {1: units, ("analysis", 2): 1, ("analysis", 3): 1}
+        rc = apothicaire.ref_record("call_5", "analysis_compare", c["compare_auclast_result"], u)
+        self.assertEqual(rc["units"]["rows"]["auclast"], {"a": "h*mg/L", "b": "h*mg/L", "difference": "h*mg/L", "relative_percent": "%", "ratio": ""})
+        dc = apothicaire.digest_compare(c["compare_auclast_result"], u)["parameters"]["auclast"]
+        self.assertIn("difference -1.6883 h*mg/L", dc)                                                        # the digest is unchanged
+
+# ---------------------------------------------------------------- the static prefix budget
+def _tokenizer():
+    """A Qwen tokenizer.json from the local Hugging Face cache (the Bonsai 2 family is Qwen-based), or None."""
+    paths = [os.environ.get("APOTHICAIRE_TOKENIZER", "")] + glob.glob(os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "hub",
+                                                                                   "models--*Qwen*", "snapshots", "*", "tokenizer.json"))
+    for p in paths:
+        if p and os.path.exists(p):
+            try:
+                from tokenizers import Tokenizer
+                return Tokenizer.from_file(p), p
+            except Exception: continue
+    return None, None
+
+class TestStaticPrefixBudget(unittest.TestCase):
+    MEASURED_V1 = 2434          # README: static prefix with the v1 addition and 7 tools, llama.cpp count of 2026-10-09b
+    BUDGET = 2500
+
+    def test_v2_addition_keeps_the_prefix_under_the_budget(self):
+        a1, a2 = apothicaire.SYSTEM_ADDITION, apothicaire.SYSTEM_ADDITION_V2
+        tok, path = _tokenizer()
+        if tok is not None:
+            delta = len(tok.encode(a2).ids) - len(tok.encode(a1).ids)
+            self.assertLessEqual(self.MEASURED_V1 + delta, self.BUDGET, f"v2 adds {delta} tokens ({path})")
+        base = optchat.SYSTEM_PROMPT
+        for a in apothicaire._ADDITIONS: base = base.replace(a, "")
+        tools = json.dumps([apothicaire.to_openai(t) for t in td.load("tools_list.json")["tools"] if t["name"] in apothicaire.EXPOSED])
+        est = self.MEASURED_V1 * len(base + a2 + tools) / len(base + a1 + tools)          # proportional estimate, always checked
+        self.assertLessEqual(est, self.BUDGET)
+
+    def test_exact_measure_when_a_model_server_is_up(self):
+        import httpx
+        try: up = httpx.get(optchat.CFG["base_url"] + "/health", timeout=1.0).status_code == 200
+        except Exception: up = False
+        if not up or not os.path.exists(apothicaire.MCP_BIN): self.skipTest("no llama-server on " + optchat.CFG["base_url"])
+        import tempfile, shutil
+        tmp = tempfile.mkdtemp(prefix="apo_prefix_")
+        try:
+            for version in ("v1", "v2"):
+                ag = apothicaire.Apothicaire(cfg=dict(optchat.CFG, data_dir=os.path.join(tmp, version)), gate_version=version)
+                try: n = apothicaire.static_prefix_tokens(ag)
+                finally: ag.close()
+                self.assertLessEqual(n, self.BUDGET, version)
+        finally: shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_the_addition_keeps_the_invariants_of_v1(self):
+        a2 = apothicaire.SYSTEM_ADDITION_V2
+        self.assertNotIn("gate", a2.lower()); self.assertNotIn("system reminder", a2)
+        self.assertIn("{{call_3.cmax}}", a2); self.assertIn("analysis_compare", a2)
+        apothicaire.install_prompt(apothicaire.SYSTEM_ADDITION_V2); self.assertTrue(optchat.SYSTEM_PROMPT.endswith(a2))
+        self.assertNotIn(apothicaire.SYSTEM_ADDITION, optchat.SYSTEM_PROMPT)
+        apothicaire.install_prompt(apothicaire.SYSTEM_ADDITION); self.assertTrue(optchat.SYSTEM_PROMPT.endswith(apothicaire.SYSTEM_ADDITION))
+        self.assertNotIn(a2, optchat.SYSTEM_PROMPT); self.assertEqual(optchat.SYSTEM_PROMPT.count("You are Apothicaire"), 1)
+        self.assertEqual(apothicaire.gate_version_of("V2"), "v2"); self.assertEqual(apothicaire.gate_version_of(None), os.environ.get("APOTHICAIRE_GATE", "v1"))
+        with self.assertRaises(ValueError): apothicaire.gate_version_of("v3")
+
+
+if __name__ == "__main__":
+    unittest.main()

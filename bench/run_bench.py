@@ -465,7 +465,11 @@ def main():
     ap.add_argument("--report-only", action="store_true")
     ap.add_argument("--tool-arg-audit", action="store_true", help="list, per exercise, every tool call whose arguments differ from the script's intent (needs the stored records; run --rescore first on an older run)")
     ap.add_argument("--rescore", action="store_true", help="recompute the scores of the stored turns with the current rules, then the report")
+    ap.add_argument("--gate", default=os.environ.get("APOTHICAIRE_GATE", "v1"), choices=["v1", "v2"],
+                    help="v1: the number gate (gate.py); v2: typed rendering (gate_v2.py, GATE_V2.md). Sets APOTHICAIRE_GATE for the run.")
     a = ap.parse_args(); optchat._utf8_stdout()
+    os.environ["APOTHICAIRE_GATE"] = a.gate
+    MODEL = f"Bonsai 2 27B (Ternary-Bonsai-2-27B-PTQ1_0), temperature 0.3, no fixed seed, gate {a.gate}"
     run_dir = os.path.join(RUNS, a.date); os.makedirs(run_dir, exist_ok=True)
     dirs = mk.list_exercises()
     if a.ids: dirs = [d for d in dirs if os.path.basename(d) in a.ids.split(",")]
@@ -484,8 +488,8 @@ def main():
             print(f"{i}: {len(ok)}/{len(r['turns'])} turns, unverified {sum(t['numbers_unverified_before'] for t in ok)}/"
                   f"{sum(t['numbers_total_before'] for t in ok)} before, {sum(t['numbers_unverified_after'] for t in ok)}/"
                   f"{sum(t['numbers_total_after'] for t in ok)} shown, {time.time() - t0:.0f} s", flush=True)
-            write_report(run_dir, load_records(run_dir, ids), {"date": a.date, "exercises_run": len(ids), "model": "Bonsai 2 27B (Ternary-Bonsai-2-27B-PTQ1_0), temperature 0.3, no fixed seed"})
-    rep = write_report(run_dir, load_records(run_dir, ids), {"date": a.date, "exercises_run": len(ids), "model": "Bonsai 2 27B (Ternary-Bonsai-2-27B-PTQ1_0), temperature 0.3, no fixed seed"})
+            write_report(run_dir, load_records(run_dir, ids), {"date": a.date, "exercises_run": len(ids), "model": MODEL, "gate": a.gate})
+    rep = write_report(run_dir, load_records(run_dir, ids), {"date": a.date, "exercises_run": len(ids), "model": MODEL, "gate": a.gate})
     h = rep["hallucination"]
     print(f"hallucination: {h['before_gate']['unverified']}/{h['before_gate']['total']} before, {h['after_gate']['unverified']}/{h['after_gate']['total']} shown")
     print("report:", os.path.join(run_dir, "report.md"))
