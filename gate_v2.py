@@ -14,6 +14,12 @@ marker and listed in a badge, never passed through.
       "numbers_total", "numbers_unverified", "numbers_exempt",        (same keys as gate v1: the bench reads them)
       "references_total", "references_unresolved"}
 
+Aliases (GATE_V2.md, "Reference syntax"): `lambda_z.<field>` names a field of the SELECTED λz regression candidate
+(`outcome.ok.lambda_z_candidates[j]` with `selected: true`; fail-closed when none is selected) and `thresholds.<name>` a
+quality threshold echoed by the result (`spec.options.quality.<name>`). Both are checked against the schema on their
+canonical path. The digest's own labels (`lambda_z_regression.*`, `options_used.quality_thresholds.*`) are NOT paths:
+they are rejected with the alias as the closest name.
+
 `calls`: ref -> record built by apothicaire.ref_record: {"ref", "name", "structured", "units"}, where units carries
 the labels the client computed at call time ({"dose": u, "parameters": {name: unit}} for an NCA analysis,
 {"rows": {parameter: {"a": u, "b": u, "difference": u, "relative_percent": "%", "ratio": ""}}} for a comparison).
@@ -104,9 +110,67 @@ def _resolve_generic(obj, segs, base=()):
 
 _NCA_TOP = ("result", "spec", "id", "label", "status", "kind", "name")
 
+# ---- aliases: the selected λz regression candidate and the quality thresholds (values the plain path syntax cannot name)
+_LZ_ALIAS = ("lambda_z", "lambdaz", "lambda-z", "λz")        # `lambda.z` is the PKNCA parameter (the slope), not an alias prefix
+_LZ_FIELDS = ("adj_r_squared", "r_squared", "n_points", "time_first", "time_last", "lambda_z", "intercept", "replaced_points")
+_LZ_UNITS = {"lambda_z": "lambda.z", "time_first": "lambda.z.time.first", "time_last": "lambda.z.time.last"}   # the parameter whose unit the field shares
+_TH_ALIAS = ("thresholds", "threshold")
+
+def _norm(name): return re.sub(r"[.\-\s]+", "_", str(name).strip()).lower()
+
+def _thresholds(sc):
+    q = ((sc.get("spec") or {}).get("options") or {}).get("quality")
+    return {k: v for k, v in q.items() if _scalar(v) and v is not None} if isinstance(q, dict) else {}
+
+def _resolve_thresholds(sc, rest):
+    """{{call_N.thresholds.max_extrapolated_percent}}: a quality threshold echoed by the result (spec.options.quality)."""
+    q = _thresholds(sc)
+    if not q: raise Unresolved("this analysis carries no quality thresholds")
+    if not rest: raise Unresolved("say which threshold: thresholds.<name>", "thresholds: " + ", ".join(q))
+    name = _norm(_join(rest))
+    if name not in q:
+        close = difflib.get_close_matches(name, list(q), n=3, cutoff=0.5)
+        raise Unresolved(f"no quality threshold {name!r}", ("closest: " + ", ".join(f"thresholds.{c}" for c in close) + ". " if close else "")
+                         + "thresholds: " + ", ".join(f"thresholds.{k}" for k in q))
+    return Resolved(q[name], "%" if name.endswith("percent") else "", ["spec", "options", "quality", name], "threshold")
+
+def _selected_candidates(ok):
+    return [(j, c) for j, c in enumerate((ok or {}).get("lambda_z_candidates") or []) if isinstance(c, dict) and c.get("selected") is True]
+
+def _resolve_lambda_z(ok, rest, units, base):
+    """{{call_N.lambda_z.adj_r_squared}}: a field of the SELECTED λz regression candidate (fail-closed when none is selected)."""
+    sel = _selected_candidates(ok)
+    if not sel: raise Unresolved("no λz regression candidate is selected in this analysis: say that Caladrius did not retain one")
+    if len(sel) > 1: raise Unresolved(f"{len(sel)} λz candidates are marked selected: the selection is ambiguous")
+    j, c = sel[0]
+    fields = [k for k, v in c.items() if k not in ("selected", "valid") and _scalar(v) and v is not None]
+    if not rest: raise Unresolved("say which field of the selected regression: lambda_z.<field>", "fields: " + ", ".join(f"lambda_z.{k}" for k in fields))
+    name = _norm(_join(rest))
+    if name not in fields:
+        close = difflib.get_close_matches(name, fields, n=3, cutoff=0.5)
+        raise Unresolved(f"no field {name!r} in the selected λz regression", ("closest: " + ", ".join(f"lambda_z.{k}" for k in close) + ". " if close else "")
+                         + "fields: " + ", ".join(f"lambda_z.{k}" for k in fields))
+    unit = (units.get("parameters") or {}).get(_LZ_UNITS[name], "") if name in _LZ_UNITS else ""
+    return Resolved(c[name], unit, base + ["outcome", "ok", "lambda_z_candidates", j, name], "lambda_z")
+
+def _alias_hint(key, sc, ok):
+    """The alias an invented path most likely meant. The digest labels the selected candidate `lambda_z_regression` and the
+    thresholds `options_used.quality_thresholds`; the grammar names them `lambda_z.<field>` and `thresholds.<name>`."""
+    low = key.lower(); segs = [_norm(s) for s in segments(key)]
+    sel = _selected_candidates(ok)
+    fields = set(_LZ_FIELDS) | ({k for k in sel[0][1] if k not in ("selected", "valid")} if len(sel) == 1 else set())
+    q = _thresholds(sc)
+    for k in (3, 2, 1):
+        if len(segs) <= k: continue                                   # the first segment is the invented prefix, never part of the field
+        name = "_".join(segs[-k:])
+        if name in fields and re.search(r"lambda|λ|regress|candidate", low): return f"lambda_z.{name}"
+        if name in q and re.search(r"threshold|quality|option|limit", low): return f"thresholds.{name}"
+    return None
+
 def _resolve_nca(sc, segs, units):
     """{{call_N.cmax}}, {{call_N.subject=2.cmax}}, {{call_N.dose}}; a `parameters.` prefix and a `.value` suffix are ignored."""
     if isinstance(segs[0], str) and segs[0] in _NCA_TOP: return None          # plain JSON path
+    if isinstance(segs[0], str) and segs[0].lower() in _TH_ALIAS: return _resolve_thresholds(sc, segs[1:])   # analysis-level, no subject
     subjects = (sc.get("result") or {}).get("subjects") or []
     labels = ", ".join(str(s.get("subject")) for s in subjects)
     m = _SUBJ_RE.match(segs[0]) if isinstance(segs[0], str) else None
@@ -119,6 +183,7 @@ def _resolve_nca(sc, segs, units):
     elif not subjects: raise Unresolved("the analysis has no subject")
     else: raise Unresolved(f"the analysis has {len(subjects)} subjects: write subject=LABEL before the parameter", f"subjects: {labels}")
     if not rest: raise Unresolved("name a parameter after the ref, e.g. {{call_N.cmax}}")
+    if isinstance(rest[0], str) and rest[0].lower() in _TH_ALIAS: return _resolve_thresholds(sc, rest[1:])
     s = subjects[idx]; base = ["result", "subjects", idx]
     key = _join(rest)
     if key.startswith("parameters."): key = key[len("parameters."):]
@@ -130,7 +195,10 @@ def _resolve_nca(sc, segs, units):
         v = s.get(key); return Resolved(v if isinstance(v, str) else str(v), "", base + [key], "field")
     oc = s.get("outcome") or {}
     if "ok" not in oc: raise Unresolved(f"subject {s.get('subject')} has no result: {oc.get('error', 'error')}")
-    params = (oc["ok"] or {}).get("parameters") or []
+    ok = oc["ok"] or {}
+    if len(rest) >= 2 and isinstance(rest[0], str) and _norm(rest[0]) in _LZ_ALIAS:     # `lambda_z` alone stays a parameter name
+        return _resolve_lambda_z(ok, rest[1:], units, base)
+    params = ok.get("parameters") or []
     names = [p.get("name") for p in params]
     if key not in names and key.lower() in names: key = key.lower()
     if key in names:
@@ -142,7 +210,8 @@ def _resolve_nca(sc, segs, units):
     try: return _resolve_generic(s, rest, base)                                # e.g. outcome.ok.flags[0].value
     except Unresolved:
         computed = sorted(n for n, p in zip(names, params) if "value" in (p.get("value") or {}))
-        close = difflib.get_close_matches(key, computed, n=3, cutoff=0.5)
+        alias = _alias_hint(key, sc, ok)
+        close = ([alias] if alias else []) + difflib.get_close_matches(key, computed, n=3, cutoff=0.5)
         raise Unresolved(f"no parameter {key!r} in this analysis",
                          ("closest: " + ", ".join(close) + ". " if close else "") + "computed parameters: " + ", ".join(computed))
 
@@ -489,8 +558,24 @@ def reminder(findings, calls=None, limit=12):
         elif f["kind"] == "number_word": lines.append(f"- \"{f['text']}\": {f['reason']}; cite a tool value by reference or use the user's digits")
         else: lines.append(f"- {f['text']}: {f['reason']}")
     avail = describe(calls)
+    aliases = alias_line(calls)
     return ("[system reminder] Your last answer was rejected by the renderer:\n" + "\n".join(lines[:limit]) + "\n"
             "Rule: never type a value a tool returned, not even rounded. Cite it as {{ref.parameter}}, e.g. {{call_3.cmax}}, and the "
             "client prints the value with its unit; write no unit, sign, digit or arithmetic next to a reference. The only digits you "
             "may type are those of the user's message. If a value is missing, say that Caladrius did not return it.\n"
-            + ("Available references: " + "; ".join(avail) + "\n" if avail else "") + "Write the answer again.")
+            + ("Available references: " + "; ".join(avail) + "\n" if avail else "") + (aliases + "\n" if aliases else "")
+            + "Write the answer again.")
+
+def alias_line(calls):
+    """The aliases of the NCA results among `calls` (for the reminder): the selected regression, the thresholds when carried."""
+    ncas = [(ref, c["structured"]) for ref, c in (calls or {}).items()
+            if isinstance(c.get("structured"), dict) and c["structured"].get("kind") == "nca" and isinstance(c["structured"].get("result"), dict)]
+    parts = []
+    lz = next((ref for ref, sc in reversed(ncas) if any(len(_selected_candidates(s.get("outcome", {}).get("ok"))) == 1
+                                                        for s in sc["result"].get("subjects") or [])), None)
+    if lz: parts.append(f"{lz}.lambda_z.adj_r_squared, .r_squared, .n_points, .time_first, .time_last (the selected λz regression)")
+    th = next(((ref, list(_thresholds(sc))) for ref, sc in reversed(ncas) if _thresholds(sc)), None)
+    if th:
+        ref, names = th
+        parts.append(f"{ref}.thresholds.{names[0]}" + (" (also " + ", ".join(f".{n}" for n in names[1:]) + ")" if len(names) > 1 else "") + " (quality thresholds)")
+    return "Aliases: " + "; ".join(parts) + "." if parts else ""

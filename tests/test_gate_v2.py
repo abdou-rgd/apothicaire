@@ -377,6 +377,127 @@ class TestRecordAndMessages(Base):
                       "call_4 (analysis_compare: auclast, cmax; fields .a .b .difference .percent .ratio); call_5 (nca_run, analysis 8, subject 1)", rem)
         self.assertIn("unit next to a reference", rem); self.assertIn("not in the user's message", rem); self.assertIn("call_7 is not a tool result", rem)
 
+
+# ---------------------------------------------------------------- aliases: the selected λz candidate and the quality thresholds
+CANDS = [{"adj_r_squared": 0.98765, "intercept": 2.5, "lambda_z": 0.1234, "n_points": 4, "r_squared": 0.99012, "replaced_points": 0,
+          "selected": False, "time_first": 6.0, "time_last": 24.0, "valid": True},
+         {"adj_r_squared": 0.99876, "intercept": 2.4, "lambda_z": 0.1111, "n_points": 3, "r_squared": 0.99938, "replaced_points": 0,
+          "selected": True, "time_first": 8.0, "time_last": 24.0, "valid": True}]
+
+def with_candidates(payload, cands):
+    p = copy.deepcopy(payload)
+    for s in p["result"]["subjects"]: s["outcome"]["ok"]["lambda_z_candidates"] = copy.deepcopy(cands)
+    return p
+
+class TestAliases(Base):
+    """`lambda_z.<field>` = the selected λz regression candidate; `thresholds.<name>` = spec.options.quality (GATE_V2.md)."""
+    def setUp(self):
+        self.calls = make_calls(call_2=apothicaire.ref_record("call_2", "nca_run", with_candidates(NCA, CANDS), WS_UNITS),
+                                call_3=apothicaire.ref_record("call_3", "nca_run", with_candidates(MULTI, CANDS), WS_UNITS))
+
+    def test_the_selected_candidate_by_alias(self):
+        for field, out in (("adj_r_squared", "0.99876"), ("r_squared", "0.99938"), ("n_points", "3"), ("time_first", "8"), ("time_last", "24"),
+                           ("lambda_z", "0.1111"), ("intercept", "2.4")):
+            self.ok(f"{{{{call_2.lambda_z.{field}}}}}", out, calls=self.calls)             # the selected one (index 1), never the first
+        self.ok("{{call_2.lambda_z.r.squared}} {{call_2.lambda_z.adj.r.squared}} {{ call_2 . lambda_z . n_points }}", "0.99938 0.99876 3", calls=self.calls)
+        self.assertEqual(gate_v2.resolve("call_2", "lambda_z.adj_r_squared", self.calls, SCHEMAS).path,
+                         ["result", "subjects", 0, "outcome", "ok", "lambda_z_candidates", 1, "adj_r_squared"])       # the canonical path
+        self.assertEqual(v2("{{call_2.lambda_z.adj_r_squared}}", calls=self.calls, mark=",")["rendered"], "0,99876")
+        self.ok("{{call_2.r.squared}} {{call_2.lambda.z.n.points}}", "0.998765 4", calls=self.calls)   # the PKNCA names resolve as before (synthetic values differ)
+
+    def test_time_fields_carry_the_time_unit_when_the_analysis_has_it(self):
+        g = td.GOLDENS["theoph_s1_oral_dose_arg"]; d, units = td.digest_of(g)
+        calls = {"call_1": apothicaire.ref_record("call_1", "nca_run", g["nca_run_result"], {g["data_import_result"]["worksheet"]["id"]: units})}
+        reg = d["subjects"][0]["lambda_z_regression"]
+        for field, unit in (("time_first", " h"), ("time_last", " h"), ("lambda_z", " 1/h"), ("adj_r_squared", ""), ("n_points", "")):
+            r = gate_v2.check(f"{{{{call_1.lambda_z.{field}}}}}", calls, [], SCHEMAS)
+            self.assertEqual(r["findings"], [], field)
+            self.assertTrue(r["rendered"].endswith(unit), (field, r["rendered"]))
+            self.assertEqual(float(r["rendered"].split(" ")[0]), float(reg[field]), field)
+        for name, v in d["options_used"]["quality_thresholds"].items():
+            r = gate_v2.check(f"{{{{call_1.thresholds.{name}}}}}", calls, [], SCHEMAS)
+            self.assertEqual(r["findings"], [], name); self.assertEqual(float(r["rendered"].split(" ")[0]), float(v), name)
+            self.assertEqual(r["rendered"].endswith(" %"), name.endswith("percent"), r["rendered"])
+
+    def test_every_golden_candidate_renders_as_the_digest_shows(self):
+        for name, g in td.GOLDENS.items():
+            d, units = td.digest_of(g)
+            calls = {"call_1": apothicaire.ref_record("call_1", "nca_run", g["nca_run_result"], {g["data_import_result"]["worksheet"]["id"]: units})}
+            many = len(d["subjects"]) > 1
+            for s in d["subjects"]:
+                pre = f"call_1.{'subject=' + str(s['subject']) + '.' if many else ''}lambda_z."
+                if "lambda_z_regression" not in s:                                      # no candidate selected: fail-closed
+                    r = gate_v2.check(f"{{{{{pre}adj_r_squared}}}}", calls, [], SCHEMAS)
+                    with self.subTest(case=name, subject=s["subject"]):
+                        self.assertTrue(any(w in r["findings"][0]["reason"] for w in ("no λz regression candidate is selected", "has no result")), r["findings"][0]["reason"])
+                    continue
+                for field, shown in s["lambda_z_regression"].items():
+                    r = gate_v2.check(f"{{{{{pre}{field}}}}}", calls, [], SCHEMAS)
+                    with self.subTest(case=name, subject=s["subject"], field=field):
+                        self.assertEqual(r["findings"], [], field); self.assertEqual(float(r["rendered"].split(" ")[0]), float(shown))
+
+    def test_fail_closed_without_one_selected_candidate(self):
+        self.bad("{{call_2.lambda_z.adj_r_squared}}", "unresolved_reference", "no λz regression candidate is selected")          # CALLS: no candidates
+        two = copy.deepcopy(CANDS); two[0]["selected"] = True
+        calls = make_calls(call_2=apothicaire.ref_record("call_2", "nca_run", with_candidates(NCA, two), WS_UNITS))
+        self.bad("{{call_2.lambda_z.adj_r_squared}}", "unresolved_reference", "2 λz candidates are marked selected", calls=calls)
+        r = self.bad("{{call_2.lambda_z.foo}}", "unresolved_reference", "no field 'foo' in the selected", calls=self.calls)
+        self.assertIn("fields: lambda_z.adj_r_squared", r["findings"][0]["hint"])
+        self.bad("{{call_2.lambda_z.selected}}", "unresolved_reference", "no field 'selected'", calls=self.calls)                  # flags are not values
+        self.bad("{{call_2.lambda_z}}", "unresolved_reference", "no parameter 'lambda_z'", calls=self.calls)                       # alone: a parameter name
+
+    def test_several_subjects(self):
+        self.bad("{{call_3.lambda_z.adj_r_squared}}", reason="3 subjects", calls=self.calls)
+        self.ok("{{call_3.subject=2.lambda_z.n_points}}", "3", calls=self.calls)
+        self.ok("{{call_3.thresholds.max_extrapolated_percent}} {{call_3.subject=2.thresholds.min_adj_r_squared}}", "20 % 0.9", calls=self.calls)
+
+    def test_thresholds(self):
+        self.ok("{{call_2.thresholds.max_extrapolated_percent}}", "20 %"); self.ok("{{call_2.thresholds.min_adj_r_squared}}", "0.9")
+        self.assertEqual(gate_v2.resolve("call_2", "thresholds.min_adj_r_squared", CALLS, SCHEMAS).path, ["spec", "options", "quality", "min_adj_r_squared"])
+        self.assertEqual(v2("seuil {{call_2.thresholds.max_extrapolated_percent}}", mark=",")["rendered"], "seuil 20 %")
+        r = self.bad("{{call_2.thresholds.foo}}", "unresolved_reference", "no quality threshold 'foo'")
+        self.assertIn("thresholds: thresholds.max_extrapolated_percent, thresholds.min_adj_r_squared", r["findings"][0]["hint"])
+        self.bad("{{call_2.thresholds}}", "unresolved_reference", "say which threshold")
+        n = copy.deepcopy(NCA); del n["spec"]["options"]["quality"]
+        calls = make_calls(call_2=apothicaire.ref_record("call_2", "nca_run", n, WS_UNITS))
+        self.bad("{{call_2.thresholds.max_extrapolated_percent}}", "unresolved_reference", "carries no quality thresholds", calls=calls)
+        self.bad("Le seuil est 20 %", "bare_number")                                       # the domain constant typed by hand stays rejected
+        self.bad("{{call_2.thresholds.max_extrapolated_percent}} %", "adjacent_to_reference")   # the client prints the %
+
+    def test_invented_digest_paths_are_rejected_with_the_alias_as_closest_name(self):
+        for path, alias in (("lambda_z_regression.adj_r_squared", "lambda_z.adj_r_squared"), ("lambda_z_regression.r.squared", "lambda_z.r_squared"),
+                            ("lambda_z_regression.n_points", "lambda_z.n_points"), ("lambda.z_regression.adj_r_squared", "lambda_z.adj_r_squared"),
+                            ("subject=1.lambda_z_regression.adj_r_squared", "lambda_z.adj_r_squared"), ("lambda_z_candidates.time_first", "lambda_z.time_first"),
+                            ("quality_thresholds.max_extrapolated_percent", "thresholds.max_extrapolated_percent"),
+                            ("options_used.quality_thresholds.max_extrapolated_percent", "thresholds.max_extrapolated_percent")):
+            r = self.bad(f"{{{{call_2.{path}}}}}", "unresolved_reference", "no parameter", calls=self.calls)
+            self.assertTrue(r["findings"][0]["hint"].startswith("closest: " + alias), (path, r["findings"][0]["hint"]))
+            self.assertIn("closest: " + alias, gate_v2.reminder(r["findings"], self.calls))
+        r = self.bad("{{call_2.lambda_z_regression.adj_r_squared}}", calls=CALLS)          # no candidate selected: the alias is still the name to use
+        self.assertTrue(r["findings"][0]["hint"].startswith("closest: lambda_z.adj_r_squared"))
+        r = self.bad("{{call_2.adj_r_squared}}", "unresolved_reference", "no parameter", calls=self.calls)      # a misspelt PKNCA name: no alias
+        self.assertNotIn("lambda_z.", r["findings"][0]["hint"])
+
+    def test_reminder_lists_the_aliases_of_a_citable_analysis(self):
+        rem = gate_v2.reminder(v2("{{call_2.cmaxx}}", calls=self.calls)["findings"], self.calls)
+        self.assertIn("Aliases: call_3.lambda_z.adj_r_squared, .r_squared, .n_points, .time_first, .time_last (the selected λz regression); "
+                      "call_5.thresholds.max_extrapolated_percent (also .min_adj_r_squared) (quality thresholds).", rem)
+        self.assertEqual(gate_v2.alias_line({"call_1": CALLS["call_1"], "call_4": CALLS["call_4"]}), "")                      # no analysis: no line
+        self.assertTrue(gate_v2.alias_line(CALLS).startswith("Aliases: call_5.thresholds"))                                    # no selected candidate anywhere
+        self.assertIn("lambda_z.adj_r_squared", apothicaire.SYSTEM_ADDITION_V2); self.assertIn("thresholds.max_extrapolated_percent", apothicaire.SYSTEM_ADDITION_V2)
+
+    def test_alias_paths_are_checked_against_the_schema_on_their_canonical_path(self):
+        strict = copy.deepcopy(SCHEMAS)
+        strict["nca_run"]["$defs"]["NcaResult"]["properties"]["lambda_z_candidates"]["items"] = {"type": "object", "properties": {"n_points": {"type": "integer"}}, "additionalProperties": False}
+        strict["nca_run"]["$defs"]["AnalysisSpec"]["additionalProperties"] = False
+        c = self.calls
+        self.assertEqual(gate_v2.check("{{call_2.lambda_z.n_points}}", c, [USER], strict)["rendered"], "3")                   # allowed by the strict schema
+        r = gate_v2.check("{{call_2.lambda_z.adj_r_squared}}", c, [USER], strict)
+        self.assertIn("schema has no field 'adj_r_squared'", r["findings"][0]["reason"])                                      # forbidden although the data has it
+        r = gate_v2.check("{{call_2.thresholds.max_extrapolated_percent}}", c, [USER], strict)
+        self.assertIn("schema has no field 'options'", r["findings"][0]["reason"])
+        self.assertEqual(gate_v2.check("{{call_2.thresholds.max_extrapolated_percent}}", c, [USER], SCHEMAS)["rendered"], "20 %")   # the real schema allows it
+
 # ---------------------------------------------------------------- the digest and the records built by the client
 class TestDigestRef(unittest.TestCase):
     def test_ref_is_the_first_key_and_subjects_get_their_own(self):

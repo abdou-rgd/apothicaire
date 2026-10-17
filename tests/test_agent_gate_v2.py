@@ -131,6 +131,24 @@ class TestAgentGateV2(unittest.TestCase):
         self.assertEqual(ans, "Cmax = {{call_2.cmax}}.")                        # v1 does not render; no digits, nothing to check
         self.assertEqual(st["gate"]["version"], "v1"); self.assertNotIn("references_total", st["gate"]["before"])
 
+    def test_aliases_render_the_selected_regression_and_the_thresholds(self):
+        ag = self.agent()
+        invented = say("R² ajusté {{call_2.lambda_z_regression.adj_r_squared}}, seuil {{call_2.options_used.quality_thresholds.max_extrapolated_percent}}.")
+        good = say("R² ajusté {{call_2.lambda_z.adj_r_squared}} sur {{call_2.lambda_z.n_points}} points de {{call_2.lambda_z.time_first}} à "
+                   "{{call_2.lambda_z.time_last}} ; seuil {{call_2.thresholds.max_extrapolated_percent}}.")
+        ag.llm.script += [invented, good]
+        ans, st = ag.turn(USER, verbose=False)
+        d = shown_params(ag); reg = d["subjects"][0]["lambda_z_regression"]; thr = d["options_used"]["quality_thresholds"]
+        fr = lambda x: gate_v2.render_value(x, "", ",")
+        self.assertEqual(ans, f"R² ajusté {fr(reg['adj_r_squared'])} sur {reg['n_points']} points de {fr(reg['time_first'])} h à {fr(reg['time_last'])} h ; "
+                              f"seuil {fr(thr['max_extrapolated_percent'])} %.")
+        rem = ag.llm.calls[3]["messages"][-1]["content"]
+        self.assertIn("closest: lambda_z.adj_r_squared", rem); self.assertIn("closest: thresholds.max_extrapolated_percent", rem)
+        self.assertIn("Aliases: call_2.lambda_z.adj_r_squared, .r_squared, .n_points, .time_first, .time_last (the selected λz regression); "
+                      "call_2.thresholds.max_extrapolated_percent (also", rem)
+        g = st["gate"]
+        self.assertEqual((g["before"]["references_unresolved"], g["after"]["references_unresolved"]), (2, 0)); self.assertEqual(g["kept"], "regenerated")
+
     def test_the_bench_runner_records_a_v2_run(self):
         from bench import run_bench as rb, make_exercises as mk, scripts as sc
         from test_bench_run import ideal_answer

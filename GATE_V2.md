@@ -1,6 +1,6 @@
 # Gate v2: typed rendering
 
-Status: implemented behind a flag (`APOTHICAIRE_GATE=v2`, default `v1`). First in-sample measurement on 2026-10-17 (`bench/runs/2026-10-17-gate-v2/`, 27B PTQ1_0, 25 exercises): 182/200 turns correct (v1: 195/200), 51/842 quantities shown as markers (6.1 %, all visible), 0 invalid tool calls, 13.7 s per turn (v1: 10.4). 12 of the 13 lost turns are compare answers that cite the difference and percentage from `analysis_compare` but no longer restate the linear AUC the scoring rule asks for; the rest are the false positives below. Markers by cause: 25 bare numbers absent from the user's message (21 of them the 20 % extrapolation threshold), 16 invented paths (`lambda_z_regression.adj_r_squared` and the like: the values exist under `lambda_z_candidates[selected]` but the reference grammar cannot name the selected candidate), 5 units typed after a reference, 3 `analyse 2, {{ref}}` (rule 6 false positive), 2 `demi-vies` (plural escapes the half-life exemption). Not yet measured on the frozen test set. Open before making v2 the default: rule 6 punctuation, the plural exemption, reference aliases for the selected λz candidate and the thresholds, and a decision on domain constants (closed list of named conventions rendered by the client, or keep the marker).
+Status: implemented behind a flag (`APOTHICAIRE_GATE=v2`, default `v1`). First in-sample measurement on 2026-10-17 (`bench/runs/2026-10-17-gate-v2/`, 27B PTQ1_0, 25 exercises): 182/200 turns correct (v1: 195/200), 51/842 quantities shown as markers (6.1 %, all visible), 0 invalid tool calls, 13.7 s per turn (v1: 10.4). 12 of the 13 lost turns are compare answers that cite the difference and percentage from `analysis_compare` but no longer restate the linear AUC the scoring rule asks for; the rest are the false positives below. Markers by cause: 25 bare numbers absent from the user's message (21 of them the 20 % extrapolation threshold), 16 invented paths (`lambda_z_regression.adj_r_squared` and the like: the values exist under `lambda_z_candidates[selected]` but the reference grammar cannot name the selected candidate), 5 units typed after a reference, 3 `analyse 2, {{ref}}` (rule 6 false positive), 2 `demi-vies` (plural escapes the half-life exemption). Not yet measured on the frozen test set. Fixed after that run (commit 201e782 and the aliases below): rule 6 punctuation, the plural exemption, the aliases `lambda_z.<field>` (selected λz candidate) and `thresholds.<name>` (quality thresholds), named in the v2 system addition (prefix proxy count 2 499 of the 2 500 budget, `TestStaticPrefixBudget`). Still open: a decision on domain constants (closed list of named conventions rendered by the client, or keep the marker); a bare `20 %` typed by the model stays rejected.
 Code: `gate_v2.py` (pure Python, no dependency, no model), wiring in `apothicaire.py`, tests in `tests/test_gate_v2.py`
 and `tests/test_agent_gate_v2.py`.
 
@@ -32,6 +32,15 @@ A reference is `{{REF.PATH}}`: two braces, the `ref` written at the top of the t
 | `{{call_5.auclast.difference}}` | from `analysis_compare`: `b - a` with its unit; also `.percent` (relative difference, `%`), `.ratio`, `.a`, `.b` |
 | `{{call_1.rows}}`, `{{call_1.subjects}}` | from `data_import`: fields of the worksheet (`worksheet.` prefix optional) |
 | `{{call_3.spec.options.quality.max_extrapolated_percent}}` | any scalar of the `structuredContent` by its JSON path (`[i]` for lists); rendered without unit |
+| `{{call_3.lambda_z.adj_r_squared}}` | **alias**: a field of the *selected* λz regression candidate (`outcome.ok.lambda_z_candidates[j]` with `selected: true`); also `.r_squared`, `.n_points`, `.time_first`, `.time_last` (time unit), `.lambda_z` (its unit), `.intercept`; `subject=L.lambda_z.…` for several subjects. Fail-closed when no candidate is selected (or several are): the model must say Caladrius did not retain one |
+| `{{call_3.thresholds.max_extrapolated_percent}}` | **alias**: a quality threshold echoed by the result (`spec.options.quality.<name>`), `%` for the `*_percent` ones, nothing for the others; rejected when the result carries no thresholds |
+
+Aliases exist because the plain path syntax cannot name "the selected candidate" (its index varies) and the model should
+not have to know where the options are echoed. The digest's own labels (`lambda_z_regression.adj_r_squared`,
+`options_used.quality_thresholds.max_extrapolated_percent`, `lambda.z_regression.r.squared`) are **not** paths: they are
+rejected (rule 2) with the alias as the closest name in the reminder (`closest: lambda_z.adj_r_squared`). The five
+PKNCA parameters `adj.r.squared`, `r.squared`, `lambda.z.n.points`, `lambda.z.time.first`, `lambda.z.time.last` keep
+resolving as before and carry the same values as the selected candidate; the alias is the second name, not a second value.
 
 The renderer, not the model, chooses the display: 6 significant digits (the same rule as the digest, `numtext.value_text`),
 decimal point by default, decimal comma when the chat language is French (`cfg["digest_lang"]`), the unit after a space.
@@ -48,13 +57,16 @@ the two answers kept, the static prefix untouched).
 1. **Unknown ref** (`call_9` when there is no ninth call, or the call failed and has no `structuredContent`): rejected.
 2. **Wrong path**: a parameter name that is not in the analysis, a field of `analysis_compare` that is not one of
    `a b difference percent ratio`, a JSON path that leads nowhere or to an object: rejected, with the closest parameter
-   name as a hint in the reminder.
+   name as a hint in the reminder (for the digest's labels `lambda_z_regression.x` and `options_used.quality_thresholds.x`
+   the hint is the alias, `lambda_z.x` or `thresholds.x`; the reminder also lists the aliases of the last analysis).
 3. **Not calculated / not comparable**: a parameter the engine did not compute (the result carries a reason, not a
    value) is rejected; the model must say that Caladrius did not return it.
 4. **Schema check**: the canonical JSON path of the resolved value is walked through the tool's `outputSchema`
    (`$ref`/`$defs`, `oneOf`/`anyOf`, `properties`, `additionalProperties`, `items`). A path the schema forbids, or a leaf
    whose declared type disagrees with the value found, is rejected. A schema without property constraints
    (`analysis_compare` publishes `{"type":"object"}`) constrains nothing and the value is accepted on the data alone.
+   An alias is checked on its canonical path (`result.subjects[i].outcome.ok.lambda_z_candidates[j].<field>`,
+   `spec.options.quality.<name>`), never on the alias text.
 5. **Several subjects, no `subject=`**: rejected (ambiguous selection).
 6. **Nothing next to a reference**: a digit, a unit (the closed unit table of gate v1 plus unit words such as
    `heures`, `litres`, `mg`), a sign, or an arithmetic operator (`× * / ^ +`, `-` or `+` with an operand, `x` between two
