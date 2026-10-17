@@ -455,6 +455,21 @@ def write_report(run_dir, records, meta):
     with open(os.path.join(run_dir, "report.md"), "w", encoding="utf-8") as f: f.write(render_md(rep))
     return rep
 
+def model_label():
+    """Model file, quantisation and llama.cpp build as the running server reports them (GET /props),
+    so that the report header never claims a file that was not loaded. Falls back to a generic label
+    when the server is not reachable (e.g. --report-only)."""
+    url = os.environ.get("OPTCHAT_URL", "http://127.0.0.1:18435").rstrip("/")
+    try:
+        import httpx
+        d = httpx.get(url + "/props", timeout=5).json()
+        name = os.path.basename(str(d.get("model_path") or d.get("model_alias") or "?"))
+        ftype = str(d.get("model_ftype") or "").split(" - ")[0].strip()
+        build = str(d.get("build_info") or "?")
+        return f"{name} ({ftype or 'unknown ftype'}) on llama-server {build}"
+    except Exception:
+        return "unknown model (server not reachable when the report was written)"
+
 # ---------------------------------------------------------------- main
 def main():
     ap = argparse.ArgumentParser()
@@ -469,7 +484,7 @@ def main():
                     help="v1: the number gate (gate.py); v2: typed rendering (gate_v2.py, GATE_V2.md). Sets APOTHICAIRE_GATE for the run.")
     a = ap.parse_args(); optchat._utf8_stdout()
     os.environ["APOTHICAIRE_GATE"] = a.gate
-    MODEL = f"Bonsai 2 27B (Ternary-Bonsai-2-27B-PTQ1_0), temperature 0.3, no fixed seed, gate {a.gate}"
+    MODEL = f"{model_label()}, temperature 0.3, no fixed seed, gate {a.gate}"
     run_dir = os.path.join(RUNS, a.date); os.makedirs(run_dir, exist_ok=True)
     dirs = mk.list_exercises()
     if a.ids: dirs = [d for d in dirs if os.path.basename(d) in a.ids.split(",")]
