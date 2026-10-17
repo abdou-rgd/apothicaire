@@ -1,6 +1,6 @@
 # Gate v2: typed rendering
 
-Status: implemented behind a flag (`APOTHICAIRE_GATE=v2`, default `v1`), not yet measured on the frozen test set.
+Status: implemented behind a flag (`APOTHICAIRE_GATE=v2`, default `v1`). First in-sample measurement on 2026-10-17 (`bench/runs/2026-10-17-gate-v2/`, 27B PTQ1_0, 25 exercises): 182/200 turns correct (v1: 195/200), 51/842 quantities shown as markers (6.1 %, all visible), 0 invalid tool calls, 13.7 s per turn (v1: 10.4). 12 of the 13 lost turns are compare answers that cite the difference and percentage from `analysis_compare` but no longer restate the linear AUC the scoring rule asks for; the rest are the false positives below. Markers by cause: 25 bare numbers absent from the user's message (21 of them the 20 % extrapolation threshold), 16 invented paths (`lambda_z_regression.adj_r_squared` and the like: the values exist under `lambda_z_candidates[selected]` but the reference grammar cannot name the selected candidate), 5 units typed after a reference, 3 `analyse 2, {{ref}}` (rule 6 false positive), 2 `demi-vies` (plural escapes the half-life exemption). Not yet measured on the frozen test set. Open before making v2 the default: rule 6 punctuation, the plural exemption, reference aliases for the selected λz candidate and the thresholds, and a decision on domain constants (closed list of named conventions rendered by the client, or keep the marker).
 Code: `gate_v2.py` (pure Python, no dependency, no model), wiring in `apothicaire.py`, tests in `tests/test_gate_v2.py`
 and `tests/test_agent_gate_v2.py`.
 

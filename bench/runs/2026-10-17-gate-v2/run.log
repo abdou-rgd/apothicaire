@@ -1,0 +1,27 @@
+ex01_iv_bolus: 8/8 turns, unverified 8/39 before, 4/35 shown, 242 s
+ex02_oral_1: 8/8 turns, unverified 8/37 before, 5/38 shown, 224 s
+ex03_pk2_iv_bolus: 8/8 turns, unverified 7/36 before, 2/32 shown, 264 s
+ex04_oral_1_lag: 8/8 turns, unverified 7/34 before, 4/32 shown, 177 s
+ex05_iv_infusion: 8/8 turns, unverified 6/32 before, 3/32 shown, 164 s
+ex06_oral_0: 8/8 turns, unverified 6/36 before, 3/35 shown, 167 s
+ex07_iv_bolus: 8/8 turns, unverified 9/40 before, 2/40 shown, 275 s
+ex08_oral_1: 8/8 turns, unverified 9/33 before, 3/31 shown, 227 s
+ex09_pk2_oral_1: 8/8 turns, unverified 5/37 before, 0/36 shown, 175 s
+ex10_oral_1_lag: 8/8 turns, unverified 7/37 before, 1/32 shown, 183 s
+ex11_pk2_iv_bolus: 8/8 turns, unverified 8/32 before, 3/32 shown, 138 s
+ex12_iv_infusion: 8/8 turns, unverified 9/36 before, 1/33 shown, 157 s
+ex13_oral_1: 8/8 turns, unverified 7/35 before, 3/34 shown, 183 s
+ex14_iv_bolus: 8/8 turns, unverified 3/32 before, 3/32 shown, 200 s
+ex15_oral_0: 8/8 turns, unverified 5/33 before, 1/31 shown, 166 s
+ex16_pk2_oral_1: 8/8 turns, unverified 4/33 before, 1/33 shown, 175 s
+ex17_oral_1: 8/8 turns, unverified 6/32 before, 3/32 shown, 179 s
+ex18_pk2_iv_bolus: 8/8 turns, unverified 6/36 before, 2/35 shown, 151 s
+ex19_oral_1_lag: 8/8 turns, unverified 5/33 before, 2/33 shown, 159 s
+ex20_iv_infusion: 8/8 turns, unverified 4/39 before, 0/36 shown, 141 s
+ex21_oral_0: 8/8 turns, unverified 5/41 before, 1/39 shown, 179 s
+ex22_pk2_oral_1: 8/8 turns, unverified 5/32 before, 1/31 shown, 163 s
+ex23_iv_bolus: 8/8 turns, unverified 7/34 before, 1/33 shown, 295 s
+ex24_pk2_iv_bolus: 8/8 turns, unverified 3/34 before, 1/36 shown, 233 s
+ex25_oral_1: 8/8 turns, unverified 4/33 before, 1/29 shown, 220 s
+hallucination: 153/876 before, 51/842 shown
+report: C:\Users\abdou\apothicaire\agent\bench\runs\2026-10-17-gate-v2\report.md
