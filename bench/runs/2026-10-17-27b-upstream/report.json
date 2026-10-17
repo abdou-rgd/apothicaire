@@ -1,0 +1,507 @@
+{
+ "meta": {
+  "date": "2026-10-17-27b-upstream",
+  "exercises_run": 5,
+  "model": "Bonsai 2 27B (Ternary-Bonsai-2-27B-PTQ1_0), temperature 0.3, no fixed seed, gate v1",
+  "gate": "v1"
+ },
+ "exercises": 5,
+ "turns": 40,
+ "turns_failed": 0,
+ "hallucination": {
+  "before_gate": {
+   "unverified": 0,
+   "total": 176,
+   "rate": 0.0,
+   "ci95_cluster_bootstrap": [
+    0.0,
+    0.0
+   ]
+  },
+  "after_gate": {
+   "unverified": 0,
+   "total": 176,
+   "rate": 0.0,
+   "ci95_cluster_bootstrap": [
+    0.0,
+    0.0
+   ]
+  },
+  "turns_with_unverified_before": 0,
+  "turns_with_unverified_after": 0,
+  "turns_regenerated": 0,
+  "regeneration_kept": 0,
+  "turns_with_badge": 0
+ },
+ "taxonomy": {
+  "before_gate": {
+   "unit_conversion": 0,
+   "arithmetic": 0,
+   "unlabelled_misread": 0,
+   "recall_error": 0,
+   "other": 0
+  },
+  "after_gate": {
+   "unit_conversion": 0,
+   "arithmetic": 0,
+   "unlabelled_misread": 0,
+   "recall_error": 0,
+   "other": 0
+  }
+ },
+ "taxonomy_chance_baseline": {
+  "3": {
+   "unit_conversion": 26,
+   "arithmetic": 0,
+   "unlabelled_misread": 28,
+   "recall_error": 0,
+   "other": 196
+  },
+  "4": {
+   "unit_conversion": 11,
+   "arithmetic": 65,
+   "unlabelled_misread": 18,
+   "recall_error": 0,
+   "other": 156
+  }
+ },
+ "by_question_type": {
+  "import_nca": {
+   "turns": 5,
+   "correct": 5,
+   "found": 45,
+   "must": 45,
+   "unverified_before": 0,
+   "total_before": 81,
+   "unverified_after": 0,
+   "total_after": 81,
+   "correct_rate": 1.0,
+   "found_rate": 1.0
+  },
+  "cmax_tmax": {
+   "turns": 5,
+   "correct": 5,
+   "found": 12,
+   "must": 12,
+   "unverified_before": 0,
+   "total_before": 12,
+   "unverified_after": 0,
+   "total_after": 12,
+   "correct_rate": 1.0,
+   "found_rate": 1.0
+  },
+  "clearance_volume": {
+   "turns": 5,
+   "correct": 5,
+   "found": 10,
+   "must": 10,
+   "unverified_before": 0,
+   "total_before": 10,
+   "unverified_after": 0,
+   "total_after": 10,
+   "correct_rate": 1.0,
+   "found_rate": 1.0
+  },
+  "half_life": {
+   "turns": 5,
+   "correct": 5,
+   "found": 10,
+   "must": 10,
+   "unverified_before": 0,
+   "total_before": 29,
+   "unverified_after": 0,
+   "total_after": 29,
+   "correct_rate": 1.0,
+   "found_rate": 1.0
+  },
+  "lambda_z_regression": {
+   "turns": 5,
+   "correct": 5,
+   "found": 10,
+   "must": 10,
+   "unverified_before": 0,
+   "total_before": 15,
+   "unverified_after": 0,
+   "total_after": 15,
+   "correct_rate": 1.0,
+   "found_rate": 1.0
+  },
+  "recall": {
+   "turns": 5,
+   "correct": 5,
+   "found": 5,
+   "must": 5,
+   "unverified_before": 0,
+   "total_before": 6,
+   "unverified_after": 0,
+   "total_after": 6,
+   "correct_rate": 1.0,
+   "found_rate": 1.0
+  },
+  "compare": {
+   "turns": 5,
+   "correct": 3,
+   "found": 15,
+   "must": 18,
+   "unverified_before": 0,
+   "total_before": 21,
+   "unverified_after": 0,
+   "total_after": 21,
+   "correct_rate": 0.6,
+   "found_rate": 0.8333333333333334
+  },
+  "not_available": {
+   "turns": 5,
+   "correct": 5,
+   "found": 0,
+   "must": 0,
+   "unverified_before": 0,
+   "total_before": 2,
+   "unverified_after": 0,
+   "total_after": 2,
+   "correct_rate": 1.0,
+   "found_rate": null
+  }
+ },
+ "correctness": {
+  "correct_turns": 38,
+  "turns": 40,
+  "expected_numbers_found": 107,
+  "expected_numbers": 110,
+  "forbidden_values_present": 0
+ },
+ "tool_calls": {
+  "valid": 31,
+  "invalid": 0,
+  "failed": 0,
+  "total": 31,
+  "validity_rate": 1.0,
+  "nca_run_calls": 10,
+  "nca_run_right_dose": 10,
+  "nca_run_right_route": 10,
+  "memory_calls": 1,
+  "by_tool": {
+   "analysis_compare": 10,
+   "analysis_get": 6,
+   "data_import": 5,
+   "nca_run": 10
+  }
+ },
+ "time": {
+  "mean_wall_s_per_turn": 7.975,
+  "mean_prompt_tokens_first_call": 4557.675,
+  "total_wall_s": 654.0
+ },
+ "compare_tool": {
+  "turns": 5,
+  "turns_with_call": 5,
+  "calls": 10,
+  "valid_calls": 10,
+  "turns_usable": 4,
+  "turns_row_disagrees_with_truth": [],
+  "turns_without_call": [],
+  "analysis_compare_calls_all_turns": 10
+ },
+ "oracle": {
+  "turns": 35,
+  "correct_turns": 33,
+  "correct_turns_rate": 0.9428571428571428,
+  "correct_turns_ci95_cluster_bootstrap": [
+   0.8857142857142857,
+   1.0
+  ],
+  "numbers": 110,
+  "numbers_ok": 107,
+  "numbers_ok_rate": 0.9727272727272728,
+  "numbers_ok_ci95_cluster_bootstrap": [
+   0.9333333333333333,
+   1.0
+  ],
+  "classes": {
+   "wrong_parameter": 0,
+   "wrong_method": 0,
+   "wrong_option": 0,
+   "missing_unit": 0,
+   "wrong_unit": 0,
+   "missing_value": 3
+  },
+  "by_question_type": {
+   "import_nca": {
+    "turns": 5,
+    "correct": 5,
+    "items": 45,
+    "ok": 45,
+    "classes": {
+     "wrong_parameter": 0,
+     "wrong_method": 0,
+     "wrong_option": 0,
+     "missing_unit": 0,
+     "wrong_unit": 0,
+     "missing_value": 0
+    },
+    "correct_rate": 1.0,
+    "ok_rate": 1.0
+   },
+   "cmax_tmax": {
+    "turns": 5,
+    "correct": 5,
+    "items": 12,
+    "ok": 12,
+    "classes": {
+     "wrong_parameter": 0,
+     "wrong_method": 0,
+     "wrong_option": 0,
+     "missing_unit": 0,
+     "wrong_unit": 0,
+     "missing_value": 0
+    },
+    "correct_rate": 1.0,
+    "ok_rate": 1.0
+   },
+   "clearance_volume": {
+    "turns": 5,
+    "correct": 5,
+    "items": 10,
+    "ok": 10,
+    "classes": {
+     "wrong_parameter": 0,
+     "wrong_method": 0,
+     "wrong_option": 0,
+     "missing_unit": 0,
+     "wrong_unit": 0,
+     "missing_value": 0
+    },
+    "correct_rate": 1.0,
+    "ok_rate": 1.0
+   },
+   "half_life": {
+    "turns": 5,
+    "correct": 5,
+    "items": 10,
+    "ok": 10,
+    "classes": {
+     "wrong_parameter": 0,
+     "wrong_method": 0,
+     "wrong_option": 0,
+     "missing_unit": 0,
+     "wrong_unit": 0,
+     "missing_value": 0
+    },
+    "correct_rate": 1.0,
+    "ok_rate": 1.0
+   },
+   "lambda_z_regression": {
+    "turns": 5,
+    "correct": 5,
+    "items": 10,
+    "ok": 10,
+    "classes": {
+     "wrong_parameter": 0,
+     "wrong_method": 0,
+     "wrong_option": 0,
+     "missing_unit": 0,
+     "wrong_unit": 0,
+     "missing_value": 0
+    },
+    "correct_rate": 1.0,
+    "ok_rate": 1.0
+   },
+   "recall": {
+    "turns": 5,
+    "correct": 5,
+    "items": 5,
+    "ok": 5,
+    "classes": {
+     "wrong_parameter": 0,
+     "wrong_method": 0,
+     "wrong_option": 0,
+     "missing_unit": 0,
+     "wrong_unit": 0,
+     "missing_value": 0
+    },
+    "correct_rate": 1.0,
+    "ok_rate": 1.0
+   },
+   "compare": {
+    "turns": 5,
+    "correct": 3,
+    "items": 18,
+    "ok": 15,
+    "classes": {
+     "wrong_parameter": 0,
+     "wrong_method": 0,
+     "wrong_option": 0,
+     "missing_unit": 0,
+     "wrong_unit": 0,
+     "missing_value": 3
+    },
+    "correct_rate": 0.6,
+    "ok_rate": 0.8333333333333334
+   }
+  },
+  "not_covered": [
+   "not_available"
+  ],
+  "mismatches": [
+   {
+    "exercise": "ex01_iv_bolus",
+    "turn": 7,
+    "kind": "compare",
+    "label": "AUC(0-tlast) linear",
+    "class": "missing_value",
+    "detail": null,
+    "claimed": []
+   },
+   {
+    "exercise": "ex04_oral_1_lag",
+    "turn": 7,
+    "kind": "compare",
+    "label": "AUC(0-tlast) linear",
+    "class": "missing_value",
+    "detail": null,
+    "claimed": [
+     "3",
+     "3"
+    ]
+   },
+   {
+    "exercise": "ex04_oral_1_lag",
+    "turn": 7,
+    "kind": "compare",
+    "label": "AUC(0-tlast) lin-up/log-down",
+    "class": "missing_value",
+    "detail": null,
+    "claimed": [
+     "3",
+     "3"
+    ]
+   }
+  ],
+  "disagreements_with_scorer": {
+   "items_oracle_wrong_scorer_found": [],
+   "items_oracle_ok_scorer_missing": [],
+   "turns_oracle_wrong_scorer_correct": [],
+   "turns_oracle_ok_scorer_incorrect": []
+  }
+ },
+ "tool_arg_audit": {
+  "calls": 15,
+  "deviating_calls": 0,
+  "exercises_with_deviation": [],
+  "by_deviation": {},
+  "per_exercise": {
+   "ex01_iv_bolus": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex02_oral_1": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex03_pk2_iv_bolus": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex04_oral_1_lag": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex05_iv_infusion": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   }
+  }
+ },
+ "per_exercise": [
+  {
+   "id": "ex01_iv_bolus",
+   "family": "iv_bolus",
+   "dose": "200 mg",
+   "units": "h, mg/L",
+   "turns": 8,
+   "turns_failed": 0,
+   "unverified_before": 0,
+   "total_before": 40,
+   "unverified_after": 0,
+   "total_after": 40,
+   "correct_turns": 7,
+   "badge_turns": 0,
+   "calls_valid": 4,
+   "calls_total": 4,
+   "mean_wall_s": 7.6499999999999995
+  },
+  {
+   "id": "ex02_oral_1",
+   "family": "oral_1",
+   "dose": "400 mg",
+   "units": "h, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "unverified_before": 0,
+   "total_before": 34,
+   "unverified_after": 0,
+   "total_after": 34,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 7,
+   "calls_total": 7,
+   "mean_wall_s": 9.0875
+  },
+  {
+   "id": "ex03_pk2_iv_bolus",
+   "family": "pk2_iv_bolus",
+   "dose": "300 mg",
+   "units": "h, mg/L",
+   "turns": 8,
+   "turns_failed": 0,
+   "unverified_before": 0,
+   "total_before": 38,
+   "unverified_after": 0,
+   "total_after": 38,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 7.2375
+  },
+  {
+   "id": "ex04_oral_1_lag",
+   "family": "oral_1_lag",
+   "dose": "300 mg",
+   "units": "h, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "unverified_before": 0,
+   "total_before": 30,
+   "unverified_after": 0,
+   "total_after": 30,
+   "correct_turns": 7,
+   "badge_turns": 0,
+   "calls_valid": 10,
+   "calls_total": 10,
+   "mean_wall_s": 9.725
+  },
+  {
+   "id": "ex05_iv_infusion",
+   "family": "iv_infusion",
+   "dose": "150 mg",
+   "units": "h, mg/L",
+   "turns": 8,
+   "turns_failed": 0,
+   "unverified_before": 0,
+   "total_before": 34,
+   "unverified_after": 0,
+   "total_after": 34,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 6.175
+  }
+ ]
+}
