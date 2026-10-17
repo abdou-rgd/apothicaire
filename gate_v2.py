@@ -317,7 +317,7 @@ def _adjacent(text, s, e):
     elif c in "-−+":
         prev = pb[:-1].rstrip(" \t")[-1:]                                      # "-" may be a hyphen; "−" and "+" never are
         if c != "-" or pb == before or prev.isdigit() or prev in ")}": out.append(("sign or arithmetic next to a reference", len(pb) - 1, e))
-    elif c in ".," and pb[-2:-1].isdigit():
+    elif c in ".," and pb[-2:-1].isdigit() and before == pb:                      # "2,{{ref}}" glued; "analyse 2, {{ref}}" is punctuation
         m = re.search(r"[\d.,]+$", pb); out.append(("digit before a reference", m.start(), e))
     elif re.search(r"(?:\d|\}\}|\))\s*[x×]\s*$", before, re.I): out.append(("arithmetic next to a reference", len(pb) - 1, e))
     pa = after.lstrip(" \t"); off = e + (len(after) - len(pa)); c = pa[:1] or "\0"
@@ -423,7 +423,7 @@ def check(answer, calls, user_texts=(), schemas=None, decimal_mark=".", allowed=
         findings.append(_finding("number_word", answer[s:end], s, end, answer, why)); marks.append((s, end, None, why))
     for m in _FRACTION_RE.finditer(plain):
         s, e, w = m.start(), m.end(), m.group(0)
-        if re.match(r"-?\s?(?:vie|life)\b", plain[e:], re.I): continue                 # demi-vie, half-life
+        if re.match(r"-?\s?(?:vies?|li(?:fe|ves))\b", plain[e:], re.I): continue        # demi-vie(s), half-life, half-lives
         total += 1; unverified += 1
         findings.append(_finding("number_word", w, s, e, answer, "a multiple or a fraction spelled in words")); marks.append((s, e, None, "a multiple or a fraction in words"))
 

@@ -236,8 +236,15 @@ class TestNothingNextToAReference(Base):
             with self.subTest(t): self.bad(t, "adjacent_to_reference")
 
     def test_digits_glued_to_a_reference_are_rejected(self):
-        for t in ("1{{call_2.cmax}}", "{{call_2.cmax}}5", "{{call_2.cmax}}.5", "{{call_2.cmax}},5", "0.{{call_2.cmax}}"):
+        for t in ("1{{call_2.cmax}}", "{{call_2.cmax}}5", "{{call_2.cmax}}.5", "{{call_2.cmax}},5", "0.{{call_2.cmax}}", "2,{{call_2.cmax}}", "12.{{call_2.cmax}}"):
             with self.subTest(t): self.bad(t, "adjacent_to_reference", "digit")
+
+    def test_label_number_then_punctuation_before_a_reference_is_fine(self):
+        # "analyse 2, {{ref}}" is a label followed by punctuation, not a decimal glued to the reference (bench 2026-10-17: 3 false positives)
+        for t in ("méthode linéaire (analyse 2, {{call_2.auclast}})", "analyse 2 : {{call_2.auclast}}", "analyse 2 ; {{call_2.auclast}}",
+                  "sujet 1, {{call_2.subject=1.cmax}}", "la phase terminale couvre deux demi-vies", "about 2 half-lives"):
+            with self.subTest(t):
+                r = self.ok(t); self.assertEqual(r["numbers_unverified"], 0, t)
 
     def test_ordinary_punctuation_and_words_are_fine(self):
         for t in ("Cmax = {{call_2.cmax}}", "Cmax : {{call_2.cmax}}", "({{call_2.cmax}})", "{{call_2.cmax}}, {{call_2.tmax}} et {{call_2.auclast}}.",
