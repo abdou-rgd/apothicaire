@@ -1,6 +1,6 @@
 # Gate v2: typed rendering
 
-Status: implemented behind a flag (`APOTHICAIRE_GATE=v2`, default `v1`). First in-sample measurement on 2026-10-17 (`bench/runs/2026-10-17-gate-v2/`, 27B PTQ1_0, 25 exercises): 182/200 turns correct (v1: 195/200), 51/842 quantities shown as markers (6.1 %, all visible), 0 invalid tool calls, 13.7 s per turn (v1: 10.4). 12 of the 13 lost turns are compare answers that cite the difference and percentage from `analysis_compare` but no longer restate the linear AUC the scoring rule asks for; the rest are the false positives below. Markers by cause: 25 bare numbers absent from the user's message (21 of them the 20 % extrapolation threshold), 16 invented paths (`lambda_z_regression.adj_r_squared` and the like: the values exist under `lambda_z_candidates[selected]` but the reference grammar cannot name the selected candidate), 5 units typed after a reference, 3 `analyse 2, {{ref}}` (rule 6 false positive), 2 `demi-vies` (plural escapes the half-life exemption). Not yet measured on the frozen test set. Fixed after that run (commit 201e782 and the aliases below): rule 6 punctuation, the plural exemption, the aliases `lambda_z.<field>` (selected λz candidate) and `thresholds.<name>` (quality thresholds), named in the v2 system addition (prefix proxy count 2 499 of the 2 500 budget, `TestStaticPrefixBudget`). Still open: a decision on domain constants (closed list of named conventions rendered by the client, or keep the marker); a bare `20 %` typed by the model stays rejected.
+Status: implemented behind a flag (`APOTHICAIRE_GATE=v2`, default `v1`). First in-sample measurement on 2026-10-17 (`bench/runs/2026-10-17-gate-v2/`, 27B PTQ1_0, 25 exercises): 182/200 turns correct (v1: 195/200), 51/842 quantities shown as markers (6.1 %, all visible), 0 invalid tool calls, 13.7 s per turn (v1: 10.4). 12 of the 13 lost turns are compare answers that cite the difference and percentage from `analysis_compare` but no longer restate the linear AUC the scoring rule asks for; the rest are the false positives below. Markers by cause: 25 bare numbers absent from the user's message (21 of them the 20 % extrapolation threshold), 16 invented paths (`lambda_z_regression.adj_r_squared` and the like: the values exist under `lambda_z_candidates[selected]` but the reference grammar cannot name the selected candidate), 5 units typed after a reference, 3 `analyse 2, {{ref}}` (rule 6 false positive), 2 `demi-vies` (plural escapes the half-life exemption). Not yet measured on the frozen test set. Fixed after that run (commit 201e782 and the aliases below): rule 6 punctuation, the plural exemption, the aliases `lambda_z.<field>` (selected λz candidate) and `thresholds.<name>` (quality thresholds), named in the v2 system addition (prefix proxy count 2 499 of the 2 500 budget, `TestStaticPrefixBudget`). Domain constants decided by Abdou on 2026-10-17: a closed list of named conventions rendered by the client (`{{convention.<name>}}`, section "Named conventions"); a bare `20 %` typed by the model stays rejected, the reminder names the reference to write.
 Code: `gate_v2.py` (pure Python, no dependency, no model), wiring in `apothicaire.py`, tests in `tests/test_gate_v2.py`
 and `tests/test_agent_gate_v2.py`.
 
@@ -34,6 +34,7 @@ A reference is `{{REF.PATH}}`: two braces, the `ref` written at the top of the t
 | `{{call_3.spec.options.quality.max_extrapolated_percent}}` | any scalar of the `structuredContent` by its JSON path (`[i]` for lists); rendered without unit |
 | `{{call_3.lambda_z.adj_r_squared}}` | **alias**: a field of the *selected* λz regression candidate (`outcome.ok.lambda_z_candidates[j]` with `selected: true`); also `.r_squared`, `.n_points`, `.time_first`, `.time_last` (time unit), `.lambda_z` (its unit), `.intercept`; `subject=L.lambda_z.…` for several subjects. Fail-closed when no candidate is selected (or several are): the model must say Caladrius did not retain one |
 | `{{call_3.thresholds.max_extrapolated_percent}}` | **alias**: a quality threshold echoed by the result (`spec.options.quality.<name>`), `%` for the `*_percent` ones, nothing for the others; rejected when the result carries no thresholds |
+| `{{convention.max_extrapolated_percent}}` | **named convention**: a domain constant from the closed table below, rendered with its unit; when a citable analysis echoes the threshold, that value is rendered instead (see "Named conventions") |
 
 Aliases exist because the plain path syntax cannot name "the selected candidate" (its index varies) and the model should
 not have to know where the options are echoed. The digest's own labels (`lambda_z_regression.adj_r_squared`,
@@ -45,6 +46,35 @@ resolving as before and carry the same values as the selected candidate; the ali
 The renderer, not the model, chooses the display: 6 significant digits (the same rule as the digest, `numtext.value_text`),
 decimal point by default, decimal comma when the chat language is French (`cfg["digest_lang"]`), the unit after a space.
 A string field (a route, a label) is rendered as is; a list of scalars is joined by commas.
+
+## Named conventions
+
+Decision of Abdou, 2026-10-17: the domain constants a DMPK answer quotes (the 20 % limit on the extrapolated share of
+AUCinf, the 0.9 adjusted R²) are never typed by the model. They are a **closed table** in `gate_v2.py` (`CONVENTIONS`,
+a module-level dict, nothing configurable at runtime); the model writes `{{convention.<name>}}` and the renderer prints
+the value and the unit. The table holds only conventions with a citable source and the values are the engine's own
+defaults (`caladrius-nca/src/options.rs`, `QualityThresholds::default`; spec rule NCA-LZ-12b, which records them as
+PKNCA's conventions): if the engine's value ever differed from a textbook one, the engine would win and the source
+column would say so.
+
+| name | value | unit | source |
+|---|---|---|---|
+| `max_extrapolated_percent` | 20 | % | PKNCA exclusion helper `max.aucinf.pext` (20 %): the usual upper limit on the share of AUCinf that is extrapolated; Caladrius default `quality.max_extrapolated_percent` |
+| `min_adj_r_squared` | 0.9 | | PKNCA exclusion helper `min.hl.r.squared` (0.9) on the adjusted R² of the terminal regression; Caladrius default `quality.min_adj_r_squared` |
+| `min_span_ratio` | 2 | | PKNCA exclusion helper `min.span.ratio` (2): the regression window must span at least two half-lives; Caladrius default `quality.min_span_ratio` |
+| `min_points` | 3 | | PKNCA `min.hl.points` (3): fewest points in a terminal regression; Caladrius defaults `quality.min_points` and `lambda_z.min_points` |
+
+**Precedence.** A convention is a fallback, never a shadow: when a citable analysis of the chat echoes the threshold
+(`spec.options.quality.<name>`, the `thresholds.<name>` alias), `{{convention.<name>}}` resolves to **that** value, with
+the analysis's path, so a threshold the user changed (`max_extrapolated_percent: 25`) is rendered as 25 %, not 20 %.
+When two analyses carry different values the convention is ambiguous and rejected; the hint names the
+`{{call_N.thresholds.<name>}}` references to choose from. The table is used only when no analysis carries the threshold
+(a question asked before any analysis, or a result without options). The reminder prefers the `thresholds.` alias for
+the same reason. An unknown convention name is rejected like an unknown path, with the closest name as a hint. A bare
+`20 %` typed by the model stays rejected (rule 7); the finding's hint and the reminder name the reference to write
+(`{{call_N.thresholds.max_extrapolated_percent}}` when an analysis echoes it, else `{{convention.max_extrapolated_percent}}`).
+Not in the table: PKNCA's λz tolerance `adj_r_squared_factor` (1e-4), an algorithm parameter rather than a quoted
+constant; it is citable by plain path (`{{call_3.spec.options.lambda_z.adj_r_squared_factor}}`).
 
 ## Resolution rules (fail-closed)
 
@@ -75,7 +105,8 @@ the two answers kept, the static prefix untouched).
 7. **Bare numbers**: every number written in digits (extracted by gate v1's tokeniser) must equal, as an exact value, a
    number of the user's messages (CSV included; decimal comma and point are the same number; the sign is ignored as in
    v1). Tool results are NOT a source any more: a tool number typed by the model is rejected even if it is right.
-   No rounding match: `7,0` does not match a user `6.98`.
+   No rounding match: `7,0` does not match a user `6.98`. A typed domain constant (`20 %`, `0,9`) is rejected like any
+   other; its finding carries the reference to write instead (see "Named conventions").
 8. **Exemptions**, counted apart and never rendered as values: list markers (`1.`, `2)`), `#17` message references,
    label numbers (`sujet 2`, `étape 3`, two digits at most), ISO dates, the `1` of `1/h`, a bare `10^k`, and
    **counts**: an integer 0-20 without unit, decimal or `%`, in digits or in words (`deux analyses`, `3 sujets`).

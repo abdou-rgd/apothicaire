@@ -246,6 +246,10 @@ class TestNothingNextToAReference(Base):
             with self.subTest(t):
                 r = self.ok(t); self.assertEqual(r["numbers_unverified"], 0, t)
 
+    def test_superscript_labels_are_not_digits(self):
+        self.ok("R² {{call_2.r.squared}} ; R² ajusté : {{call_2.r.squared}}", "R² 0.998765 ; R² ajusté : 0.998765")   # ² passed isdigit(): used to crash
+        self.ok("{{call_2.cmax}} ²", "12.3457 ng/mL ²")
+
     def test_ordinary_punctuation_and_words_are_fine(self):
         for t in ("Cmax = {{call_2.cmax}}", "Cmax : {{call_2.cmax}}", "({{call_2.cmax}})", "{{call_2.cmax}}, {{call_2.tmax}} et {{call_2.auclast}}.",
                   "{{call_2.cmax}} - c'est élevé", "{{call_2.cmax}} s'il faut", "{{call_2.tmax}} après la dose", "AUC(0-tlast) = {{call_2.auclast}}",
@@ -497,6 +501,57 @@ class TestAliases(Base):
         r = gate_v2.check("{{call_2.thresholds.max_extrapolated_percent}}", c, [USER], strict)
         self.assertIn("schema has no field 'options'", r["findings"][0]["reason"])
         self.assertEqual(gate_v2.check("{{call_2.thresholds.max_extrapolated_percent}}", c, [USER], SCHEMAS)["rendered"], "20 %")   # the real schema allows it
+
+
+# ---------------------------------------------------------------- named conventions (closed table, decision of 2026-10-17)
+NO_NCA = {"call_1": CALLS["call_1"], "call_4": CALLS["call_4"]}            # no analysis: the table is the only source
+
+class TestConventions(Base):
+    def test_the_table_is_closed_and_matches_the_engine(self):
+        self.assertEqual(set(gate_v2.CONVENTIONS), {"max_extrapolated_percent", "min_adj_r_squared", "min_span_ratio", "min_points"})
+        for name, row in gate_v2.CONVENTIONS.items():
+            self.assertEqual(set(row), {"value", "unit", "source"}); self.assertTrue(row["source"].strip(), name); self.assertIn("PKNCA", row["source"])
+            for case, g in td.GOLDENS.items():                                                           # the engine's own defaults, as echoed by real results
+                self.assertEqual(g["nca_run_result"]["spec"]["options"]["quality"][name], row["value"], (case, name))
+
+    def test_rendering_from_the_table_when_no_analysis_carries_the_threshold(self):
+        self.ok("{{convention.max_extrapolated_percent}}", "20 %", calls=NO_NCA)
+        self.ok("{{convention.min_adj_r_squared}} {{convention.min_span_ratio}} {{convention.min_points}}", "0.9 2 3", calls=NO_NCA)
+        self.assertEqual(v2("seuil {{convention.max_extrapolated_percent}}, R² {{ convention . min_adj_r_squared }}", calls=NO_NCA, mark=",")["rendered"], "seuil 20 %, R² 0,9")
+        self.assertEqual(gate_v2.resolve_convention("max_extrapolated_percent", NO_NCA).path, ["convention", "max_extrapolated_percent"])
+        self.ok("{{convention.min_span_ratio}}", "2")                                                     # CALLS carry no min_span_ratio: table
+        r = self.ok("{{convention.max_extrapolated_percent}}", "20 %", calls=NO_NCA)
+        self.assertEqual((r["references_total"], r["numbers_unverified"]), (1, 0))
+
+    def test_an_analysis_that_echoes_the_threshold_wins_over_the_table(self):
+        self.assertEqual(gate_v2.resolve_convention("max_extrapolated_percent", CALLS).path, ["spec", "options", "quality", "max_extrapolated_percent"])
+        n = copy.deepcopy(NCA); n["spec"]["options"]["quality"]["max_extrapolated_percent"] = 25.0
+        only = {"call_1": CALLS["call_1"], "call_2": apothicaire.ref_record("call_2", "nca_run", n, WS_UNITS)}
+        self.ok("{{convention.max_extrapolated_percent}}", "25 %", calls=only)                             # the user's threshold, not the table's
+        both = dict(only, call_5=CALLS["call_5"])                                                          # 25 and 20: ambiguous
+        r = self.bad("{{convention.max_extrapolated_percent}}", "unresolved_reference", "different values of max_extrapolated_percent", calls=both)
+        self.assertIn("{{call_2.thresholds.max_extrapolated_percent}} or {{call_5.thresholds.max_extrapolated_percent}}", r["findings"][0]["hint"])
+
+    def test_unknown_convention(self):
+        r = self.bad("{{convention.max_extrapolation}}", "unresolved_reference", "no convention 'max_extrapolation'")
+        self.assertTrue(r["findings"][0]["hint"].startswith("closest: convention.max_extrapolated_percent"), r["findings"][0]["hint"])
+        self.bad("{{convention}}", "unresolved_reference", "a reference starts with the ref of a tool result")
+        self.bad("{{convention.max_extrapolated_percent}} %", "adjacent_to_reference")                     # the client prints the unit
+        self.bad("{{convention.max_extrapolated_percent}}%", "adjacent_to_reference")
+
+    def test_a_typed_convention_stays_rejected_and_the_reminder_names_the_reference(self):
+        r = self.bad("Le seuil est 20 %.", "bare_number", n=1)
+        self.assertEqual(r["findings"][0]["hint"], "the convention max_extrapolated_percent: write {{call_5.thresholds.max_extrapolated_percent}}")   # the last analysis that echoes it
+        self.assertIn("20 %: a number typed by hand", gate_v2.reminder(r["findings"], CALLS)); self.assertIn("write {{call_5.thresholds.max_extrapolated_percent}}", gate_v2.reminder(r["findings"], CALLS))
+        r = self.bad("Le seuil est 20,0 %.", "bare_number", calls=NO_NCA)
+        self.assertEqual(r["findings"][0]["hint"], "the convention max_extrapolated_percent: write {{convention.max_extrapolated_percent}}")
+        r = self.bad("R² ajusté minimal 0,9", "bare_number", users=("Dose 100 mg.",), calls=NO_NCA)
+        self.assertEqual(r["findings"][0]["hint"], "the convention min_adj_r_squared: write {{convention.min_adj_r_squared}}")
+        r = self.bad("Cmax = 20 mg/L", "bare_number")                                                    # same digits, another unit: not the convention
+        self.assertIsNone(r["findings"][0]["hint"])
+        rem = gate_v2.reminder(v2("{{call_2.cmaxx}}")["findings"], CALLS)
+        self.assertIn("Conventions (never type them): {{convention.max_extrapolated_percent}}, {{convention.min_adj_r_squared}}", rem)
+        self.assertIn("{{convention.max_extrapolated_percent}}", apothicaire.SYSTEM_ADDITION_V2)
 
 # ---------------------------------------------------------------- the digest and the records built by the client
 class TestDigestRef(unittest.TestCase):

@@ -20,6 +20,12 @@ quality threshold echoed by the result (`spec.options.quality.<name>`). Both are
 canonical path. The digest's own labels (`lambda_z_regression.*`, `options_used.quality_thresholds.*`) are NOT paths:
 they are rejected with the alias as the closest name.
 
+Named conventions (decision of 2026-10-17): the model never types a domain constant (the 20 % extrapolation limit, the 0.9
+adjusted R²); it writes `{{convention.<name>}}` and the renderer prints the value and unit from the closed table CONVENTIONS
+below. When a citable analysis echoes that threshold (spec.options.quality), the analysis's value wins, so a threshold the
+user changed is never shadowed by the table; two analyses with different values make the convention ambiguous (rejected:
+cite `{{call_N.thresholds.<name>}}`).
+
 `calls`: ref -> record built by apothicaire.ref_record: {"ref", "name", "structured", "units"}, where units carries
 the labels the client computed at call time ({"dose": u, "parameters": {name: unit}} for an NCA analysis,
 {"rows": {parameter: {"a": u, "b": u, "difference": u, "relative_percent": "%", "ratio": ""}}} for a comparison).
@@ -115,6 +121,61 @@ _LZ_ALIAS = ("lambda_z", "lambdaz", "lambda-z", "λz")        # `lambda.z` is th
 _LZ_FIELDS = ("adj_r_squared", "r_squared", "n_points", "time_first", "time_last", "lambda_z", "intercept", "replaced_points")
 _LZ_UNITS = {"lambda_z": "lambda.z", "time_first": "lambda.z.time.first", "time_last": "lambda.z.time.last"}   # the parameter whose unit the field shares
 _TH_ALIAS = ("thresholds", "threshold")
+
+# Closed table of named conventions (GATE_V2.md, "Named conventions"). Nothing configurable at runtime. Values = the engine's
+# defaults (caladrius-nca options.rs, QualityThresholds::default, spec rule NCA-LZ-12b), which are PKNCA's conventions; the
+# source column says where each number comes from. A convention is rendered only when no citable analysis echoes the
+# threshold (see resolve_convention).
+CONVENTIONS = {
+    "max_extrapolated_percent": {"value": 20.0, "unit": "%", "source": "PKNCA exclusion helper `max.aucinf.pext` (20 %): the usual upper limit on the share of AUCinf that is extrapolated; Caladrius default `quality.max_extrapolated_percent`"},
+    "min_adj_r_squared": {"value": 0.9, "unit": "", "source": "PKNCA exclusion helper `min.hl.r.squared` (0.9) on the adjusted R² of the terminal regression; Caladrius default `quality.min_adj_r_squared`"},
+    "min_span_ratio": {"value": 2.0, "unit": "", "source": "PKNCA exclusion helper `min.span.ratio` (2): the regression window must span at least two half-lives; Caladrius default `quality.min_span_ratio`"},
+    "min_points": {"value": 3, "unit": "", "source": "PKNCA `min.hl.points` (3): fewest points in a terminal regression; Caladrius defaults `quality.min_points` and `lambda_z.min_points`"},
+}
+_CONV_RE = re.compile(r"^conventions?\s*[.:]\s*(.+)$", re.I)
+
+def parse_convention(body):
+    """'convention.max_extrapolated_percent' -> 'max_extrapolated_percent'; None when the body is not a convention reference."""
+    m = _CONV_RE.match(re.sub(r"[\"'“”‘’`]", "", body).strip())
+    return m.group(1).strip() if m else None
+
+def echoed_thresholds(name, calls):
+    """ref -> value of the threshold `name` echoed by each citable NCA analysis (spec.options.quality)."""
+    out = {}
+    for ref, c in (calls or {}).items():
+        sc = c.get("structured")
+        if isinstance(sc, dict) and sc.get("kind") == "nca" and name in _thresholds(sc): out[ref] = _thresholds(sc)[name]
+    return out
+
+def resolve_convention(name, calls):
+    """The value of a named convention. Precedence: an analysis that echoes the threshold wins over the table; two analyses
+    with different values are ambiguous (rejected); the table is used only when no analysis carries the threshold."""
+    key = _norm(name)
+    if key not in CONVENTIONS:
+        close = difflib.get_close_matches(key, list(CONVENTIONS), n=3, cutoff=0.5)
+        raise Unresolved(f"no convention {name!r}", ("closest: " + ", ".join(f"convention.{c}" for c in close) + ". " if close else "")
+                         + "conventions: " + ", ".join(f"convention.{k}" for k in CONVENTIONS))
+    row = CONVENTIONS[key]
+    echoed = echoed_thresholds(key, calls)
+    if echoed:
+        if len(set(echoed.values())) > 1:
+            raise Unresolved(f"the analyses use different values of {key} (" + ", ".join(f"{r}: {v}" for r, v in echoed.items()) + ")",
+                             "cite the analysis you mean: " + " or ".join(f"{{{{{r}.thresholds.{key}}}}}" for r in echoed))
+        ref = list(echoed)[-1]
+        return Resolved(echoed[ref], row["unit"], ["spec", "options", "quality", key], "threshold")          # the analysis's own value
+    return Resolved(row["value"], row["unit"], ["convention", key], "convention")
+
+def convention_of(value, unit, calls):
+    """The hint for a bare number that is a convention typed by hand (rule 7): the alias of an analysis that echoes it, else the convention."""
+    for key, row in CONVENTIONS.items():
+        same_unit = (unit or "") == row["unit"] or (row["unit"] == "%" and (unit or "").strip() in ("%", "pour cent", "percent"))
+        try: same = Decimal(str(value)) == Decimal(str(row["value"]))
+        except Exception: same = False
+        if same and same_unit:
+            echoed = echoed_thresholds(key, calls)
+            ref = list(echoed)[-1] if echoed else None
+            return f"the convention {key}: write {{{{{ref}.thresholds.{key}}}}}" if ref else f"the convention {key}: write {{{{convention.{key}}}}}"
+    return None
 
 def _norm(name): return re.sub(r"[.\-\s]+", "_", str(name).strip()).lower()
 
@@ -378,7 +439,7 @@ def _adjacent(text, s, e):
     out = []
     before, after = text[:s], text[e:]
     pb = before.rstrip(" \t"); c = pb[-1:] or "\0"
-    if c.isdigit():
+    if c.isdecimal():                                                            # not isdigit(): "R² {{ref}}" is a label, ² is no digit of a number
         m = re.search(r"[\d.,]+$", pb); out.append(("digit before a reference", m.start(), e))
     elif c == "*" and pb.endswith("**") and before == pb: pass                   # markdown bold
     elif c in _OPS: out.append(("arithmetic next to a reference", len(pb) - 1, e))
@@ -386,11 +447,11 @@ def _adjacent(text, s, e):
     elif c in "-−+":
         prev = pb[:-1].rstrip(" \t")[-1:]                                      # "-" may be a hyphen; "−" and "+" never are
         if c != "-" or pb == before or prev.isdigit() or prev in ")}": out.append(("sign or arithmetic next to a reference", len(pb) - 1, e))
-    elif c in ".," and pb[-2:-1].isdigit() and before == pb:                      # "2,{{ref}}" glued; "analyse 2, {{ref}}" is punctuation
+    elif c in ".," and pb[-2:-1].isdecimal() and before == pb:                      # "2,{{ref}}" glued; "analyse 2, {{ref}}" is punctuation
         m = re.search(r"[\d.,]+$", pb); out.append(("digit before a reference", m.start(), e))
     elif re.search(r"(?:\d|\}\}|\))\s*[x×]\s*$", before, re.I): out.append(("arithmetic next to a reference", len(pb) - 1, e))
     pa = after.lstrip(" \t"); off = e + (len(after) - len(pa)); c = pa[:1] or "\0"
-    if c.isdigit() or re.match(r"[.,]\d", pa):
+    if c.isdecimal() or re.match(r"[.,]\d", pa):
         m = re.match(r"[\d.,]+", pa); out.append(("digit after a reference", s, off + m.end()))
     elif pa.startswith("{{") and after == pa: out.append(("two references glued together", s, off + 2))
     elif c == "*" and pa.startswith("**") and after == pa: pass                  # markdown bold
@@ -437,9 +498,12 @@ def check(answer, calls, user_texts=(), schemas=None, decimal_mark=".", allowed=
                 reject("malformed_reference", s, e, "a reference is written {{call_N.path}} with exactly two braces on each side")
             continue                                                            # other braces (quoted JSON): the digits inside are checked
         spans.append((s, e)); refs_total += 1
-        if ref is None:
-            refs_bad += 1; reject("unresolved_reference", s, e, "a reference starts with the ref of a tool result, e.g. {{call_3.cmax}}"); continue
-        try: r = resolve(ref, path, calls, schemas)
+        try:
+            if ref is not None: r = resolve(ref, path, calls, schemas)
+            else:
+                cname = parse_convention(body)
+                if cname is None: raise Unresolved("a reference starts with the ref of a tool result, e.g. {{call_3.cmax}}, or names a convention, e.g. {{convention.max_extrapolated_percent}}")
+                r = resolve_convention(cname, calls)
         except Unresolved as u:
             refs_bad += 1; reject("unresolved_reference", s, e, u.reason, ref=ref, hint=u.hint); continue
         adj = _adjacent(answer, s, e)
@@ -468,7 +532,8 @@ def check(answer, calls, user_texts=(), schemas=None, decimal_mark=".", allowed=
         v, sig, _ = n.readings[0]
         f = _finding("bare_number", n.text, n.start, n.span_end, answer,
                      "a number typed by hand that is not in the user's message (tool values are cited, never typed)",
-                     value=str(v.normalize() if v != 0 else 0), sig=sig, unit=n.unit, nearest=gate._nearest(abs(v), allowed), number=n.raw)
+                     value=str(v.normalize() if v != 0 else 0), sig=sig, unit=n.unit, nearest=gate._nearest(abs(v), allowed), number=n.raw,
+                     hint=convention_of(abs(v), n.unit, calls))
         findings.append(f); marks.append((n.start, n.span_end, None, "not in the user's message"))
 
     for m in _NUMWORDS_RE.finditer(plain):
@@ -556,7 +621,7 @@ def reminder(findings, calls=None, limit=12):
         elif f["kind"] == "malformed_reference": lines.append(f"- {f['text']}: {f['reason']}")
         elif f["kind"] == "adjacent_to_reference": lines.append(f"- \"{f['text']}\": {f['reason']}; write the reference alone")
         elif f["kind"] == "number_word": lines.append(f"- \"{f['text']}\": {f['reason']}; cite a tool value by reference or use the user's digits")
-        else: lines.append(f"- {f['text']}: {f['reason']}")
+        else: lines.append(f"- {f['text']}: {f['reason']}" + (f" ({f['hint']})" if f.get("hint") else ""))
     avail = describe(calls)
     aliases = alias_line(calls)
     return ("[system reminder] Your last answer was rejected by the renderer:\n" + "\n".join(lines[:limit]) + "\n"
@@ -564,6 +629,8 @@ def reminder(findings, calls=None, limit=12):
             "client prints the value with its unit; write no unit, sign, digit or arithmetic next to a reference. The only digits you "
             "may type are those of the user's message. If a value is missing, say that Caladrius did not return it.\n"
             + ("Available references: " + "; ".join(avail) + "\n" if avail else "") + (aliases + "\n" if aliases else "")
+            + "Conventions (never type them): " + ", ".join(f"{{{{convention.{k}}}}}" for k in CONVENTIONS)
+            + "; prefer {{call_N.thresholds.<name>}} when an analysis carries the threshold.\n"
             + "Write the answer again.")
 
 def alias_line(calls):

@@ -149,6 +149,16 @@ class TestAgentGateV2(unittest.TestCase):
         g = st["gate"]
         self.assertEqual((g["before"]["references_unresolved"], g["after"]["references_unresolved"]), (2, 0)); self.assertEqual(g["kept"], "regenerated")
 
+    def test_conventions_are_rendered_from_the_analysis_or_the_table(self):
+        ag = self.agent()
+        ag.llm.script += [say("Seuil d'extrapolation 20 %."), say("Seuil {{convention.max_extrapolated_percent}}, R² minimal {{convention.min_adj_r_squared}}, {{convention.min_points}} points.")]
+        ans, st = ag.turn(USER, verbose=False)
+        self.assertEqual(ans, "Seuil 20 %, R² minimal 0,9, 3 points.")
+        rem = ag.llm.calls[3]["messages"][-1]["content"]
+        self.assertIn("20 %: a number typed by hand", rem); self.assertIn("write {{call_2.thresholds.max_extrapolated_percent}}", rem)   # the analysis echoes it
+        self.assertEqual((st["gate"]["before"]["numbers_unverified"], st["gate"]["after"]["numbers_unverified"]), (1, 0))
+        self.assertEqual(ag.store.log[-1]["content"], "Seuil {{convention.max_extrapolated_percent}}, R² minimal {{convention.min_adj_r_squared}}, {{convention.min_points}} points.")
+
     def test_the_bench_runner_records_a_v2_run(self):
         from bench import run_bench as rb, make_exercises as mk, scripts as sc
         from test_bench_run import ideal_answer
