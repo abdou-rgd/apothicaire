@@ -128,7 +128,11 @@ freeze, where its hash must match.
 The truth is the engine's output (`model_simulate` then `nca_run`), as today: the benchmark measures how faithfully
 the assistant relays the engine, not the engine, which is validated separately against R oracles. The acceptability
 verdict of turn 4 is part of the gold: acceptable when AUC % extrapolated ≤ 20 % (the named convention
-`max_extrapolated_percent` of `GATE_V2.md`). In the PAGE tier every frozen exercise is also run through
+`max_extrapolated_percent` of `GATE_V2.md`). The gold is computed with the units the assistant's calls now send:
+since `nca_run` takes `dose_unit` (apothicaire PR #3), CL is reported in L/h and V in L instead of `dose unit/…`, so
+the `meta.json` of `bench/exercises/` (computed without units) are regenerated with `dose_unit` before the
+development runs, and the frozen exercises are generated the same way; the generator commit and the regenerated gold
+are hashed at the case freeze. In the PAGE tier every frozen exercise is also run through
 `caladrius/oracle/scripts/nca_pknca.R` before the case freeze; any disagreement beyond the conformance tolerance is a
 ledger entry and the exercise is replaced before the freeze, never after (RT-B8).
 
@@ -248,7 +252,7 @@ pushed to GitHub, which timestamps it publicly.
 
 | Item | Stage |
 |---|---|
-| exercises (`data.csv`, `meta.json` with the gold) and the generator commit, seed and plan | case freeze |
+| exercises (`data.csv`, `meta.json` with the gold computed with `dose_unit`) and the generator commit, seed and plan | case freeze |
 | PKNCA cross-check output (PAGE tier) | case freeze |
 | `wordings.json` (hash only at the case freeze, file at the system freeze) and the wording assignment | case freeze |
 | `score.py`, `scripts.py`, the mutation suite and its expected verdicts | case freeze |
@@ -332,8 +336,9 @@ and labelled descriptive, because the demo gate was chosen on the development se
 | Rubric in `score.py`, outcome classes and denominators in `run_bench.py`, exercise-level report, `--seed`, manifest check, mutation suite (T-066, T-071, T-083, T-069, T-082) | cloud | Claude | 2026-10-30 |
 | Wordings (24 sentences), hash committed | PC | Abdou, dsh | 2026-10-30 |
 | Human labelling of 40 development turns | anywhere | Abdou | 2026-10-31 |
-| 40 exercises generated, mutation suite green on them, case freeze pushed | cloud | Claude | 2026-11-02 |
+| 40 exercises generated with `dose_unit` (gold in L/h and L), gold hashed, mutation suite green on them, case freeze pushed | cloud | Claude | 2026-11-02 |
 | Typed rendering of gate v2 merged (else fallback of §8) | cloud | other thread | 2026-11-04 |
+| Gold of the 25 development exercises regenerated with `dose_unit` (§5.4), rescored in-sample runs kept next to the old ones | cloud | Claude | 2026-11-04 |
 | Development runs v1 and v2, 3 seeds (≈ 3 h GPU), decision in the ledger, system freeze and tag | PC | Abdou launches | 2026-11-06 |
 | Frozen runs C1 then C2, 3 seeds (≈ 5 h GPU) | PC | Abdou launches | 2026-11-10 |
 | `bench/frozen/demo/RESULTS.md` (endpoints of §11 only; exploratory findings in their own section) | cloud | Claude | 2026-11-12 |
