@@ -334,7 +334,7 @@ class TestLambdaZSelection(unittest.TestCase):
         ag.llm = FakeLLM([tool_call("data_import", IMPORT_ARGS, "c1"), tool_call("nca_run", {"worksheet": 1, **NCA_ARGS}, "c2"),
                           say("Analyse faite."),
                           tool_call("nca_run", excl, "c3"), say("λz recalculée sans le point de 24,37 h.")])
-        ag.compactor.llm = ag.llm
+        ag.compactor.llm = FakeLLM([])          # compaction between turns must not take the scripted answers
         ag.turn(USER, verbose=False)
         ag.turn("Exclus le point de 24,37 h de la régression de λz.", verbose=False)
         first, second = ag.tool_log[1], ag.tool_log[2]
@@ -353,6 +353,112 @@ class TestLambdaZSelection(unittest.TestCase):
         self.assertEqual(out["subjects"][0]["lambda_z_regression"]["n_points"], 4)
         out = json.loads(ag._tool("nca_run", {"worksheet": 1, **NCA_ARGS, "options": {"lambda_z_selection": {"exclude": [24]}}}))
         self.assertIn("not a sample time", out["subjects"][0]["outcome"]["error"])          # the model reads why
+
+
+# The answer of ex12, turn 7, in bench/runs/2026-10-09b: the call the model could not make on its last round.
+EX12_ANSWER = ('<tool_call>\n<function=analysis_compare>\n<parameter=a>\n3\n</parameter>\n<parameter=b>\n3\n</parameter>\n'
+               '<parameter=parameters>\n["auclast"]\n</parameter>\n</function>\n</tool_call>')
+COMPARE_Q = ("Refais l'analyse avec la méthode linear-up/log-down. De combien l'AUC(0-tlast) diffère-t-elle de celle de la "
+             "méthode linéaire, en valeur absolue et en pourcentage ?")
+
+
+class TestToolCallText(unittest.TestCase):
+    def test_tool_call_payloads(self):
+        for t in (EX12_ANSWER, '{"name": "analysis_compare", "arguments": {"a": 3, "b": 3}}',
+                  '```json\n{"name": "nca_run", "arguments": {}}\n```', '[{"name": "nca_run", "parameters": {}}]',
+                  "Je compare :\n<tool_call>{\"name\": \"analysis_compare\"}</tool_call>", "[TOOL_CALLS] analysis_compare"):
+            self.assertTrue(apothicaire.tool_call_text(t), t)
+
+    def test_prose_is_not_a_tool_call(self):
+        for t in ("", "La Cmax est de 10,5 mg/L à 1,12 h.", '{"a": 1}', "[1, 2]", "La fonction analysis_compare donne b moins a.",
+                  '{"name": "x"}'):
+            self.assertFalse(apothicaire.tool_call_text(t), t)
+
+
+@unittest.skipUnless(os.path.exists(apothicaire.MCP_BIN), "caladrius-mcp is not built")
+class TestLoopGuards(unittest.TestCase):
+    """RT-E1: analysis_compare with a = b refused, an identical call refused within a turn, the tools withdrawn after
+    two repeats, and a tool-call text never shown as the answer. Real server, scripted model."""
+    LIN = {"worksheet": 1, **NCA_ARGS, "options": {"auc_method": "linear"}}
+    LOG = {"worksheet": 1, **NCA_ARGS, "options": {"auc_method": "lin_up_log_down"}}
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="apo_loop_")
+        self.ag = apothicaire.Apothicaire(cfg=dict(optchat.CFG, data_dir=self.dir))
+        self.engine = []
+        real = self.ag.mcp.call_full
+        def spy(name, args):
+            self.engine.append(name); return real(name, args)
+        self.ag.mcp.call_full = spy
+
+    def tearDown(self):
+        self.ag.close(); shutil.rmtree(self.dir, ignore_errors=True)
+
+    def script(self, *items):
+        """The first turn of ex12 (import, linear NCA = analysis 2), then the items of the compare turn."""
+        self.ag.llm = FakeLLM([tool_call("data_import", IMPORT_ARGS, "c1"), tool_call("nca_run", self.LIN, "c2"), say("Fait."),
+                               *items])
+        self.ag.compactor.llm = FakeLLM([])     # compaction between turns must not take the scripted answers
+        self.ag.turn(USER, verbose=False)
+        n = len(self.ag.llm.calls)
+        ans, st = self.ag.turn(COMPARE_Q, verbose=False)
+        return ans, st, self.ag.llm.calls[n:]
+
+    def test_ex12_replayed_ends_without_the_loop(self):
+        same = {"a": 3, "b": 3, "parameters": ["auclast"]}
+        ans, st, calls = self.script(tool_call("nca_run", self.LOG, "c3"), tool_call("analysis_compare", same, "c4"),
+                                     tool_call("analysis_compare", same, "c5"), tool_call("analysis_compare", same, "c6"),
+                                     say(EX12_ANSWER))
+        self.assertEqual(ans, apothicaire.FAILED_TURN["fr"])
+        self.assertNotIn("tool_call", ans)
+        self.assertEqual(st["rounds"], 5); self.assertLess(st["rounds"], optchat.CFG["max_tool_rounds"])
+        self.assertIsNone(calls[-1]["tools"]); self.assertIsNotNone(calls[-2]["tools"])   # withdrawn after the 2nd repeat
+        self.assertEqual(self.engine.count("analysis_compare"), 0)                       # a = b never reached the engine
+        reasons = [r["reason"] for r in self.ag.refused_log]
+        self.assertEqual(len(reasons), 3)
+        self.assertTrue(reasons[0].startswith("a and b are the same analysis (3)"))
+        self.assertIn("2 (auc_method linear), 3 (auc_method lin_up_log_down)", reasons[0])
+        self.assertTrue(all(r.startswith("this exact analysis_compare call was already made") for r in reasons[1:]))
+        self.assertEqual(st["gate"]["tool_call_text"], EX12_ANSWER)
+        self.assertEqual(self.ag.store.log[-1]["content"], ans)                          # the memory keeps the message, not the call
+
+    def test_the_model_recovers_after_the_refusal(self):
+        def answer(messages):
+            self.assertIn("a and b are the same analysis", json.dumps(messages, ensure_ascii=False))
+            return say("Voir analysis_compare.")
+        ans, st, calls = self.script(tool_call("nca_run", self.LOG, "c3"), tool_call("analysis_compare", {"a": 3, "b": 3}, "c4"),
+                                     tool_call("analysis_compare", {"a": 2, "b": 3}, "c5"), answer)
+        self.assertEqual(self.engine.count("analysis_compare"), 1)
+        self.assertTrue(self.ag.tool_log[-1]["ok"]); self.assertEqual(self.ag.tool_log[-1]["args"], {"a": 2, "b": 3})
+        self.assertIsNotNone(calls[-1]["tools"]); self.assertEqual(st["rounds"], 4)
+
+    def test_a_string_pair_is_the_same_pair(self):
+        self.ag._tool("data_import", IMPORT_ARGS); self.ag._tool("nca_run", self.LIN)
+        out = self.ag._tool("analysis_compare", {"a": "2", "b": 2})
+        self.assertTrue(out.startswith("TOOL ERROR: a and b are the same analysis (2)"), out)
+
+    def test_an_identical_call_is_refused_within_a_turn_only(self):
+        ag = self.ag
+        ag.llm = FakeLLM([tool_call("data_import", IMPORT_ARGS, "c1"), tool_call("nca_run", self.LIN, "c2"),
+                          tool_call("nca_run", self.LIN, "c3"), say("Fait."),
+                          tool_call("nca_run", self.LIN, "c4"), say("Refait.")])
+        ag.compactor.llm = FakeLLM([])
+        ans, st = ag.turn(USER, verbose=False)
+        self.assertEqual(self.engine, ["data_import", "nca_run"])
+        self.assertEqual(ag.store.log[-2]["role"], "tool_result")
+        self.assertTrue(ag.store.log[-2]["content"].startswith("TOOL ERROR: this exact nca_run call was already made"))
+        self.assertIsNotNone(ag.llm.calls[-1]["tools"])                                # one repeat: the tools stay
+        ag.turn("Refais la même analyse.", verbose=False)
+        self.assertEqual(self.engine, ["data_import", "nca_run", "nca_run"])            # a new turn may repeat it
+
+    def test_a_tool_call_text_from_the_regeneration_is_not_kept(self):
+        ag = self.ag
+        ag.llm = FakeLLM([tool_call("data_import", IMPORT_ARGS, "c1"), tool_call("nca_run", self.LIN, "c2"),
+                          say("La Cmax vaut 99999 mg/L."), say(EX12_ANSWER)])
+        ag.compactor.llm = ag.llm
+        ans, st = ag.turn(USER, verbose=False)
+        self.assertTrue(ans.startswith("La Cmax vaut 99999 mg/L.")); self.assertNotIn("tool_call", ans)
+        self.assertEqual(st["gate"]["kept"], "first")
 
 
 class TestStaticPrefixUntouched(unittest.TestCase):
