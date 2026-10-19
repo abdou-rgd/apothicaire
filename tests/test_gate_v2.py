@@ -103,57 +103,87 @@ class TestReferenceSyntax(Base):
     def test_every_spelling_of_a_parameter_reference_renders_the_same(self):
         for t in ("{{call_2.cmax}}", "{{ call_2.cmax }}", "{{call2.cmax}}", "{{call-2.cmax}}", "{{Call_2.CMAX}}", "{{call_2.parameters.cmax}}",
                   "{{call_2.parameters.cmax.value}}", "{{call_2.subject=1.cmax}}", "{{call_2.subject:1.cmax}}", '{{"call_2".cmax}}', "{{call_2.cmax.value}}"):
-            with self.subTest(t): self.ok(t, "12.3457 ng/mL")
+            with self.subTest(t): self.ok(t, "12.3457 ng/mL [Cmax]")
 
     def test_dotted_pknca_names(self):
-        self.ok("{{call_2.aucinf.obs}}", "123.457 h*ng/mL"); self.ok("{{call_2.lambda.z.n.points}}", "4")
-        self.ok("{{call_2.half.life}}", "6.54321 h"); self.ok("{{call_2.r.squared}}", "0.998765"); self.ok("{{call_2.aucpext.obs}}", "22.5 %")
-        self.ok("{{call_2.cl.obs}}", "0.81 dose unit/(h*ng/mL)"); self.ok("{{call_2.tlast}}", "24 h")
+        self.ok("{{call_2.aucinf.obs}}", "123.457 h*ng/mL [AUCinf,obs]"); self.ok("{{call_2.lambda.z.n.points}}", "4 [λz points]")
+        self.ok("{{call_2.half.life}}", "6.54321 h [half-life]"); self.ok("{{call_2.r.squared}}", "0.998765 [R² of λz]")
+        self.ok("{{call_2.aucpext.obs}}", "22.5 % [AUC%extrap,obs]")
+        self.ok("{{call_2.cl.obs}}", "0.81 dose unit/(h*ng/mL) [CL,obs]"); self.ok("{{call_2.tlast}}", "24 h [Tlast]")
+
+    def test_the_name_table_is_closed_and_covers_the_engine(self):
+        # every parameter a golden result computes has a printed name; a name the table lacks is not renderable (fail-closed)
+        for name, g in td.GOLDENS.items():
+            for s in g["nca_run_result"]["result"]["subjects"]:
+                for p in (s["outcome"].get("ok") or {}).get("parameters", []):
+                    self.assertIn(p["name"], gate_v2.PARAMETERS, (name, p["name"]))
+        self.assertEqual(gate_v2.PARAMETERS["aucinf.obs"], "AUCinf,obs"); self.assertEqual(gate_v2.PARAMETERS["cmax.dn"], "Cmax/dose")
+        for n in list(gate_v2.PARAMETERS.values()) + [c["name"] for c in gate_v2.CONVENTIONS.values()]:
+            self.assertEqual(gate.extract_numbers(f"[{n}]"), [], n)                  # a printed name adds no number to the rendered text
+        n = copy.deepcopy(NCA); n["result"]["subjects"][0]["outcome"]["ok"]["parameters"].append({"name": "auc.new", "value": {"value": 1.5}})
+        calls = make_calls(call_2=apothicaire.ref_record("call_2", "nca_run", n, WS_UNITS))
+        self.bad("{{call_2.auc.new}}", "unresolved_reference", "not in the renderer's table", calls=calls)
 
     def test_dose_route_subject(self):
-        self.ok("{{call_2.dose}}", "100"); self.ok("{{call_2.route}}", "extravascular"); self.ok("{{call_2.subject}}", "1")
+        self.ok("{{call_2.dose}}", "100 [dose]")
+        for t in ("{{call_2.route}}", "{{call_2.subject}}"):                       # text fields: never rendered (T-055)
+            with self.subTest(t): self.bad(t, "untyped_reference", "a text field")
         calls = make_calls(call_2=apothicaire.ref_record("call_2", "nca_run", NCA, {4: dict(UNITS, dose="mg")}))
-        self.ok("{{call_2.dose}}", "100 mg", calls=calls)
+        self.ok("{{call_2.dose}}", "100 mg [dose]", calls=calls)
 
     def test_several_subjects(self):
-        self.ok("{{call_3.subject=2.cmax}}", "9.25 ng/mL"); self.ok("{{call_3.subject=1.cmax}}", "15.5 ng/mL")
+        self.ok("{{call_3.subject=2.cmax}}", "9.25 ng/mL [Cmax, subject 2]"); self.ok("{{call_3.subject=1.cmax}}", "15.5 ng/mL [Cmax, subject 1]")
+        self.ok("{{call_2.subject=1.cmax}}", "12.3457 ng/mL [Cmax]")                 # one subject: no subject printed
         self.bad("{{call_3.cmax}}", "unresolved_reference", "3 subjects")
         self.bad("{{call_3.subject=9.cmax}}", "unresolved_reference", "no subject '9'")
         self.bad("{{call_3.subject=3.tmax}}", "unresolved_reference", "not calculated")
 
     def test_compare_fields(self):
-        self.ok("{{call_4.auclast.difference}}", "-1.75309 h*ng/mL"); self.ok("{{call_4.auclast.diff}}", "-1.75309 h*ng/mL")
-        self.ok("{{call_4.auclast.percent}}", "-1.775 %"); self.ok("{{call_4.auclast.relative_percent}}", "-1.775 %")
-        self.ok("{{call_4.auclast.ratio}}", "0.98225"); self.ok("{{call_4.auclast.a}}", "98.7654 h*ng/mL"); self.ok("{{call_4.auclast.b}}", "97.0123 h*ng/mL")
-        self.ok("{{call_4.cmax.difference}}", "0 ng/mL"); self.ok("{{call_4.cmax.ratio}}", "1")
+        self.ok("{{call_4.auclast.difference}}", "-1.75309 h*ng/mL [AUClast, b−a]"); self.ok("{{call_4.auclast.diff}}", "-1.75309 h*ng/mL [AUClast, b−a]")
+        self.ok("{{call_4.auclast.percent}}", "-1.775 % [AUClast, (b−a)/a]"); self.ok("{{call_4.auclast.relative_percent}}", "-1.775 % [AUClast, (b−a)/a]")
+        self.ok("{{call_4.auclast.ratio}}", "0.98225 [AUClast, b/a]"); self.ok("{{call_4.auclast.a}}", "98.7654 h*ng/mL [AUClast, a]")
+        self.ok("{{call_4.auclast.b}}", "97.0123 h*ng/mL [AUClast, b]")
+        self.ok("{{call_4.cmax.difference}}", "0 ng/mL [Cmax, b−a]"); self.ok("{{call_4.cmax.ratio}}", "1 [Cmax, b/a]")
         self.bad("{{call_4.auclast}}", "unresolved_reference", "which field")
         self.bad("{{call_4.c0.difference}}", "unresolved_reference", "not comparable")
         self.bad("{{call_4.tmax.a}}", "unresolved_reference", "not a compared parameter")
         self.bad("{{call_4.auclast.sum}}", "unresolved_reference", "which field")
 
-    def test_import_fields(self):
-        self.ok("{{call_1.rows}}", "9"); self.ok("{{call_1.worksheet.rows}}", "9"); self.ok("{{call_1.id}}", "4")
-        self.ok("{{call_1.subjects}}", "1"); self.ok("{{call_1.columns[1].unit}}", "ng/mL"); self.ok("{{call_1.delimiter}}", ",")
+    def test_import_fields_are_not_quantities(self):
+        # the worksheet description (data_import) is the model's and the user's, not a computed quantity: never rendered
+        for t in ("{{call_1.rows}}", "{{call_1.worksheet.rows}}", "{{call_1.id}}", "{{call_1.subjects}}", "{{call_1.columns[1].unit}}", "{{call_1.delimiter}}"):
+            with self.subTest(t):
+                r = self.bad(t, "untyped_reference", "worksheet description"); self.assertEqual((r["references_total"], r["references_untyped"]), (0, 1))
 
-    def test_plain_json_paths(self):
-        self.ok("{{call_2.spec.options.quality.max_extrapolated_percent}}", "20")
-        self.ok("{{call_2.result.subjects[0].dose}}", "100"); self.ok("{{call_2.id}}", "7"); self.ok("{{call_2.status.state}}", "fresh")
-        self.ok("{{call_2.result.subjects[0].outcome.ok.flags[0].threshold}}", "20")
-        self.ok("{{call_4.a.analysis}}", "7"); self.ok("{{call_4.rows[0].ratio}}", "0.98225")
+    def test_raw_json_paths_are_never_rendered(self):
+        # T-056: the generic JSON path is gone; the same values are cited by their typed names or not at all
+        for t in ("{{call_2.spec.options.quality.max_extrapolated_percent}}", "{{call_2.result.subjects[0].dose}}", "{{call_2.id}}",
+                  "{{call_2.status.state}}", "{{call_2.result.subjects[0].outcome.ok.flags[0].threshold}}", "{{call_4.a.analysis}}",
+                  "{{call_4.rows[0].ratio}}", "{{call_2.outcome.ok.flags[0].value}}", "{{call_2.parameters[0].value.value}}"):
+            with self.subTest(t):
+                r = self.bad(t, "untyped_reference", "not a quantity the client prints", n=1)
+                self.assertEqual((r["references_total"], r["references_untyped"], r["assertions"]), (0, 1, []))
+                self.assertIn("{{call_N.cmax}}", r["findings"][0]["hint"])
+        self.ok("{{call_2.thresholds.max_extrapolated_percent}} {{call_2.dose}} {{call_4.auclast.ratio}}",
+                "20 % [threshold: max AUC%extrap] 100 [dose] 0.98225 [AUClast, b/a]")      # the typed names of the same values
 
     def test_display_rules(self):
-        self.ok("{{call_2.cmax}}", "12.3457 ng/mL")                                  # 6 significant digits, never more
-        self.ok("{{call_2.tlast}}", "24 h")                                          # no ".0" after an integral value
-        self.ok("{{call_2.cmax}}", "12,3457 ng/mL", mark=",")                        # the client's decimal mark
-        self.ok("{{call_4.auclast.difference}}", "-1,75309 h*ng/mL", mark=",")       # the sign is the engine's
+        self.ok("{{call_2.cmax}}", "12.3457 ng/mL [Cmax]")                           # 6 significant digits, never more
+        self.ok("{{call_2.tlast}}", "24 h [Tlast]")                                  # no ".0" after an integral value
+        self.ok("{{call_2.cmax}}", "12,3457 ng/mL [Cmax]", mark=",")                 # the client's decimal mark
+        self.ok("{{call_4.auclast.difference}}", "-1,75309 h*ng/mL [AUClast, b−a]", mark=",")   # the sign is the engine's
         for x in (2128760.0, 1e-05, 0.0, 6.98412345, 24.0, 319.992):
             self.assertEqual(gate_v2.render_value(x), apothicaire._shown(x), x)      # same rule as the digest
-        self.assertEqual(gate_v2.render_value(True), "true"); self.assertEqual(gate_v2.render_value([1, "a"]), "1, a")
+        for v in (True, "Cmax = 999 mg/L", [1, 2], None, float("nan")):              # only finite numbers are quantities
+            with self.subTest(v), self.assertRaises(TypeError): gate_v2.render_value(v)
 
     def test_sentences_with_several_references(self):
         r = self.ok("Cmax = {{call_2.cmax}} à Tmax = {{call_2.tmax}} ; AUC(0-tlast) = {{call_2.auclast}} et AUC(0-inf) = {{call_2.aucinf.obs}}.",
-                    "Cmax = 12.3457 ng/mL à Tmax = 1.5 h ; AUC(0-tlast) = 98.7654 h*ng/mL et AUC(0-inf) = 123.457 h*ng/mL.")
+                    "Cmax = 12.3457 ng/mL [Cmax] à Tmax = 1.5 h [Tmax] ; AUC(0-tlast) = 98.7654 h*ng/mL [AUClast] et AUC(0-inf) = 123.457 h*ng/mL [AUCinf,obs].")
         self.assertEqual((r["references_total"], r["references_unresolved"], r["numbers_total"], r["numbers_unverified"]), (4, 0, 4, 0))
+        self.assertEqual([a["quantity"] for a in r["assertions"]], ["cmax", "tmax", "auclast", "aucinf.obs"])
+        self.assertEqual(r["assertions"][0], {"ref": "call_2", "analysis": 7, "subject": None, "quantity": "cmax", "name": "Cmax",
+                                              "value": 12.3456789, "unit": "ng/mL", "path": ["result", "subjects", 0, "outcome", "ok", "parameters", 0, "value", "value"]})
         self.assertEqual(r["numbers_exempt"], 2)                                     # the 0 of AUC(0-tlast) and of AUC(0-inf)
 
 # ---------------------------------------------------------------- fail-closed
@@ -179,24 +209,26 @@ class TestFailClosed(Base):
                 r = self.bad(t, "malformed_reference"); self.assertNotIn("12.3457", r["rendered"]); self.assertEqual(r["references_total"], 1)
 
     def test_objects_lists_and_nulls_are_not_values(self):
-        self.bad("{{call_2.spec}}", reason="is an object"); self.bad("{{call_2.result.subjects}}", reason="list of objects")
-        self.bad("{{call_2.name}}", reason="null"); self.bad("{{call_2.result.subjects[7].dose}}", reason="is a list of 1")
-        self.bad("{{call_2.spec.nothing}}", reason="no field 'nothing'"); self.bad("{{call_1.worksheet.columns[0].nope}}", reason="no field")
+        for t in ("{{call_2.spec}}", "{{call_2.result.subjects}}", "{{call_2.name}}", "{{call_2.result.subjects[7].dose}}", "{{call_2.spec.nothing}}",
+                  "{{call_1.worksheet.columns[0].nope}}", "{{call_2.outcome}}", "{{call_2.flag_messages}}"):
+            with self.subTest(t): self.bad(t, "untyped_reference", "not a quantity the client prints")
 
     def test_schema_forbids_a_field_the_data_happens_to_have(self):
-        imp = copy.deepcopy(IMPORT); imp["worksheet"]["extra"] = 5
-        calls = make_calls(call_1=apothicaire.ref_record("call_1", "data_import", imp, WS_UNITS))
-        self.assertEqual(gate_v2.check("{{call_1.extra}}", calls, [USER], None)["rendered"], "5")        # without the schema: data only
-        self.bad("{{call_1.extra}}", "unresolved_reference", "schema has no field 'extra'", calls=calls)
+        strict = copy.deepcopy(SCHEMAS)
+        strict["nca_run"]["$defs"]["NcaResult"]["properties"]["parameters"]["items"] = {"type": "object", "properties": {"name": {"type": "string"}}, "additionalProperties": False}
+        self.assertEqual(gate_v2.check("{{call_2.cmax}}", CALLS, [USER], None)["rendered"], "12.3457 ng/mL [Cmax]")     # without the schema: data only
+        r = gate_v2.check("{{call_2.cmax}}", CALLS, [USER], strict)
+        self.assertIn("schema has no field 'value'", r["findings"][0]["reason"]); self.assertEqual(r["references_unresolved"], 1)
 
     def test_schema_type_must_agree_with_the_value(self):
         n = copy.deepcopy(NCA); n["result"]["subjects"][0]["outcome"]["ok"]["parameters"][0]["value"]["value"] = "12.3"
         calls = make_calls(call_2=apothicaire.ref_record("call_2", "nca_run", n, WS_UNITS))
         self.bad("{{call_2.cmax}}", "unresolved_reference", "declares number, the value is a string", calls=calls)
+        self.assertIn("not a number", gate_v2.check("{{call_2.cmax}}", calls, [USER], None)["findings"][0]["reason"])   # without the schema too
 
     def test_schema_without_properties_constrains_nothing(self):
         self.assertEqual(SCHEMAS["analysis_compare"].get("properties"), None)
-        self.ok("{{call_4.auclast.percent}}", "-1.775 %")
+        self.ok("{{call_4.auclast.percent}}", "-1.775 % [AUClast, (b−a)/a]")
 
     def test_every_computed_parameter_of_the_goldens_renders_as_the_digest_shows(self):
         for name, g in td.GOLDENS.items():
@@ -209,8 +241,10 @@ class TestFailClosed(Base):
                     r = gate_v2.check(ref, calls, [], SCHEMAS)
                     with self.subTest(case=name, subject=s["subject"], parameter=pname):
                         self.assertEqual(r["findings"], [], ref)
-                        if isinstance(shown, str): self.assertEqual(r["rendered"], shown)
-                        else: self.assertEqual(float(r["rendered"]), float(shown)); self.assertNotIn(".0", r["rendered"][-2:])   # 5, not 5.0
+                        value, _, tag = r["rendered"].partition(" [")
+                        self.assertEqual(tag, gate_v2.PARAMETERS[pname] + (f", subject {s['subject']}" if many else "") + "]")
+                        if isinstance(shown, str): self.assertEqual(value, shown)
+                        else: self.assertEqual(float(value), float(shown)); self.assertNotIn(".0", value[-2:])   # 5, not 5.0
                 for pname in [p for ps in s.get("not_calculated", {}).values() for p in ps][:3]:
                     ref = f"{{{{call_1.{'subject=' + str(s['subject']) + '.' if many else ''}{pname}}}}}"
                     self.assertEqual(gate_v2.check(ref, calls, [], SCHEMAS)["references_unresolved"], 1, ref)
@@ -247,8 +281,8 @@ class TestNothingNextToAReference(Base):
                 r = self.ok(t); self.assertEqual(r["numbers_unverified"], 0, t)
 
     def test_superscript_labels_are_not_digits(self):
-        self.ok("R² {{call_2.r.squared}} ; R² ajusté : {{call_2.r.squared}}", "R² 0.998765 ; R² ajusté : 0.998765")   # ² passed isdigit(): used to crash
-        self.ok("{{call_2.cmax}} ²", "12.3457 ng/mL ²")
+        self.ok("R² {{call_2.r.squared}} ; R² ajusté : {{call_2.r.squared}}", "R² 0.998765 [R² of λz] ; R² ajusté : 0.998765 [R² of λz]")   # ² passed isdigit(): used to crash
+        self.bad("{{call_2.cmax}} ²", "number_word", "Unicode numeric")             # a superscript that is no exponent of a label is a number (T-058)
 
     def test_ordinary_punctuation_and_words_are_fine(self):
         for t in ("Cmax = {{call_2.cmax}}", "Cmax : {{call_2.cmax}}", "({{call_2.cmax}})", "{{call_2.cmax}}, {{call_2.tmax}} et {{call_2.auclast}}.",
@@ -350,11 +384,11 @@ class TestAuditBlindSpots(Base):
 
     def test_the_rendered_label_is_the_selected_parameter(self):
         # with references the model cannot attach aucall's number to the AUC(0-tlast) label without naming aucall
-        r = self.ok("AUC(0-tlast) = {{call_2.auclast}}"); self.assertIn("98.7654", r["rendered"]); self.assertNotIn("101.235", r["rendered"])
-        r = self.ok("AUC(0-tlast) = {{call_2.aucall}}"); self.assertIn("101.235", r["rendered"])      # a selection error: visible as a token
-        self.ok("Cmax du sujet 2 = {{call_3.subject=2.cmax}}", "Cmax du sujet 2 = 9.25 ng/mL")
-        self.ok("AUC lin-up/log-down = {{call_5.auclast}}", "AUC lin-up/log-down = 97.0123 h*ng/mL")
-        self.ok("différence {{call_4.auclast.difference}}", "différence -1.75309 h*ng/mL")             # the sign is the engine's
+        self.ok("AUC(0-tlast) = {{call_2.auclast}}", "AUC(0-tlast) = 98.7654 h*ng/mL [AUClast]")
+        self.ok("AUC(0-tlast) = {{call_2.aucall}}", "AUC(0-tlast) = 101.235 h*ng/mL [AUCall]")       # a selection error, now visible to the reader
+        self.ok("Cmax du sujet 2 = {{call_3.subject=2.cmax}}", "Cmax du sujet 2 = 9.25 ng/mL [Cmax, subject 2]")
+        self.ok("AUC lin-up/log-down = {{call_5.auclast}}", "AUC lin-up/log-down = 97.0123 h*ng/mL [AUClast]")
+        self.ok("différence {{call_4.auclast.difference}}", "différence -1.75309 h*ng/mL [AUClast, b−a]")   # the sign is the engine's
 
 # ---------------------------------------------------------------- record, badge, reminder
 class TestRecordAndMessages(Base):
@@ -363,9 +397,12 @@ class TestRecordAndMessages(Base):
         self.assertEqual((r["references_total"], r["references_unresolved"]), (2, 1))
         self.assertEqual((r["numbers_total"], r["numbers_unverified"], r["numbers_exempt"]), (5, 3, 1))
         json.dumps(r)
-        self.assertEqual(r["rendered"].count(gate_v2.MARK_OPEN), 3); self.assertIn("12.3457 ng/mL", r["rendered"]); self.assertIn("dose 100 mg", r["rendered"])
+        self.assertEqual(r["rendered"].count(gate_v2.MARK_OPEN), 3); self.assertIn("12.3457 ng/mL [Cmax]", r["rendered"]); self.assertIn("dose 100 mg", r["rendered"])
         self.assertEqual(gate_v2.check("", CALLS, [USER]), {"rendered": "", "findings": [], "exempt": [], "numbers_total": 0, "numbers_unverified": 0,
-                                                            "numbers_exempt": 0, "references_total": 0, "references_unresolved": 0})
+                                                            "numbers_exempt": 0, "references_total": 0, "references_unresolved": 0,
+                                                            "references_untyped": 0, "assertions": []})
+        r = v2("{{call_2.name}} ; {{call_2.cmax}}")                                   # an untyped reference: a marker, outside references_total
+        self.assertEqual((r["references_total"], r["references_unresolved"], r["references_untyped"], r["numbers_total"], r["numbers_unverified"]), (1, 0, 1, 2, 1))
 
     def test_badge_and_reminder(self):
         r = v2("{{call_2.cmaxx}} et 12,36 ng/mL et {{call_2.cmax}} ng/mL et {{call_7.x}}")
@@ -376,7 +413,7 @@ class TestRecordAndMessages(Base):
         self.assertTrue(rem.startswith("[system reminder]"))
         self.assertIn("closest: cmax", rem); self.assertIn("computed parameters: aucall, aucinf.obs, auclast", rem)   # listed for the bad ref
         self.assertEqual(rem.count("computed parameters:"), 1)
-        self.assertIn("Available references: call_1 (data_import, worksheet 4: rows, subjects); call_2 (nca_run, analysis 7, subject 1); "
+        self.assertIn("Available references: call_2 (nca_run, analysis 7, subject 1); "
                       "call_3 (nca_run, analysis 9, 3 subjects: call_3.subject=1, call_3.subject=2, call_3.subject=3); "
                       "call_4 (analysis_compare: auclast, cmax; fields .a .b .difference .percent .ratio); call_5 (nca_run, analysis 8, subject 1)", rem)
         self.assertIn("unit next to a reference", rem); self.assertIn("not in the user's message", rem); self.assertIn("call_7 is not a tool result", rem)
@@ -400,14 +437,15 @@ class TestAliases(Base):
                                 call_3=apothicaire.ref_record("call_3", "nca_run", with_candidates(MULTI, CANDS), WS_UNITS))
 
     def test_the_selected_candidate_by_alias(self):
-        for field, out in (("adj_r_squared", "0.99876"), ("r_squared", "0.99938"), ("n_points", "3"), ("time_first", "8"), ("time_last", "24"),
-                           ("lambda_z", "0.1111"), ("intercept", "2.4")):
+        for field, out in (("adj_r_squared", "0.99876 [adjusted R² of λz]"), ("r_squared", "0.99938 [R² of λz]"), ("n_points", "3 [λz points]"),
+                           ("time_first", "8 [λz first time]"), ("time_last", "24 [λz last time]"), ("lambda_z", "0.1111 [λz]"), ("intercept", "2.4 [λz intercept]")):
             self.ok(f"{{{{call_2.lambda_z.{field}}}}}", out, calls=self.calls)             # the selected one (index 1), never the first
-        self.ok("{{call_2.lambda_z.r.squared}} {{call_2.lambda_z.adj.r.squared}} {{ call_2 . lambda_z . n_points }}", "0.99938 0.99876 3", calls=self.calls)
+        self.ok("{{call_2.lambda_z.r.squared}} {{call_2.lambda_z.adj.r.squared}} {{ call_2 . lambda_z . n_points }}",
+                "0.99938 [R² of λz] 0.99876 [adjusted R² of λz] 3 [λz points]", calls=self.calls)
         self.assertEqual(gate_v2.resolve("call_2", "lambda_z.adj_r_squared", self.calls, SCHEMAS).path,
                          ["result", "subjects", 0, "outcome", "ok", "lambda_z_candidates", 1, "adj_r_squared"])       # the canonical path
-        self.assertEqual(v2("{{call_2.lambda_z.adj_r_squared}}", calls=self.calls, mark=",")["rendered"], "0,99876")
-        self.ok("{{call_2.r.squared}} {{call_2.lambda.z.n.points}}", "0.998765 4", calls=self.calls)   # the PKNCA names resolve as before (synthetic values differ)
+        self.assertEqual(v2("{{call_2.lambda_z.adj_r_squared}}", calls=self.calls, mark=",")["rendered"], "0,99876 [adjusted R² of λz]")
+        self.ok("{{call_2.r.squared}} {{call_2.lambda.z.n.points}}", "0.998765 [R² of λz] 4 [λz points]", calls=self.calls)   # the PKNCA names resolve as before (synthetic values differ)
 
     def test_time_fields_carry_the_time_unit_when_the_analysis_has_it(self):
         g = td.GOLDENS["theoph_s1_oral_dose_arg"]; d, units = td.digest_of(g)
@@ -416,12 +454,12 @@ class TestAliases(Base):
         for field, unit in (("time_first", " h"), ("time_last", " h"), ("lambda_z", " 1/h"), ("adj_r_squared", ""), ("n_points", "")):
             r = gate_v2.check(f"{{{{call_1.lambda_z.{field}}}}}", calls, [], SCHEMAS)
             self.assertEqual(r["findings"], [], field)
-            self.assertTrue(r["rendered"].endswith(unit), (field, r["rendered"]))
+            self.assertTrue(r["rendered"].partition(" [")[0].endswith(unit), (field, r["rendered"]))
             self.assertEqual(float(r["rendered"].split(" ")[0]), float(reg[field]), field)
         for name, v in d["options_used"]["quality_thresholds"].items():
             r = gate_v2.check(f"{{{{call_1.thresholds.{name}}}}}", calls, [], SCHEMAS)
             self.assertEqual(r["findings"], [], name); self.assertEqual(float(r["rendered"].split(" ")[0]), float(v), name)
-            self.assertEqual(r["rendered"].endswith(" %"), name.endswith("percent"), r["rendered"])
+            self.assertEqual(r["rendered"].partition(" [")[0].endswith(" %"), name.endswith("percent"), r["rendered"])
 
     def test_every_golden_candidate_renders_as_the_digest_shows(self):
         for name, g in td.GOLDENS.items():
@@ -452,13 +490,15 @@ class TestAliases(Base):
 
     def test_several_subjects(self):
         self.bad("{{call_3.lambda_z.adj_r_squared}}", reason="3 subjects", calls=self.calls)
-        self.ok("{{call_3.subject=2.lambda_z.n_points}}", "3", calls=self.calls)
-        self.ok("{{call_3.thresholds.max_extrapolated_percent}} {{call_3.subject=2.thresholds.min_adj_r_squared}}", "20 % 0.9", calls=self.calls)
+        self.ok("{{call_3.subject=2.lambda_z.n_points}}", "3 [λz points, subject 2]", calls=self.calls)
+        self.ok("{{call_3.thresholds.max_extrapolated_percent}} {{call_3.subject=2.thresholds.min_adj_r_squared}}",
+                "20 % [threshold: max AUC%extrap] 0.9 [threshold: min adjusted R²]", calls=self.calls)
 
     def test_thresholds(self):
-        self.ok("{{call_2.thresholds.max_extrapolated_percent}}", "20 %"); self.ok("{{call_2.thresholds.min_adj_r_squared}}", "0.9")
+        self.ok("{{call_2.thresholds.max_extrapolated_percent}}", "20 % [threshold: max AUC%extrap]")
+        self.ok("{{call_2.thresholds.min_adj_r_squared}}", "0.9 [threshold: min adjusted R²]")
         self.assertEqual(gate_v2.resolve("call_2", "thresholds.min_adj_r_squared", CALLS, SCHEMAS).path, ["spec", "options", "quality", "min_adj_r_squared"])
-        self.assertEqual(v2("seuil {{call_2.thresholds.max_extrapolated_percent}}", mark=",")["rendered"], "seuil 20 %")
+        self.assertEqual(v2("seuil {{call_2.thresholds.max_extrapolated_percent}}", mark=",")["rendered"], "seuil 20 % [threshold: max AUC%extrap]")
         r = self.bad("{{call_2.thresholds.foo}}", "unresolved_reference", "no quality threshold 'foo'")
         self.assertIn("thresholds: thresholds.max_extrapolated_percent, thresholds.min_adj_r_squared", r["findings"][0]["hint"])
         self.bad("{{call_2.thresholds}}", "unresolved_reference", "say which threshold")
@@ -474,7 +514,8 @@ class TestAliases(Base):
                             ("subject=1.lambda_z_regression.adj_r_squared", "lambda_z.adj_r_squared"), ("lambda_z_candidates.time_first", "lambda_z.time_first"),
                             ("quality_thresholds.max_extrapolated_percent", "thresholds.max_extrapolated_percent"),
                             ("options_used.quality_thresholds.max_extrapolated_percent", "thresholds.max_extrapolated_percent")):
-            r = self.bad(f"{{{{call_2.{path}}}}}", "unresolved_reference", "no parameter", calls=self.calls)
+            raw = path.startswith("lambda_z_candidates")                                    # a JSON key of the result: untyped, same hint
+            r = self.bad(f"{{{{call_2.{path}}}}}", "untyped_reference" if raw else "unresolved_reference", "raw JSON path" if raw else "no parameter", calls=self.calls)
             self.assertTrue(r["findings"][0]["hint"].startswith("closest: " + alias), (path, r["findings"][0]["hint"]))
             self.assertIn("closest: " + alias, gate_v2.reminder(r["findings"], self.calls))
         r = self.bad("{{call_2.lambda_z_regression.adj_r_squared}}", calls=CALLS)          # no candidate selected: the alias is still the name to use
@@ -495,12 +536,12 @@ class TestAliases(Base):
         strict["nca_run"]["$defs"]["NcaResult"]["properties"]["lambda_z_candidates"]["items"] = {"type": "object", "properties": {"n_points": {"type": "integer"}}, "additionalProperties": False}
         strict["nca_run"]["$defs"]["AnalysisSpec"]["additionalProperties"] = False
         c = self.calls
-        self.assertEqual(gate_v2.check("{{call_2.lambda_z.n_points}}", c, [USER], strict)["rendered"], "3")                   # allowed by the strict schema
+        self.assertEqual(gate_v2.check("{{call_2.lambda_z.n_points}}", c, [USER], strict)["rendered"], "3 [λz points]")         # allowed by the strict schema
         r = gate_v2.check("{{call_2.lambda_z.adj_r_squared}}", c, [USER], strict)
         self.assertIn("schema has no field 'adj_r_squared'", r["findings"][0]["reason"])                                      # forbidden although the data has it
         r = gate_v2.check("{{call_2.thresholds.max_extrapolated_percent}}", c, [USER], strict)
         self.assertIn("schema has no field 'options'", r["findings"][0]["reason"])
-        self.assertEqual(gate_v2.check("{{call_2.thresholds.max_extrapolated_percent}}", c, [USER], SCHEMAS)["rendered"], "20 %")   # the real schema allows it
+        self.assertEqual(gate_v2.check("{{call_2.thresholds.max_extrapolated_percent}}", c, [USER], SCHEMAS)["rendered"], "20 % [threshold: max AUC%extrap]")   # the real schema allows it
 
 
 # ---------------------------------------------------------------- named conventions (closed table, decision of 2026-10-17)
@@ -510,24 +551,26 @@ class TestConventions(Base):
     def test_the_table_is_closed_and_matches_the_engine(self):
         self.assertEqual(set(gate_v2.CONVENTIONS), {"max_extrapolated_percent", "min_adj_r_squared", "min_span_ratio", "min_points"})
         for name, row in gate_v2.CONVENTIONS.items():
-            self.assertEqual(set(row), {"value", "unit", "source"}); self.assertTrue(row["source"].strip(), name); self.assertIn("PKNCA", row["source"])
+            self.assertEqual(set(row), {"value", "unit", "name", "source"}); self.assertTrue(row["source"].strip(), name); self.assertIn("PKNCA", row["source"])
             for case, g in td.GOLDENS.items():                                                           # the engine's own defaults, as echoed by real results
                 self.assertEqual(g["nca_run_result"]["spec"]["options"]["quality"][name], row["value"], (case, name))
 
     def test_rendering_from_the_table_when_no_analysis_carries_the_threshold(self):
-        self.ok("{{convention.max_extrapolated_percent}}", "20 %", calls=NO_NCA)
-        self.ok("{{convention.min_adj_r_squared}} {{convention.min_span_ratio}} {{convention.min_points}}", "0.9 2 3", calls=NO_NCA)
-        self.assertEqual(v2("seuil {{convention.max_extrapolated_percent}}, R² {{ convention . min_adj_r_squared }}", calls=NO_NCA, mark=",")["rendered"], "seuil 20 %, R² 0,9")
+        self.ok("{{convention.max_extrapolated_percent}}", "20 % [convention: max AUC%extrap]", calls=NO_NCA)
+        self.ok("{{convention.min_adj_r_squared}} {{convention.min_span_ratio}} {{convention.min_points}}",
+                "0.9 [convention: min adjusted R²] 2 [convention: min span ratio] 3 [convention: min λz points]", calls=NO_NCA)
+        self.assertEqual(v2("seuil {{convention.max_extrapolated_percent}}, R² {{ convention . min_adj_r_squared }}", calls=NO_NCA, mark=",")["rendered"],
+                         "seuil 20 % [convention: max AUC%extrap], R² 0,9 [convention: min adjusted R²]")
         self.assertEqual(gate_v2.resolve_convention("max_extrapolated_percent", NO_NCA).path, ["convention", "max_extrapolated_percent"])
-        self.ok("{{convention.min_span_ratio}}", "2")                                                     # CALLS carry no min_span_ratio: table
-        r = self.ok("{{convention.max_extrapolated_percent}}", "20 %", calls=NO_NCA)
+        self.ok("{{convention.min_span_ratio}}", "2 [convention: min span ratio]")                       # CALLS carry no min_span_ratio: table
+        r = self.ok("{{convention.max_extrapolated_percent}}", "20 % [convention: max AUC%extrap]", calls=NO_NCA)
         self.assertEqual((r["references_total"], r["numbers_unverified"]), (1, 0))
 
     def test_an_analysis_that_echoes_the_threshold_wins_over_the_table(self):
         self.assertEqual(gate_v2.resolve_convention("max_extrapolated_percent", CALLS).path, ["spec", "options", "quality", "max_extrapolated_percent"])
         n = copy.deepcopy(NCA); n["spec"]["options"]["quality"]["max_extrapolated_percent"] = 25.0
         only = {"call_1": CALLS["call_1"], "call_2": apothicaire.ref_record("call_2", "nca_run", n, WS_UNITS)}
-        self.ok("{{convention.max_extrapolated_percent}}", "25 %", calls=only)                             # the user's threshold, not the table's
+        self.ok("{{convention.max_extrapolated_percent}}", "25 % [threshold: max AUC%extrap]", calls=only)  # the user's threshold, not the table's
         both = dict(only, call_5=CALLS["call_5"])                                                          # 25 and 20: ambiguous
         r = self.bad("{{convention.max_extrapolated_percent}}", "unresolved_reference", "different values of max_extrapolated_percent", calls=both)
         self.assertIn("{{call_2.thresholds.max_extrapolated_percent}} or {{call_5.thresholds.max_extrapolated_percent}}", r["findings"][0]["hint"])
@@ -552,6 +595,153 @@ class TestConventions(Base):
         rem = gate_v2.reminder(v2("{{call_2.cmaxx}}")["findings"], CALLS)
         self.assertIn("Conventions (never type them): {{convention.max_extrapolated_percent}}, {{convention.min_adj_r_squared}}", rem)
         self.assertIn("{{convention.max_extrapolated_percent}}", apothicaire.SYSTEM_ADDITION_V2)
+
+# ---------------------------------------------------------------- red-team probes of 2026-10-19 as mutation tests (T-054 to T-058)
+def _leaf_paths(x, path=""):
+    """Every JSON path of a payload that ends on a scalar, written the way the model would (`a.b[0].c`)."""
+    if isinstance(x, dict):
+        for k, v in x.items(): yield from _leaf_paths(v, f"{path}.{k}" if path else k)
+    elif isinstance(x, list):
+        for i, v in enumerate(x): yield from _leaf_paths(v, f"{path}[{i}]")
+    elif path: yield path
+
+GOLDEN = ("Cmax = {{call_2.cmax}}, Tmax = {{call_2.tmax}}, AUC(0-tlast) = {{call_2.auclast}}, AUC(0-inf) = {{call_2.aucinf.obs}}, "
+          "demi-vie {{call_2.half.life}}, CL/F {{call_2.cl.obs}}.")
+
+class TestRedTeamMutations(Base):
+    """The replayable probes of the red-team triage (project Library, red-team/probes/probes.py), rows RT-A1, RT-A9, RT-A6, RT-A2 and
+    RT-A10, each turned into a family of mutations: every one passed gate v2 at a2ae43e with 0 finding."""
+
+    # RT-A1 / T-054: the rendered text names the quantity, so a wrong parameter of the same unit is visible
+    def test_a_wrong_parameter_of_the_same_unit_is_named(self):
+        r = self.ok("AUC(0-tlast) = {{call_2.aucinf.obs}}", "AUC(0-tlast) = 123.457 h*ng/mL [AUCinf,obs]")
+        self.assertEqual(r["assertions"][0]["quantity"], "aucinf.obs")
+
+    def test_swapping_a_referenced_parameter_changes_the_rendered_name(self):
+        base = self.ok(GOLDEN)["rendered"]
+        computed = [n for n, v in PARAMS.items() if not isinstance(v, str)]
+        for old in ("cmax", "tmax", "auclast", "aucinf.obs", "half.life", "cl.obs"):
+            for new in computed:
+                if new == old: continue
+                with self.subTest(old=old, new=new):
+                    r = self.ok(GOLDEN.replace(f"{{{{call_2.{old}}}}}", f"{{{{call_2.{new}}}}}"))
+                    self.assertNotEqual(r["rendered"], base)
+                    self.assertIn(f"[{gate_v2.PARAMETERS[new]}]", r["rendered"]); self.assertEqual(r["rendered"].count(f"[{gate_v2.PARAMETERS[old]}]"), 0)
+
+    # RT-A9 / T-055: a model-written text field never renders as a quantity
+    def test_a_model_written_name_is_not_a_quantity(self):
+        named = copy.deepcopy(NCA); named["name"] = "Cmax = 999 mg/L"; named["label"] = "AUC 12 h*ng/mL"
+        calls = make_calls(call_2=apothicaire.ref_record("call_2", "nca_run", named, WS_UNITS))
+        for t in ("Résultat : {{call_2.name}}", "{{call_2.label}}", "{{call_2.spec.kind}}", "{{call_2.subject}}", "{{call_2.route}}"):
+            with self.subTest(t):
+                r = self.bad(t, "untyped_reference", calls=calls, users=())
+                self.assertEqual((r["references_total"], r["references_untyped"], r["assertions"]), (0, 1, []))
+                self.assertNotIn("999", r["rendered"].replace(t, "")); self.assertNotIn("Cmax = 999", r["rendered"].split(gate_v2.MARK_OPEN)[0])
+
+    # RT-A6 / T-056: no raw JSON path, no unitless scalar, no non-selected candidate in the number channel
+    def test_no_json_path_of_any_result_renders(self):
+        for ref, payload in (("call_2", NCA), ("call_3", MULTI), ("call_4", COMPARE), ("call_1", IMPORT), ("call_2", with_candidates(NCA, CANDS))):
+            calls = make_calls(**{ref: apothicaire.ref_record(ref, CALLS[ref]["name"], payload, WS_UNITS)})
+            for path in _leaf_paths(payload):
+                t = f"{{{{{ref}.{path}}}}}"
+                with self.subTest(t):
+                    r = v2(t, calls=calls)
+                    self.assertEqual(r["assertions"], [], t); self.assertGreaterEqual(r["numbers_unverified"], 1, t)
+
+    def test_the_three_raw_path_probes(self):
+        g = td.GOLDENS["theoph_s1_oral_dose_arg"]["nca_run_result"]
+        calls = make_calls(call_9=apothicaire.ref_record("call_9", "nca_run", g.get("structuredContent", g), {}))
+        for t in ("| Cmax (mg/L) | {{call_2.result.subjects[0].outcome.ok.parameters[0].value.value}} |",
+                  "λz = {{call_9.outcome.ok.lambda_z_candidates[1].lambda_z}}", "Statut : {{call_9.status.state}}"):
+            with self.subTest(t):
+                r = self.bad(t, "untyped_reference", calls=calls); self.assertEqual(r["references_total"], 0)
+        self.ok("λz = {{call_9.lambda_z.lambda_z}}", calls=calls)                       # the selected candidate, by its typed name
+
+    # RT-A2 / T-057: a contradictory unit anywhere in the clause or the table column
+    TEMPLATES = ("La Cmax en {u} vaut {r}.", "Cmax ({u}) : {r}", "{r}, en {u}.", "Cmax [{u}] = {r}", "Les concentrations sont en {u}, Cmax = {r}",
+                 "| Cmax ({u}) | {r} |", "| Paramètre | Valeur ({u}) |\n|---|---|\n| Cmax | {r} |", "| Cmax | {r} | {u} |",
+                 "| Paramètre | Valeur | Unité |\n|---|---|---|\n| Tmax | 1,5 h |\n| Cmax | {r} | {u} |")
+
+    def test_a_contradictory_unit_anywhere_in_the_clause_is_a_finding(self):
+        for u in ("mg/L", "µg/mL", "μg/mL", "ng/L", "g/L", "mg/mL", "pg/mL"):              # concentration, another scale than ng/mL
+            for tpl in self.TEMPLATES:
+                t = tpl.format(u=u, r="{{call_2.cmax}}")
+                with self.subTest(t):
+                    r = self.bad(t, "contradictory_unit", n=1); self.assertNotIn("12.3457", r["rendered"])
+        for t in ("La clairance est {{call_2.cl.obs}}, en L/h.", "CL/F (mL/min) : {{call_2.cl.obs}}"):   # the engine had no dose unit: no L/h
+            with self.subTest(t): self.bad(t, "contradictory_unit")
+        for t in ("Tmax (min) : {{call_2.tmax}}", "Tmax en minutes : {{call_2.tmax}}", "AUC(0-tlast) (h*mg/L) = {{call_2.auclast}}"):
+            with self.subTest(t): self.bad(t, "contradictory_unit")
+
+    def test_the_same_unit_or_another_dimension_is_not_a_contradiction(self):
+        for u in ("ng/mL", "µg/L", "ng / mL", "h", "mg", "%", "min"):                    # same unit, same scale (µg/L), or not a concentration
+            for tpl in self.TEMPLATES:
+                t = tpl.format(u=u, r="{{call_2.cmax}}")
+                with self.subTest(t): self.ok(t)
+        for t in ("Cmax = {{call_2.cmax}}", "AUC (h·ng/mL) : {{call_2.auclast}}", "Tmax = {{call_2.tmax}} (prélèvement à 1,5 h)",
+                  "Tmax = {{call_2.tmax}} après une dose de 100 mg", "Les concentrations sont en ng/mL ; Cmax = {{call_2.cmax}}",
+                  "La demi-vie est de {{call_2.half.life}}. Les concentrations sont en mg/L.", "| Paramètre | min | max |\n|---|---|---|\n"
+                  "| Cmax | {{call_3.subject=2.cmax}} | {{call_3.subject=1.cmax}} |", "MRT = {{call_2.half.life}}, au min 3 points"):
+            with self.subTest(t): self.ok(t)
+
+    def test_unit_dimensions(self):
+        same = (("ng/mL", "µg/L"), ("h*ng/mL", "ng·h/mL"), ("h.ng/mL", "h*ng/mL"), ("1/h", "h^-1"), ("1/h", "h⁻¹"), ("L/h", "mL/min"))
+        for a, b in same: self.assertEqual(gate_v2.unit_dimension(a)[0], gate_v2.unit_dimension(b)[0], (a, b))
+        self.assertFalse(gate_v2.contradicts("µg/L", "ng/mL")); self.assertTrue(gate_v2.contradicts("mg/L", "ng/mL"))
+        self.assertTrue(gate_v2.contradicts("L/h", "mL/min")); self.assertFalse(gate_v2.contradicts("h", "ng/mL"))
+        self.assertTrue(gate_v2.contradicts("L/h", "dose unit/(h*ng/mL)")); self.assertFalse(gate_v2.contradicts("h", "dose unit/(h*ng/mL)"))
+        for u in ("dose unit", "points", "", "mg/kg/j/x", "fois"): self.assertIsNone(gate_v2.unit_dimension(u), u)
+
+    # RT-A10 / T-058: sign through emphasis, signs and multipliers in words, English numerals, Unicode numerals
+    def test_the_eight_probes_of_rt_a10(self):
+        for t in ("Cmax = -**{{call_2.cmax}}**", "Cmax = negative {{call_2.cmax}}", "hundredfold higher than {{call_2.cmax}}",
+                  "one third of {{call_2.cmax}}", "Cmax = ½ ng/mL", "The half-life is one hour.", "The half-life is eleven-hour.", "Cmax = ⁹⁹⁹ mg/L."):
+            with self.subTest(t): self.bad(t, users=())
+        self.ok("**{{call_2.cmax}}**", "**12.3457 ng/mL [Cmax]**")
+
+    def test_a_sign_through_any_emphasis_is_next_to_the_reference(self):
+        for w in ("**", "*", "_", "__", "`", "***", "~~"):
+            for sign in ("-", "−", "+"):
+                for t in (f"Cmax = {sign}{w}{{{{call_2.cmax}}}}{w}", f"Cmax = {w}{sign}{{{{call_2.cmax}}}}{w}", f"Cmax = {sign} {w}{{{{call_2.cmax}}}}{w}",
+                          f"Cmax : {sign}{w}{{{{call_2.cmax}}}}{w}", f"({sign}{w}{{{{call_2.cmax}}}}{w})"):
+                    with self.subTest(t): self.bad(t, "adjacent_to_reference")
+                with self.subTest(w=w): self.ok(f"Cmax = {w}{{{{call_2.cmax}}}}{w}")
+            for t in (f"{{{{call_2.cmax}}}}{w} mg/L", f"{w}{{{{call_2.cmax}}}}{w} × 10", f"{{{{call_2.cmax}}}} {w}mg/L{w}"):
+                with self.subTest(t): self.bad(t, "adjacent_to_reference")
+
+    def test_signs_in_words_next_to_a_reference(self):
+        for t in ("Cmax = negative {{call_2.cmax}}", "Cmax = minus {{call_2.cmax}}", "Cmax = moins {{call_2.cmax}}", "la Cmax est négative de {{call_2.cmax}}",
+                  "a negative of {{call_2.cmax}}", "Cmax = **negative** {{call_2.cmax}}"):
+            with self.subTest(t): self.bad(t, "adjacent_to_reference", "sign written in words")
+        for t in ("la différence est négative : {{call_4.auclast.difference}}", "soit moins de {{call_2.thresholds.max_extrapolated_percent}}",
+                  "**Cmax** {{call_2.cmax}}", "{{call_2.cmax}} *(observée)*", "{{call_2.cmax}} **au pic**"):
+            with self.subTest(t): self.ok(t)
+
+    def test_multipliers_and_fractions_in_words(self):
+        for t in ("hundredfold", "tenfold", "ten-fold", "two fold", "10-fold higher", "2 fois {{call_2.cmax}}", "3 times higher", "one third of the dose",
+                  "two thirds of the dose", "a quarter of {{call_2.cmax}}", "thrice", "quadruple", "un cinquième de la dose", "halves"):
+            with self.subTest(t): self.bad(t, users=())
+        for t in ("a third analysis was run", "le cinquième sujet", "fold change", "une fois l'analyse faite", "les deux analyses"):
+            with self.subTest(t): self.ok(t, users=())
+
+    def test_english_numerals_with_a_unit(self):
+        for t in ("one hour", "une heure", "one day", "eleven-hour", "a twelve-hour interval", "two-hour", "un litre", "one minute"):
+            with self.subTest(t): self.bad(t, "number_word", users=())
+
+    def test_unicode_numerals(self):
+        for t in ("Cmax = ½ ng/mL", "Cmax = ¼ mg/L", "Cmax = ⁹⁹⁹ mg/L", "Cmax = ① mg/L", "Cmax = Ⅻ", "{{call_2.cmax}} ²", "Cmax ³⁴ ng/mL", "Cmax = １２ mg/L"):
+            with self.subTest(t): self.bad(t, users=())
+        for t in ("R² = {{call_2.r.squared}}", "AUC₀₋∞ = {{call_2.aucinf.obs}}", "t½ = {{call_2.half.life}}", "λz en h⁻¹", "AUC (h²·ng/mL)",
+                  "10⁻³ près"):
+            with self.subTest(t): self.ok(t, users=())
+
+    # RT-A7: the formatting false positives Astra and Sol found stay fixed (non-regression)
+    def test_italic_and_list_items_are_not_signs(self):
+        for t in ("Cmax = *{{call_2.cmax}}*.", "- {{call_2.cmax}}", "* {{call_2.cmax}}", "+ {{call_2.cmax}}", "  - {{call_2.cmax}}", "- **{{call_2.cmax}}**",
+                  "1. {{call_2.cmax}}", "_{{call_2.cmax}}_", "`{{call_2.cmax}}`", "Résultats :\n- Cmax : {{call_2.cmax}}\n- Tmax : *{{call_2.tmax}}*"):
+            with self.subTest(t): self.ok(t)
+        self.assertEqual(v2("- {{call_2.cmax}}")["rendered"], "- 12.3457 ng/mL [Cmax]")
+
 
 # ---------------------------------------------------------------- the digest and the records built by the client
 class TestDigestRef(unittest.TestCase):

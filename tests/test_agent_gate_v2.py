@@ -41,7 +41,7 @@ class TestAgentGateV2(unittest.TestCase):
 
     def test_clean_answer_is_rendered_and_the_memory_keeps_the_references(self):
         ag = self.agent()
-        ag.llm.script += [say("Cmax = {{call_2.cmax}} à Tmax = {{call_2.tmax}} ; demi-vie {{call_2.half.life}} ; {{call_1.rows}} points.")]
+        ag.llm.script += [say("Cmax = {{call_2.cmax}} à Tmax = {{call_2.tmax}} ; demi-vie {{call_2.half.life}}.")]
         ans, st = ag.turn(USER, verbose=False)
         d = shown_params(ag)
         self.assertEqual(d["ref"], "call_2"); self.assertEqual(list(d)[0], "ref")
@@ -49,12 +49,12 @@ class TestAgentGateV2(unittest.TestCase):
         self.assertEqual([c["ref"] for c in ag.tool_log], ["call_1", "call_2"])
         p = d["subjects"][0]["parameters"]
         fr = lambda s: s.replace(".", ",")                                    # the chat language is French: decimal comma
-        self.assertEqual(ans, f"Cmax = {fr(p['cmax'])} à Tmax = {fr(p['tmax'])} ; demi-vie {fr(p['half.life'])} ; 11 points.")
+        self.assertEqual(ans, f"Cmax = {fr(p['cmax'])} [Cmax] à Tmax = {fr(p['tmax'])} [Tmax] ; demi-vie {fr(p['half.life'])} [half-life].")
         self.assertNotIn("{{", ans); self.assertNotIn("⚠", ans)
-        self.assertEqual(ag.store.log[-1]["content"], "Cmax = {{call_2.cmax}} à Tmax = {{call_2.tmax}} ; demi-vie {{call_2.half.life}} ; {{call_1.rows}} points.")
+        self.assertEqual(ag.store.log[-1]["content"], "Cmax = {{call_2.cmax}} à Tmax = {{call_2.tmax}} ; demi-vie {{call_2.half.life}}.")
         g = st["gate"]
         self.assertEqual(g["version"], "v2"); self.assertFalse(g["regenerated"])
-        self.assertEqual((g["before"]["references_total"], g["before"]["references_unresolved"], g["before"]["numbers_unverified"]), (4, 0, 0))
+        self.assertEqual((g["before"]["references_total"], g["before"]["references_unresolved"], g["before"]["numbers_unverified"]), (3, 0, 0))
         self.assertEqual(g["rendered"], ans); self.assertEqual(len(ag.llm.calls), 3)
         with open(os.path.join(self.dir, "refs.jsonl"), encoding="utf-8") as f: recs = [json.loads(l) for l in f]
         self.assertEqual([r["ref"] for r in recs], ["call_1", "call_2"])
@@ -75,10 +75,10 @@ class TestAgentGateV2(unittest.TestCase):
         self.assertEqual(fourth[:len(third)], third); self.assertEqual([m["role"] for m in fourth[len(third):]], ["assistant", "user"])
         rem = fourth[-1]["content"]
         self.assertTrue(rem.startswith("[system reminder] Your last answer was rejected by the renderer"))
-        self.assertIn("not in the user's message", rem); self.assertIn("Available references: call_1 (data_import, worksheet 1: rows, subjects); call_2 (nca_run, analysis 2, subject 1)", rem)
+        self.assertIn("not in the user's message", rem); self.assertIn("Available references: call_2 (nca_run, analysis 2, subject 1)", rem)
         self.assertIsNone(calls[3]["tools"])
         p = shown_params(ag)["subjects"][0]["parameters"]["cmax"]
-        self.assertEqual(ans, f"Cmax = {p.replace('.', ',')}.")
+        self.assertEqual(ans, f"Cmax = {p.replace('.', ',')} [Cmax].")
         g = st["gate"]
         self.assertTrue(g["regenerated"]); self.assertEqual(g["kept"], "regenerated")
         self.assertEqual((g["before"]["numbers_unverified"], g["after"]["numbers_unverified"]), (1, 0))
@@ -92,7 +92,7 @@ class TestAgentGateV2(unittest.TestCase):
         rem = ag.llm.calls[3]["messages"][-1]["content"]
         self.assertIn("no parameter 'cmaxx' in this analysis (closest: cmax", rem); self.assertIn("unit next to a reference", rem)
         p = shown_params(ag)["subjects"][0]["parameters"]
-        self.assertEqual(ans, f"Cmax = ⟦no parameter 'cmaxx' in this analysis: {{{{call_2.cmaxx}}}}⟧, AUC {p['auclast'].replace('.', ',')}."
+        self.assertEqual(ans, f"Cmax = ⟦no parameter 'cmaxx' in this analysis: {{{{call_2.cmaxx}}}}⟧, AUC {p['auclast'].replace('.', ',')} [AUClast]."
                               "\n\n⚠ 1 problem(s) in the answer (typed rendering): {{call_2.cmaxx}}")
         g = st["gate"]
         self.assertEqual(g["kept"], "regenerated"); self.assertEqual((g["before"]["numbers_unverified"], g["after"]["numbers_unverified"]), (2, 1))
@@ -107,7 +107,7 @@ class TestAgentGateV2(unittest.TestCase):
         self.ag = ag2
         self.assertEqual(sorted(ag2.refs), ["call_1", "call_2"])
         ans, st = ag2.turn("Et la Cmax ?", verbose=False)
-        self.assertNotIn("{{", ans); self.assertNotIn("⚠", ans); self.assertIn("mg/L", ans); self.assertIn(" h.", ans)
+        self.assertNotIn("{{", ans); self.assertNotIn("⚠", ans); self.assertIn("mg/L [Cmax]", ans); self.assertIn(" h [Tmax].", ans)
         self.assertEqual(st["gate"]["before"]["references_unresolved"], 0)
 
     def test_several_subjects_need_a_subject_ref(self):
@@ -118,7 +118,7 @@ class TestAgentGateV2(unittest.TestCase):
         d = shown_params(ag)
         self.assertEqual([s["ref"] for s in d["subjects"]], [f"call_2.subject={s['subject']}" for s in d["subjects"]])
         p3 = next(s for s in d["subjects"] if s["subject"] == "3")["parameters"]["cmax"]
-        self.assertEqual(ans, f"Cmax du sujet 3 : {p3.replace('.', ',')}.")
+        self.assertEqual(ans, f"Cmax du sujet 3 : {p3.replace('.', ',')} [Cmax, subject 3].")
         self.assertIn("6 subjects: write subject=LABEL", ag.llm.calls[3]["messages"][-1]["content"])
 
     def test_v1_is_the_default_and_unchanged(self):
@@ -140,8 +140,9 @@ class TestAgentGateV2(unittest.TestCase):
         ans, st = ag.turn(USER, verbose=False)
         d = shown_params(ag); reg = d["subjects"][0]["lambda_z_regression"]; thr = d["options_used"]["quality_thresholds"]
         fr = lambda x: gate_v2.render_value(x, "", ",")
-        self.assertEqual(ans, f"R² ajusté {fr(reg['adj_r_squared'])} sur {reg['n_points']} points de {fr(reg['time_first'])} h à {fr(reg['time_last'])} h ; "
-                              f"seuil {fr(thr['max_extrapolated_percent'])} %.")
+        self.assertEqual(ans, f"R² ajusté {fr(reg['adj_r_squared'])} [adjusted R² of λz] sur {reg['n_points']} [λz points] points de "
+                              f"{fr(reg['time_first'])} h [λz first time] à {fr(reg['time_last'])} h [λz last time] ; "
+                              f"seuil {fr(thr['max_extrapolated_percent'])} % [threshold: max AUC%extrap].")
         rem = ag.llm.calls[3]["messages"][-1]["content"]
         self.assertIn("closest: lambda_z.adj_r_squared", rem); self.assertIn("closest: thresholds.max_extrapolated_percent", rem)
         self.assertIn("Aliases: call_2.lambda_z.adj_r_squared, .r_squared, .n_points, .time_first, .time_last (the selected λz regression); "
@@ -153,7 +154,7 @@ class TestAgentGateV2(unittest.TestCase):
         ag = self.agent()
         ag.llm.script += [say("Seuil d'extrapolation 20 %."), say("Seuil {{convention.max_extrapolated_percent}}, R² minimal {{convention.min_adj_r_squared}}, {{convention.min_points}} points.")]
         ans, st = ag.turn(USER, verbose=False)
-        self.assertEqual(ans, "Seuil 20 %, R² minimal 0,9, 3 points.")
+        self.assertEqual(ans, "Seuil 20 % [threshold: max AUC%extrap], R² minimal 0,9 [threshold: min adjusted R²], 3 [threshold: min λz points] points.")
         rem = ag.llm.calls[3]["messages"][-1]["content"]
         self.assertIn("20 %: a number typed by hand", rem); self.assertIn("write {{call_2.thresholds.max_extrapolated_percent}}", rem)   # the analysis echoes it
         self.assertEqual((st["gate"]["before"]["numbers_unverified"], st["gate"]["after"]["numbers_unverified"]), (1, 0))
