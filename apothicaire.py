@@ -35,6 +35,12 @@ MCP_BIN = os.environ.get("APOTHICAIRE_MCP", os.path.join(
 # Tools exposed to the model (the 12k-token context cannot hold the 18 schemas). This list is also the boundary: a call
 # to any other tool of the server (project_new, data_remove...) is refused by the client and never reaches the engine.
 EXPOSED = ["data_import", "nca_run", "analysis_get", "export_table", "analysis_compare"]
+# The units nca_run converts with (caladrius-nca units.rs, NCA-UNIT-02): with a time, a mass/volume concentration and a dose
+# mass in options.units, the engine labels every parameter and gives CL and V in L/time and L. Outside this table the
+# engine refuses the run, so the client then sends no units and the analysis stays unitless, as before.
+UNIT_TIME = ("s", "min", "h", "d")
+UNIT_MASS = ("ng", "µg", "μg", "ug", "mcg", "mg", "g")
+UNIT_VOLUME = ("mL", "ml", "L", "l")
 # data_import may take a file `path` (a client convenience): it is resolved inside this folder only.
 INPUTS_DIR = os.environ.get("APOTHICAIRE_INPUTS", os.path.join(HERE, "inputs"))
 # nca_run options kept in the schema shown to the model (the full schema is ~1k tokens; the
@@ -142,6 +148,8 @@ def to_openai(tool):
                                          "description": "oral = extravascular; infusion = iv_infusion with infusion_duration"}
         params["properties"]["infusion_duration"] = {"type": "number", "description": "Only with route iv_infusion: duration of the infusion in the time unit of the data (2 h -> 2)."}
         params["properties"]["dose"] = {"type": "number", "description": "Dose amount in the unit the user gives (10 mg -> 10)."}
+        params["properties"]["dose_unit"] = {"type": "string", "enum": ["ng", "ug", "mg", "g"],
+                                             "description": "Unit of that dose as the user gives it (10 mg -> mg; µg -> ug). With it Caladrius gives CL in L/time and V in L."}
         params["properties"]["subject"] = {"description": "One subject label; omit for all subjects."}
     if tool["name"] == "analysis_compare":
         desc = ("Differences, relative differences in percent and ratios (b minus a) of the parameters two analyses of one "
@@ -182,6 +190,17 @@ def param_unit(name, u):
     if name.startswith(("vz.", "vss.")): return der.get("v", f"{d or 'dose unit'}/({c})")
     return "?"
 
+def nca_units(ws_units, dose_unit=None):
+    """options.units for nca_run: the worksheet's time and concentration units and the dose unit (the model's `dose_unit`,
+    else the worksheet's dose column), or None when one is missing or outside the engine's table (UNIT_*)."""
+    u = ws_units or {}
+    t, c = (u.get("time") or "").strip(), (u.get("conc") or "").strip()
+    d = dose_unit if isinstance(dose_unit, str) and dose_unit.strip() else (u.get("dose") or "")
+    d = d.strip(); mass, _, volume = c.partition("/")
+    if t in UNIT_TIME and d in UNIT_MASS and mass.strip() in UNIT_MASS and volume.strip() in UNIT_VOLUME:
+        return {"time": t, "concentration": c, "dose": d}
+    return None
+
 def digest_analysis(d, units=None):
     """An NCA analysis (nca_run / analysis_get answer) is ~7 kB of JSON (all lambda_z candidates,
     the profile, ~60 parameters): too much for a 12k context. The model gets the same values,
@@ -196,9 +215,11 @@ def digest_analysis(d, units=None):
                             "blq": opts.get("blq"), "missing": opts.get("missing"),
                             "negative": opts.get("negative"), "start": opts.get("start")},
            "subjects": []}
+    if opts.get("units"): out["options_used"]["units"] = opts["units"]
     u = units or {}
     out["unit_warnings"] = u.get("warnings", [])
-    out["dose_unit"] = u.get("dose") or "unknown to Caladrius (no dose column): CL and V are in dose unit/..."
+    out["dose_unit"] = ((opts.get("units") or {}).get("dose") or u.get("dose")
+                        or "unknown to Caladrius (no dose column): CL and V are in dose unit/...")
     for s in res.get("subjects", []):
         o = {"subject": s.get("subject"), "dose": s.get("dose"), "route": s.get("route")}
         oc = s.get("outcome", {})
@@ -207,7 +228,7 @@ def digest_analysis(d, units=None):
             for p in ok.get("parameters", []):
                 v = p.get("value", {})
                 if "value" in v:
-                    un = param_unit(p["name"], u)
+                    un = p["unit"] if p.get("unit") is not None else param_unit(p["name"], u)   # the engine's, with units
                     vals[p["name"]] = f"{_shown(v['value'])} {un}".strip() if un else _sig(v["value"])
                 else: nc.setdefault(str(v.get("not_calculated")), []).append(p["name"])
             o["flags"] = ok.get("flags", [])
@@ -404,6 +425,7 @@ class Apothicaire(optchat.Agent):
         if name == "nca_run":
             err = self._nca_route(args)
             if err: return err
+            self._nca_units(args)
         try: ok, text, structured = self.mcp.call_full(name, args)
         except MCPError as e: ok, text, structured = False, f"mcp error: {e}", None
         ref = None
@@ -429,6 +451,20 @@ class Apothicaire(optchat.Agent):
                 return "TOOL ERROR: route iv_infusion needs infusion_duration, a positive number in the time unit of the data"
             args["route"] = {"iv_infusion": {"duration": dur}}
         return None
+
+    def _nca_units(self, args):
+        """Fills options.units from the worksheet's units and the model's `dose_unit` (removed from the arguments), so the
+        engine converts CL and V to litres; options.units the model wrote itself are kept. Nothing is sent when a unit is
+        missing or unknown to the engine."""
+        dose_unit = args.pop("dose_unit", None)
+        opts = args.get("options")
+        if opts is None: opts = {}
+        if not isinstance(opts, dict) or "units" in opts: return
+        ws = args.get("worksheet")
+        try: ws = int(ws)
+        except (TypeError, ValueError): pass
+        units = nca_units(self.units.get(ws), dose_unit)
+        if units: args["options"] = {**opts, "units": units}
 
     # -- number gate: every final answer is checked against the tool results and the user's messages
     def _chat_call(self, msgs, tools=None):

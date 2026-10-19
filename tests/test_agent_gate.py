@@ -236,6 +236,70 @@ class TestToolBoundary(unittest.TestCase):
         self.assertNotIn("path", self.ag.tool_log[-1]["args"])
 
 
+class TestNcaUnits(unittest.TestCase):
+    """options.units built from the worksheet and the model's dose_unit (RT-E4), no server."""
+    WS = {"time": "h", "conc": "ng/mL", "dose": None}
+
+    def test_built_when_all_three_are_known(self):
+        self.assertEqual(apothicaire.nca_units(self.WS, "mg"), {"time": "h", "concentration": "ng/mL", "dose": "mg"})
+        self.assertEqual(apothicaire.nca_units({**self.WS, "dose": "ug"}), {"time": "h", "concentration": "ng/mL", "dose": "ug"})
+        self.assertEqual(apothicaire.nca_units({**self.WS, "dose": "ug"}, "mg")["dose"], "mg")     # the dose argument's unit wins
+
+    def test_none_when_a_unit_is_missing_or_unknown_to_the_engine(self):
+        for ws, du in ((self.WS, None), (self.WS, ""), (self.WS, "mmol"), (self.WS, "mL"), ({**self.WS, "time": "hours"}, "mg"),
+                       ({**self.WS, "conc": "nmol/L"}, "mg"), ({**self.WS, "conc": "ng"}, "mg"), ({}, "mg"), (None, "mg")):
+            self.assertIsNone(apothicaire.nca_units(ws, du), (ws, du))
+
+    def test_nca_run_function_offers_dose_unit(self):
+        tools = td.load("tools_list.json")["tools"]
+        f = apothicaire.to_openai(next(t for t in tools if t["name"] == "nca_run"))["function"]["parameters"]["properties"]
+        self.assertEqual(f["dose_unit"]["enum"], ["ng", "ug", "mg", "g"])
+
+
+@unittest.skipUnless(os.path.exists(apothicaire.MCP_BIN), "caladrius-mcp is not built")
+class TestUnitsReachTheEngine(unittest.TestCase):
+    """A mg dose on an ng/mL worksheet: CL in L/h and Vz in L, converted by the engine (RT-E4). Real server, no model."""
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="apo_units_")
+        self.ag = apothicaire.Apothicaire(cfg=dict(optchat.CFG, data_dir=self.dir))
+        cols = [{"name": "time", "unit": "h"}, {"name": "conc", "unit": "ng/mL"}]
+        self.ag._tool("data_import", {**IMPORT_ARGS, "columns": cols})
+
+    def tearDown(self):
+        self.ag.close(); shutil.rmtree(self.dir, ignore_errors=True)
+
+    def run_nca(self, **extra):
+        d = json.loads(self.ag._tool("nca_run", {"worksheet": 1, **NCA_ARGS, **extra}))
+        p = d["subjects"][0]["parameters"]
+        return d, {k: (float(p[k].split()[0]), p[k].split(maxsplit=1)[1]) for k in ("cl.obs", "vz.obs", "cmax")}
+
+    def test_cl_in_l_per_h_and_vz_in_l(self):
+        plain_d, plain = self.run_nca()
+        self.assertNotIn("units", self.ag.tool_log[-1]["args"].get("options", {}))       # no dose unit: nothing sent
+        self.assertTrue(plain_d["dose_unit"].startswith("unknown to Caladrius"))
+        self.assertIn("dose unit", plain["cl.obs"][1])
+        d, conv = self.run_nca(dose_unit="mg")
+        call = self.ag.tool_log[-1]
+        self.assertEqual(call["args"]["options"]["units"], {"time": "h", "concentration": "ng/mL", "dose": "mg"})
+        self.assertNotIn("dose_unit", call["args"])
+        self.assertEqual(conv["cl.obs"][1], "L/h"); self.assertEqual(conv["vz.obs"][1], "L")
+        self.assertEqual(conv["cmax"], plain["cmax"][:1] + ("ng/mL",))
+        # mg / (ng/mL) = 1e-3 g / (1e-9 g / 1e-3 L) = 1000 L: the engine's conversion, not the client's
+        for k in ("cl.obs", "vz.obs"):
+            self.assertAlmostEqual(conv[k][0] / plain[k][0], 1000, delta=1000 * 1e-5, msg=k)
+        self.assertEqual(d["dose_unit"], "mg"); self.assertEqual(d["options_used"]["units"]["dose"], "mg")
+
+    def test_units_the_model_wrote_are_kept(self):
+        mine = {"time": "h", "concentration": "ng/mL", "dose": "ug"}
+        self.run_nca(dose_unit="mg", options={**NCA_ARGS.get("options", {}), "units": mine})
+        self.assertEqual(self.ag.tool_log[-1]["args"]["options"]["units"], mine)
+
+    def test_an_unknown_dose_unit_leaves_the_run_unitless(self):
+        d, plain = self.run_nca(dose_unit="mmol")
+        self.assertTrue(self.ag.tool_log[-1]["ok"]); self.assertNotIn("units", self.ag.tool_log[-1]["args"]["options"])
+        self.assertIn("dose unit", plain["cl.obs"][1])
+
+
 class TestStaticPrefixUntouched(unittest.TestCase):
     def test_gate_adds_nothing_to_the_system_prompt_or_the_tool_definitions(self):
         self.assertNotIn("gate", optchat.SYSTEM_PROMPT.lower().replace("investigate", ""))
