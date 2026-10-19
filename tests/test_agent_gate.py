@@ -300,6 +300,61 @@ class TestUnitsReachTheEngine(unittest.TestCase):
         self.assertIn("dose unit", plain["cl.obs"][1])
 
 
+class TestLambdaZSelectionShown(unittest.TestCase):
+    """The model sees lambda_z_selection with exclude and manual only (RT-E6), no server."""
+    def test_schema(self):
+        tools = td.load("tools_list.json")["tools"]
+        opts = apothicaire.to_openai(next(t for t in tools if t["name"] == "nca_run"))["function"]["parameters"]["properties"]["options"]
+        sel = opts["properties"]["lambda_z_selection"]
+        self.assertEqual(set(sel["properties"]), {"exclude", "manual"})
+        self.assertEqual(sel["properties"]["exclude"]["items"], {"type": "number"})
+        self.assertEqual(set(sel["properties"]["manual"]["properties"]), {"times", "range"})
+        self.assertNotIn("blq", opts["properties"]); self.assertIn("blq and missing keep the engine's defaults", opts["description"])
+        self.assertNotIn("oneOf", json.dumps(sel)); self.assertNotIn("anyOf", json.dumps(sel))
+
+
+@unittest.skipUnless(os.path.exists(apothicaire.MCP_BIN), "caladrius-mcp is not built")
+class TestLambdaZSelection(unittest.TestCase):
+    """"Exclude the last point from λz" from the chat: the scripted model's nca_run carries lambda_z_selection.exclude
+    and the engine returns another λz (RT-E6). Real server, no llama.cpp."""
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="apo_lz_")
+        self.ag = apothicaire.Apothicaire(cfg=dict(optchat.CFG, data_dir=self.dir))
+
+    def tearDown(self):
+        self.ag.close(); shutil.rmtree(self.dir, ignore_errors=True)
+
+    def lz(self, call):
+        s = json.loads(call["shown"])["subjects"][0]
+        return s["parameters"]["lambda.z"], s["lambda_z_regression"]
+
+    def test_excluding_one_point_from_the_chat(self):
+        ag = self.ag
+        excl = {"worksheet": 1, **NCA_ARGS, "options": {**NCA_ARGS["options"], "lambda_z_selection": {"exclude": [24.37]}}}
+        ag.llm = FakeLLM([tool_call("data_import", IMPORT_ARGS, "c1"), tool_call("nca_run", {"worksheet": 1, **NCA_ARGS}, "c2"),
+                          say("Analyse faite."),
+                          tool_call("nca_run", excl, "c3"), say("λz recalculée sans le point de 24,37 h.")])
+        ag.compactor.llm = ag.llm
+        ag.turn(USER, verbose=False)
+        ag.turn("Exclus le point de 24,37 h de la régression de λz.", verbose=False)
+        first, second = ag.tool_log[1], ag.tool_log[2]
+        self.assertEqual(second["args"]["options"]["lambda_z_selection"], {"exclude": [24.37]})
+        (lz1, reg1), (lz2, reg2) = self.lz(first), self.lz(second)
+        self.assertNotEqual(lz1, lz2)
+        self.assertLess(reg2["time_last"], 24.37); self.assertEqual(reg1["time_last"], 24.37)
+        d = json.loads(second["shown"])
+        self.assertEqual(d["options_used"]["lambda_z_selection"], {"exclude": [24.37]})
+        self.assertNotIn("lambda_z_selection", json.loads(first["shown"])["options_used"])   # unchanged points: not shown
+
+    def test_manual_points_and_a_readable_error(self):
+        ag = self.ag; ag._tool("data_import", IMPORT_ARGS)
+        out = json.loads(ag._tool("nca_run", {"worksheet": 1, **NCA_ARGS, "options": {
+            "lambda_z_selection": {"manual": {"range": {"start": 5, "end": 13}}}}}))
+        self.assertEqual(out["subjects"][0]["lambda_z_regression"]["n_points"], 4)
+        out = json.loads(ag._tool("nca_run", {"worksheet": 1, **NCA_ARGS, "options": {"lambda_z_selection": {"exclude": [24]}}}))
+        self.assertIn("not a sample time", out["subjects"][0]["outcome"]["error"])          # the model reads why
+
+
 class TestStaticPrefixUntouched(unittest.TestCase):
     def test_gate_adds_nothing_to_the_system_prompt_or_the_tool_definitions(self):
         self.assertNotIn("gate", optchat.SYSTEM_PROMPT.lower().replace("investigate", ""))

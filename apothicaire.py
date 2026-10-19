@@ -45,7 +45,20 @@ UNIT_VOLUME = ("mL", "ml", "L", "l")
 INPUTS_DIR = os.environ.get("APOTHICAIRE_INPUTS", os.path.join(HERE, "inputs"))
 # nca_run options kept in the schema shown to the model (the full schema is ~1k tokens; the
 # server still accepts every option, they are only hidden from the prompt).
-NCA_OPTIONS_KEPT = ["auc_method", "start", "lambda_z", "quality"]
+NCA_OPTIONS_KEPT = ["auc_method", "start", "lambda_z", "quality", "lambda_z_selection"]
+# lambda_z_selection as the model sees it: the two choices a user asks for (leave points out, or choose them), in plain
+# objects; tie_rule, positive_filter_first and exclude_replaced keep the engine's defaults.
+LAMBDA_Z_SELECTION = {
+    "type": "object", "description": "Points of the λz regression; only when the user asks for it.",
+    "properties": {
+        "exclude": {"type": "array", "items": {"type": "number"},
+                    "description": "Sample times, as written in the data, left out of the automatic λz selection (leave out the 24 h point -> [24])."},
+        "manual": {"type": "object",
+                   "description": "λz points chosen by the user instead of the automatic selection: either times or range, not both.",
+                   "properties": {"times": {"type": "array", "items": {"type": "number"}, "description": "These sample times, e.g. [8, 12, 24]."},
+                                  "range": {"type": "object", "description": "Every sample with start <= time <= end.",
+                                            "properties": {"start": {"type": "number"}, "end": {"type": "number"}},
+                                            "required": ["start", "end"]}}}}}
 
 SYSTEM_ADDITION = """
 
@@ -142,8 +155,9 @@ def to_openai(tool):
     if tool["name"] == "nca_run":
         opts = params["properties"]["options"]
         opts["properties"] = {k: v for k, v in opts["properties"].items() if k in NCA_OPTIONS_KEPT}
+        if "lambda_z_selection" in opts["properties"]: opts["properties"]["lambda_z_selection"] = LAMBDA_Z_SELECTION
         opts["description"] = ("NCA conventions, all optional. auc_method: linear = linear trapezoids, "
-                               "lin_up_log_down = linear-up/log-down. Other options (blq, missing...) exist but are not shown.")
+                               "lin_up_log_down = linear-up/log-down. blq and missing keep the engine's defaults (in options_used).")
         params["properties"]["route"] = {"type": "string", "enum": ["extravascular", "iv_bolus", "iv_infusion"],
                                          "description": "oral = extravascular; infusion = iv_infusion with infusion_duration"}
         params["properties"]["infusion_duration"] = {"type": "number", "description": "Only with route iv_infusion: duration of the infusion in the time unit of the data (2 h -> 2)."}
@@ -216,6 +230,9 @@ def digest_analysis(d, units=None):
                             "negative": opts.get("negative"), "start": opts.get("start")},
            "subjects": []}
     if opts.get("units"): out["options_used"]["units"] = opts["units"]
+    sel = opts.get("lambda_z_selection") or {}
+    if sel.get("exclude") or sel.get("manual"):                          # shown only when the user changed the points
+        out["options_used"]["lambda_z_selection"] = {k: sel[k] for k in ("exclude", "manual") if sel.get(k)}
     u = units or {}
     out["unit_warnings"] = u.get("warnings", [])
     out["dose_unit"] = ((opts.get("units") or {}).get("dose") or u.get("dose")
