@@ -161,6 +161,81 @@ class TestGateContext(unittest.TestCase):
         self.assertEqual(tools, ["R1", "R2"]); self.assertEqual(users, ["u1", "u2"])
 
 
+class TestInputPath(unittest.TestCase):
+    """data_import reads a file path only inside the inputs folder (RT-E8)."""
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix="apo_inputs_")
+        os.makedirs(os.path.join(self.root, "sub"))
+
+    def tearDown(self): shutil.rmtree(self.root, ignore_errors=True)
+
+    def test_inside_is_resolved_outside_is_none(self):
+        f = lambda p: apothicaire.input_path(p, self.root)
+        real = os.path.realpath(self.root)
+        self.assertEqual(f("x.csv"), os.path.join(real, "x.csv"))
+        self.assertEqual(f("sub/x.csv"), os.path.join(real, "sub", "x.csv"))
+        self.assertEqual(f(os.path.join(self.root, "x.csv")), os.path.join(real, "x.csv"))   # absolute, but inside
+        for bad in ("../x.csv", "sub/../../x.csv", os.path.abspath(os.sep + "etc" + os.sep + "passwd"), __file__, "", "  ", ".", None, 3):
+            self.assertIsNone(f(bad), bad)
+
+    @unittest.skipIf(os.name == "nt", "symbolic links need privileges on Windows")
+    def test_a_symbolic_link_cannot_leave_the_folder(self):
+        os.symlink(os.path.dirname(HERE), os.path.join(self.root, "out"))
+        self.assertIsNone(apothicaire.input_path("out/README.md", self.root))
+
+
+@unittest.skipUnless(os.path.exists(apothicaire.MCP_BIN), "caladrius-mcp is not built")
+class TestToolBoundary(unittest.TestCase):
+    """Only the EXPOSED tools run, and data_import's file path stays in the inputs folder (RT-E8). Real server, no model."""
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="apo_boundary_")
+        self.inputs = os.path.join(self.dir, "inputs"); os.makedirs(self.inputs)
+        self.saved_inputs, apothicaire.INPUTS_DIR = apothicaire.INPUTS_DIR, self.inputs
+        self.ag = apothicaire.Apothicaire(cfg=dict(optchat.CFG, data_dir=self.dir))
+        self.calls = []
+        real = self.ag.mcp.call_full
+        def spy(name, args):
+            self.calls.append(name); return real(name, args)
+        self.ag.mcp.call_full = spy
+
+    def tearDown(self):
+        apothicaire.INPUTS_DIR = self.saved_inputs
+        self.ag.close(); shutil.rmtree(self.dir, ignore_errors=True)
+
+    def test_a_hidden_tool_is_refused_before_the_engine(self):
+        self.ag._tool("data_import", IMPORT_ARGS)
+        for name, args in (("data_remove", {"worksheet": 1}), ("project_new", {}), ("analysis_remove", {"analysis": 1}),
+                           ("data_set_cell", {"worksheet": 1, "row": 0, "column": "conc", "value": 0}),
+                           ("project_load", {"path": "/tmp/x"})):
+            with self.subTest(tool=name):
+                self.assertIn(name, self.ag.mcp.tools)                           # the server does have it
+                out = self.ag._tool(name, args)
+                self.assertTrue(out.startswith("TOOL ERROR: tool " + name + " is not available"), out)
+                self.assertIn("nca_run", out)
+        self.assertEqual(self.calls, ["data_import"])                           # none of them reached the engine
+        self.assertEqual(len(self.ag.tool_log), 1)
+        self.assertEqual([r["name"] for r in self.ag.refused_log],
+                         ["data_remove", "project_new", "analysis_remove", "data_set_cell", "project_load"])
+        out = self.ag._tool("export_table", {"table": "worksheet", "worksheet": 1})   # the worksheet is still there
+        self.assertNotIn("ERROR", out)
+
+    def test_a_path_outside_the_inputs_folder_is_refused(self):
+        outside = os.path.join(self.dir, "x.csv")
+        with open(outside, "w", encoding="utf-8") as f: f.write(IMPORT_ARGS["csv"])
+        for path in ("../x.csv", outside, os.path.abspath(__file__)):
+            with self.subTest(path=path):
+                out = self.ag._tool("data_import", {"name": "x", "path": path, "columns": IMPORT_ARGS["columns"]})
+                self.assertTrue(out.startswith("TOOL ERROR: data_import reads files only inside the inputs folder"), out)
+        self.assertEqual(self.calls, []); self.assertEqual(len(self.ag.refused_log), 3)
+
+    def test_a_path_inside_the_inputs_folder_is_read(self):
+        with open(os.path.join(self.inputs, "theoph.csv"), "w", encoding="utf-8") as f: f.write(IMPORT_ARGS["csv"])
+        out = self.ag._tool("data_import", {"name": "x", "path": "theoph.csv", "columns": IMPORT_ARGS["columns"]})
+        self.assertNotIn("ERROR", out); self.assertEqual(self.calls, ["data_import"])
+        self.assertEqual(self.ag.tool_log[-1]["args"]["csv"], IMPORT_ARGS["csv"])
+        self.assertNotIn("path", self.ag.tool_log[-1]["args"])
+
+
 class TestStaticPrefixUntouched(unittest.TestCase):
     def test_gate_adds_nothing_to_the_system_prompt_or_the_tool_definitions(self):
         self.assertNotIn("gate", optchat.SYSTEM_PROMPT.lower().replace("investigate", ""))

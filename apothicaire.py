@@ -13,7 +13,7 @@ Usage:
   python apothicaire.py say "message"      one turn
   python apothicaire.py tools              print the exposed tools and the static prompt size
 Environment: APOTHICAIRE_MCP (path of caladrius-mcp), APOTHICAIRE_DATA (memory folder),
-OPTCHAT_URL (llama-server, default http://127.0.0.1:18435), APOTHICAIRE_GATE (v1, the default: the number gate of
+APOTHICAIRE_INPUTS (the only folder data_import may read a file path from, default agent/inputs/), OPTCHAT_URL (llama-server, default http://127.0.0.1:18435), APOTHICAIRE_GATE (v1, the default: the number gate of
 gate.py; v2: the typed rendering of gate_v2.py, see GATE_V2.md).
 """
 import json, os, subprocess, sys, threading, argparse
@@ -32,8 +32,11 @@ MCP_BIN = os.environ.get("APOTHICAIRE_MCP", os.path.join(
     OFFICINA, "caladrius", "target", "agent-apothicaire", "release",
     "caladrius-mcp.exe" if os.name == "nt" else "caladrius-mcp"))
 
-# Tools exposed to the model (the 12k-token context cannot hold the 18 schemas).
+# Tools exposed to the model (the 12k-token context cannot hold the 18 schemas). This list is also the boundary: a call
+# to any other tool of the server (project_new, data_remove...) is refused by the client and never reaches the engine.
 EXPOSED = ["data_import", "nca_run", "analysis_get", "export_table", "analysis_compare"]
+# data_import may take a file `path` (a client convenience): it is resolved inside this folder only.
+INPUTS_DIR = os.environ.get("APOTHICAIRE_INPUTS", os.path.join(HERE, "inputs"))
 # nca_run options kept in the schema shown to the model (the full schema is ~1k tokens; the
 # server still accepts every option, they are only hidden from the prompt).
 NCA_OPTIONS_KEPT = ["auc_method", "start", "lambda_z", "quality"]
@@ -324,6 +327,16 @@ def gate_context(log, mcp_tool_names):
     users = [m["content"] for m in log if m["role"] == "user"]
     return tools, users
 
+def input_path(path, root=None):
+    """The real path of a data_import `path` argument, or None when it lies outside the inputs folder. A relative path is
+    taken inside the folder; symbolic links and ".." are resolved before the check, so neither can leave it."""
+    root = os.path.realpath(root or INPUTS_DIR)
+    if not isinstance(path, str) or not path.strip(): return None
+    full = os.path.realpath(os.path.join(root, os.path.expanduser(path.strip())))
+    try: inside = os.path.commonpath([root, full]) == root
+    except ValueError: inside = False                                    # another drive on Windows
+    return full if inside and full != root else None
+
 def _counts(g):
     c = {"numbers_total": g["numbers_total"], "numbers_unverified": g["numbers_unverified"],
          "numbers_exempt": g["numbers_exempt"]}
@@ -341,6 +354,7 @@ class Apothicaire(optchat.Agent):
         optchat.TOOLS = optchat.TOOLS[:2] + self.mcp_tools
         install_prompt(SYSTEM_ADDITION_V2 if self.gate_version == "v2" else SYSTEM_ADDITION)
         self.tool_log = []           # every MCP call of the session: turn, name, args, ok, text, shown
+        self.refused_log = []        # the calls the client refused before the engine: turn, name, args, reason
         self.units = {}              # worksheet id -> derived units reported by Caladrius
         self.gate_log = []           # one record per turn: the gate's counts and findings
         self._gate_rec = None
@@ -368,13 +382,25 @@ class Apothicaire(optchat.Agent):
                 f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         except OSError: pass
 
+    def _refuse(self, name, args, reason):
+        """A call stopped by the client: nothing reaches the engine, the model reads why."""
+        self.refused_log.append({"turn": len(self.turn_stats), "name": name, "args": args, "reason": reason})
+        return f"TOOL ERROR: {reason}"
+
     def _tool(self, name, args):
         if name not in self.mcp.tools: return super()._tool(name, args)
         args = dict(args) if isinstance(args, dict) else {}
+        if name not in EXPOSED:                                       # the exposed list is the boundary
+            return self._refuse(name, args, f"tool {name} is not available; the tools are " + ", ".join(EXPOSED))
         if name == "data_import" and "path" in args and "csv" not in args:   # convenience: a file path
+            full = input_path(args["path"])
+            if full is None:
+                return self._refuse(name, args, f"data_import reads files only inside the inputs folder ({INPUTS_DIR}); "
+                                                "give a path inside it, or the CSV text in `csv`")
             try:
-                with open(args.pop("path"), encoding="utf-8") as f: args["csv"] = f.read()
-            except OSError as e: return f"tool error: cannot read file: {e}"
+                with open(full, encoding="utf-8") as f: args["csv"] = f.read()
+                args.pop("path")
+            except (OSError, UnicodeDecodeError) as e: return f"tool error: cannot read file: {e}"
         if name == "nca_run":
             err = self._nca_route(args)
             if err: return err
