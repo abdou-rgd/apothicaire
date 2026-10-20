@@ -155,8 +155,9 @@ the two answers kept, the static prefix untouched).
 - **Rendering vs. memory.** The chat memory stores the model's raw answer (references), the user sees the rendered one.
   Summaries of the memory therefore contain references; `zoom` shows them unrendered.
 
-**Next measurement, on the frozen test set** (`agent/decision/PLAN.md`: 25 new exercises × phrasings, adjudicated
-before any prediction is seen), v1 and v2 on the same exercises, same model, same sampling:
+**Next measurement, on the frozen test set** (`bench/FROZEN_SET.md`, version 2: 40 independent new exercises × 3
+sampling seeds in the demo tier, 60 × 5 in the PAGE tier, new wordings, the demo gate chosen on the development set
+before any frozen prediction), v1 and v2 on the same exercises, same model, same sampling:
 
 1. Gate counts as today (`numbers_unverified / numbers_total` before and after the regeneration), reported separately
    for references (`references_unresolved / references_total`) and for bare numbers.
