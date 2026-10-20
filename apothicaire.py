@@ -13,10 +13,11 @@ Usage:
   python apothicaire.py say "message"      one turn
   python apothicaire.py tools              print the exposed tools and the static prompt size
 Environment: APOTHICAIRE_MCP (path of caladrius-mcp), APOTHICAIRE_DATA (memory folder),
+APOTHICAIRE_INPUTS (the only folder data_import may read a file path from, default agent/inputs/),
 OPTCHAT_URL (llama-server, default http://127.0.0.1:18435), APOTHICAIRE_GATE (v1, the default: the number gate of
 gate.py; v2: the typed rendering of gate_v2.py, see GATE_V2.md).
 """
-import json, os, subprocess, sys, threading, argparse
+import json, os, re, subprocess, sys, threading, argparse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OFFICINA = os.path.dirname(HERE)
@@ -32,11 +33,33 @@ MCP_BIN = os.environ.get("APOTHICAIRE_MCP", os.path.join(
     OFFICINA, "caladrius", "target", "agent-apothicaire", "release",
     "caladrius-mcp.exe" if os.name == "nt" else "caladrius-mcp"))
 
-# Tools exposed to the model (the 12k-token context cannot hold the 18 schemas).
+# Tools exposed to the model (the 12k-token context cannot hold the 18 schemas). This list is also the boundary: a call
+# to any other tool of the server (project_new, data_remove...) is refused by the client and never reaches the engine.
 EXPOSED = ["data_import", "nca_run", "analysis_get", "export_table", "analysis_compare"]
+# The units nca_run converts with (caladrius-nca units.rs, NCA-UNIT-02): with a time, a mass/volume concentration and a dose
+# mass in options.units, the engine labels every parameter and gives CL and V in L/time and L. Outside this table the
+# engine refuses the run, so the client then sends no units and the analysis stays unitless, as before.
+UNIT_TIME = ("s", "min", "h", "d")
+UNIT_MASS = ("ng", "µg", "μg", "ug", "mcg", "mg", "g")
+UNIT_VOLUME = ("mL", "ml", "L", "l")
+# data_import may take a file `path` (a client convenience): it is resolved inside this folder only.
+INPUTS_DIR = os.environ.get("APOTHICAIRE_INPUTS", os.path.join(HERE, "inputs"))
 # nca_run options kept in the schema shown to the model (the full schema is ~1k tokens; the
 # server still accepts every option, they are only hidden from the prompt).
-NCA_OPTIONS_KEPT = ["auc_method", "start", "lambda_z", "quality"]
+NCA_OPTIONS_KEPT = ["auc_method", "start", "lambda_z", "quality", "lambda_z_selection"]
+# lambda_z_selection as the model sees it: the two choices a user asks for (leave points out, or choose them), in plain
+# objects; tie_rule, positive_filter_first and exclude_replaced keep the engine's defaults.
+LAMBDA_Z_SELECTION = {
+    "type": "object", "description": "Points of the λz regression; only when the user asks for it.",
+    "properties": {
+        "exclude": {"type": "array", "items": {"type": "number"},
+                    "description": "Sample times, as written in the data, left out of the automatic λz selection (leave out the 24 h point -> [24])."},
+        "manual": {"type": "object",
+                   "description": "λz points chosen by the user instead of the automatic selection: either times or range, not both.",
+                   "properties": {"times": {"type": "array", "items": {"type": "number"}, "description": "These sample times, e.g. [8, 12, 24]."},
+                                  "range": {"type": "object", "description": "Every sample with start <= time <= end.",
+                                            "properties": {"start": {"type": "number"}, "end": {"type": "number"}},
+                                            "required": ["start", "end"]}}}}}
 
 SYSTEM_ADDITION = """
 
@@ -133,12 +156,15 @@ def to_openai(tool):
     if tool["name"] == "nca_run":
         opts = params["properties"]["options"]
         opts["properties"] = {k: v for k, v in opts["properties"].items() if k in NCA_OPTIONS_KEPT}
+        if "lambda_z_selection" in opts["properties"]: opts["properties"]["lambda_z_selection"] = LAMBDA_Z_SELECTION
         opts["description"] = ("NCA conventions, all optional. auc_method: linear = linear trapezoids, "
-                               "lin_up_log_down = linear-up/log-down. Other options (blq, missing...) exist but are not shown.")
+                               "lin_up_log_down = linear-up/log-down. blq and missing keep the engine's defaults (in options_used).")
         params["properties"]["route"] = {"type": "string", "enum": ["extravascular", "iv_bolus", "iv_infusion"],
                                          "description": "oral = extravascular; infusion = iv_infusion with infusion_duration"}
         params["properties"]["infusion_duration"] = {"type": "number", "description": "Only with route iv_infusion: duration of the infusion in the time unit of the data (2 h -> 2)."}
         params["properties"]["dose"] = {"type": "number", "description": "Dose amount in the unit the user gives (10 mg -> 10)."}
+        params["properties"]["dose_unit"] = {"type": "string", "enum": ["ng", "ug", "mg", "g"],
+                                             "description": "Unit of that dose as the user gives it (10 mg -> mg; µg -> ug). With it Caladrius gives CL in L/time and V in L."}
         params["properties"]["subject"] = {"description": "One subject label; omit for all subjects."}
     if tool["name"] == "analysis_compare":
         desc = ("Differences, relative differences in percent and ratios (b minus a) of the parameters two analyses of one "
@@ -179,6 +205,17 @@ def param_unit(name, u):
     if name.startswith(("vz.", "vss.")): return der.get("v", f"{d or 'dose unit'}/({c})")
     return "?"
 
+def nca_units(ws_units, dose_unit=None):
+    """options.units for nca_run: the worksheet's time and concentration units and the dose unit (the model's `dose_unit`,
+    else the worksheet's dose column), or None when one is missing or outside the engine's table (UNIT_*)."""
+    u = ws_units or {}
+    t, c = (u.get("time") or "").strip(), (u.get("conc") or "").strip()
+    d = dose_unit if isinstance(dose_unit, str) and dose_unit.strip() else (u.get("dose") or "")
+    d = d.strip(); mass, _, volume = c.partition("/")
+    if t in UNIT_TIME and d in UNIT_MASS and mass.strip() in UNIT_MASS and volume.strip() in UNIT_VOLUME:
+        return {"time": t, "concentration": c, "dose": d}
+    return None
+
 def digest_analysis(d, units=None):
     """An NCA analysis (nca_run / analysis_get answer) is ~7 kB of JSON (all lambda_z candidates,
     the profile, ~60 parameters): too much for a 12k context. The model gets the same values,
@@ -193,9 +230,14 @@ def digest_analysis(d, units=None):
                             "blq": opts.get("blq"), "missing": opts.get("missing"),
                             "negative": opts.get("negative"), "start": opts.get("start")},
            "subjects": []}
+    if opts.get("units"): out["options_used"]["units"] = opts["units"]
+    sel = opts.get("lambda_z_selection") or {}
+    if sel.get("exclude") or sel.get("manual"):                          # shown only when the user changed the points
+        out["options_used"]["lambda_z_selection"] = {k: sel[k] for k in ("exclude", "manual") if sel.get(k)}
     u = units or {}
     out["unit_warnings"] = u.get("warnings", [])
-    out["dose_unit"] = u.get("dose") or "unknown to Caladrius (no dose column): CL and V are in dose unit/..."
+    out["dose_unit"] = ((opts.get("units") or {}).get("dose") or u.get("dose")
+                        or "unknown to Caladrius (no dose column): CL and V are in dose unit/...")
     for s in res.get("subjects", []):
         o = {"subject": s.get("subject"), "dose": s.get("dose"), "route": s.get("route")}
         oc = s.get("outcome", {})
@@ -204,7 +246,7 @@ def digest_analysis(d, units=None):
             for p in ok.get("parameters", []):
                 v = p.get("value", {})
                 if "value" in v:
-                    un = param_unit(p["name"], u)
+                    un = p["unit"] if p.get("unit") is not None else param_unit(p["name"], u)   # the engine's, with units
                     vals[p["name"]] = f"{_shown(v['value'])} {un}".strip() if un else _sig(v["value"])
                 else: nc.setdefault(str(v.get("not_calculated")), []).append(p["name"])
             o["flags"] = ok.get("flags", [])
@@ -324,12 +366,44 @@ def gate_context(log, mcp_tool_names):
     users = [m["content"] for m in log if m["role"] == "user"]
     return tools, users
 
+def input_path(path, root=None):
+    """The real path of a data_import `path` argument, or None when it lies outside the inputs folder. A relative path is
+    taken inside the folder; symbolic links and ".." are resolved before the check, so neither can leave it."""
+    root = os.path.realpath(root or INPUTS_DIR)
+    if not isinstance(path, str) or not path.strip(): return None
+    full = os.path.realpath(os.path.join(root, os.path.expanduser(path.strip())))
+    try: inside = os.path.commonpath([root, full]) == root
+    except ValueError: inside = False                                    # another drive on Windows
+    return full if inside and full != root else None
+
 def _counts(g):
     c = {"numbers_total": g["numbers_total"], "numbers_unverified": g["numbers_unverified"],
          "numbers_exempt": g["numbers_exempt"]}
     if "references_total" in g:                                       # gate v2
         c["references_total"] = g["references_total"]; c["references_unresolved"] = g["references_unresolved"]
     return c
+
+# ---------------------------------------------------------------- tool-call loops
+# The text of a tool call the model wrote as its answer (seen in ex12: the last round has no tools, and the model printed
+# the call it could not make): the template markers of the chat formats, or a bare JSON call.
+_TOOL_CALL_MARKERS = re.compile(r"</?tool_call>|<function=|\[TOOL_CALLS\]|<\|tool_call", re.IGNORECASE)
+
+def tool_call_text(text):
+    """True when an answer is (or contains) the text of a tool call instead of prose."""
+    if _TOOL_CALL_MARKERS.search(text or ""): return True
+    t = (text or "").strip().strip("`").strip()
+    if t[:4].lower() == "json": t = t[4:].strip()
+    try: d = json.loads(t)
+    except ValueError: return False
+    calls = d if isinstance(d, list) else [d]
+    return bool(calls) and all(isinstance(c, dict) and "name" in c and ("arguments" in c or "parameters" in c) for c in calls)
+
+# Shown instead of a tool-call text: no number, the gate has nothing to check, and the memory keeps this, not the call.
+FAILED_TURN = {
+    "fr": "Je n'ai pas pu terminer cette demande : l'appel d'outil nécessaire n'a pas abouti, et je ne donne aucune valeur "
+          "sans résultat de Caladrius. Pouvez-vous reformuler, par exemple en précisant les analyses à utiliser ?",
+    "en": "I could not finish this request: the tool call it needed did not go through, and I give no value without a "
+          "Caladrius result. Could you rephrase it, for example by naming the analyses to use?"}
 
 # ---------------------------------------------------------------- agent
 class Apothicaire(optchat.Agent):
@@ -341,12 +415,17 @@ class Apothicaire(optchat.Agent):
         optchat.TOOLS = optchat.TOOLS[:2] + self.mcp_tools
         install_prompt(SYSTEM_ADDITION_V2 if self.gate_version == "v2" else SYSTEM_ADDITION)
         self.tool_log = []           # every MCP call of the session: turn, name, args, ok, text, shown
+        self.refused_log = []        # the calls the client refused before the engine: turn, name, args, reason
+        self._turn_calls = set()     # (name, arguments) of the MCP calls of the current turn: an identical one is refused
+        self._repeats = 0            # identical calls refused in the current turn; at 2 the model loses its tools
+        self._withdraw_tools = False
         self.units = {}              # worksheet id -> derived units reported by Caladrius
         self.gate_log = []           # one record per turn: the gate's counts and findings
         self._gate_rec = None
         self.refs = {}               # gate v2: ref ("call_3") -> record (structuredContent + unit labels), persisted in refs.jsonl
         self.schemas = self.mcp.output_schemas() if self.gate_version == "v2" else {}
-        self.decimal_mark = "," if str(cfg.get("digest_lang", "")).lower().startswith("fr") else "."
+        self.lang = "fr" if str(cfg.get("digest_lang", "")).lower().startswith("fr") else "en"
+        self.decimal_mark = "," if self.lang == "fr" else "."
         super().__init__(cfg)
         if self.gate_version == "v2": self._load_refs()
 
@@ -368,16 +447,39 @@ class Apothicaire(optchat.Agent):
                 f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         except OSError: pass
 
+    def _refuse(self, name, args, reason):
+        """A call stopped by the client: nothing reaches the engine, the model reads why."""
+        self.refused_log.append({"turn": len(self.turn_stats), "name": name, "args": args, "reason": reason})
+        return f"TOOL ERROR: {reason}"
+
     def _tool(self, name, args):
         if name not in self.mcp.tools: return super()._tool(name, args)
         args = dict(args) if isinstance(args, dict) else {}
+        if name not in EXPOSED:                                       # the exposed list is the boundary
+            return self._refuse(name, args, f"tool {name} is not available; the tools are " + ", ".join(EXPOSED))
+        key = (name, json.dumps(args, sort_keys=True, ensure_ascii=False, default=str))
+        if key in self._turn_calls:                                   # a loop: the same call gives the same answer
+            self._repeats += 1
+            if self._repeats >= 2: self._withdraw_tools = True        # the next round must answer
+            return self._refuse(name, args, f"this exact {name} call was already made in this turn and its result is above; "
+                                            "answer from it, or change the arguments")
+        self._turn_calls.add(key)
+        if name == "analysis_compare":
+            err = self._compare_pair(args)
+            if err: return self._refuse(name, args, err)
         if name == "data_import" and "path" in args and "csv" not in args:   # convenience: a file path
+            full = input_path(args["path"])
+            if full is None:
+                return self._refuse(name, args, f"data_import reads files only inside the inputs folder ({INPUTS_DIR}); "
+                                                "give a path inside it, or the CSV text in `csv`")
             try:
-                with open(args.pop("path"), encoding="utf-8") as f: args["csv"] = f.read()
-            except OSError as e: return f"tool error: cannot read file: {e}"
+                with open(full, encoding="utf-8") as f: args["csv"] = f.read()
+                args.pop("path")
+            except (OSError, UnicodeDecodeError) as e: return f"tool error: cannot read file: {e}"
         if name == "nca_run":
             err = self._nca_route(args)
             if err: return err
+            self._nca_units(args)
         try: ok, text, structured = self.mcp.call_full(name, args)
         except MCPError as e: ok, text, structured = False, f"mcp error: {e}", None
         ref = None
@@ -388,6 +490,20 @@ class Apothicaire(optchat.Agent):
         self.tool_log.append({"turn": len(self.turn_stats), "name": name, "args": args, "ok": ok,
                               "text": text, "shown": shown, "ref": ref})
         return shown if ok else f"TOOL ERROR: {text}"
+
+    def _compare_pair(self, args):
+        """analysis_compare of an analysis with itself gives zeros the model does not read (ex12: six calls with a = b = 3).
+        Returns the refusal text, with the analyses of this chat, or None."""
+        a, b = args.get("a"), args.get("b")
+        if a is None or b is None or str(a).strip() != str(b).strip(): return None
+        known = []
+        for c in self.tool_log:
+            if c["name"] != "nca_run" or not c["ok"]: continue
+            try: d = json.loads(c["text"])
+            except ValueError: continue
+            known.append(f"{d.get('id')} (auc_method {((d.get('spec') or {}).get('options') or {}).get('auc_method')})")
+        return (f"a and b are the same analysis ({a}); compare two different analyses: a = the reference result, b = the other"
+                + (". Analyses of this chat: " + ", ".join(known) if known else ""))
 
     @staticmethod
     def _nca_route(args):
@@ -404,11 +520,29 @@ class Apothicaire(optchat.Agent):
             args["route"] = {"iv_infusion": {"duration": dur}}
         return None
 
+    def _nca_units(self, args):
+        """Fills options.units from the worksheet's units and the model's `dose_unit` (removed from the arguments), so the
+        engine converts CL and V to litres; options.units the model wrote itself are kept. Nothing is sent when a unit is
+        missing or unknown to the engine."""
+        dose_unit = args.pop("dose_unit", None)
+        opts = args.get("options")
+        if opts is None: opts = {}
+        if not isinstance(opts, dict) or "units" in opts: return
+        ws = args.get("worksheet")
+        try: ws = int(ws)
+        except (TypeError, ValueError): pass
+        units = nca_units(self.units.get(ws), dose_unit)
+        if units: args["options"] = {**opts, "units": units}
+
     # -- number gate: every final answer is checked against the tool results and the user's messages
     def _chat_call(self, msgs, tools=None):
-        m = super()._chat_call(msgs, tools)
+        m = super()._chat_call(msgs, None if self._withdraw_tools else tools)
         if m.get("tool_calls"): return m                      # a tool round, not an answer
         draft = (m.get("content") or "").strip()
+        raw_call = None
+        if tool_call_text(draft):                             # never show a tool call as the answer
+            raw_call, draft = draft, FAILED_TURN[self.lang]
+            m = {**m, "content": draft}
         tool_texts, users = gate_context(self.store.log, self.mcp.tools)
         if self.gate_version == "v2":
             # typed rendering: the sources are the user's messages only; tool values are cited and rendered
@@ -423,6 +557,7 @@ class Apothicaire(optchat.Agent):
         rec = {"version": self.gate_version, "before": _counts(g1), "after": _counts(g1), "regenerated": False, "kept": "first",
                "findings": g1["findings"]}
         if "rendered" in g1: rec["rendered"] = g1["rendered"]
+        if raw_call is not None: rec["tool_call_text"] = raw_call
         if g1["findings"]:
             # one regeneration. The reminder is appended at the END of the messages (the system prompt and
             # the tool definitions, hence the cached prefix, are untouched) and is not stored in the memory.
@@ -434,6 +569,7 @@ class Apothicaire(optchat.Agent):
                                    think=self.cfg["agent_think"])
                 regen_stats = dict(self.llm.last)
                 new = (m2.get("content") or "").strip()
+                if tool_call_text(new): new = ""              # not an answer: the first one is kept
             except optchat.LLMError as e:
                 regen_stats, new = {"error": str(e)}, ""
             self.llm.last = first_last                        # turn() reads the stats of the first call
@@ -450,6 +586,7 @@ class Apothicaire(optchat.Agent):
 
     def turn(self, user_text, verbose=True):
         self._gate_rec = None
+        self._turn_calls, self._repeats, self._withdraw_tools = set(), 0, False
         ans, stat = super().turn(user_text, verbose)
         rec = self._gate_rec
         if rec is not None:

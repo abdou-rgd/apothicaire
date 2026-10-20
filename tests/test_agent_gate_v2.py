@@ -62,6 +62,13 @@ class TestAgentGateV2(unittest.TestCase):
         self.assertEqual(recs[1]["units"]["parameters"]["cmax"], p["cmax"].partition(" ")[2])
         json.dumps(st)
 
+    def test_a_tool_call_text_is_replaced_under_v2_too(self):
+        from test_agent_gate import EX12_ANSWER
+        ag = self.agent(); ag.llm.script += [say(EX12_ANSWER)]
+        ans, st = ag.turn(USER, verbose=False)
+        self.assertEqual(ans, apothicaire.FAILED_TURN["fr"]); self.assertEqual(st["gate"]["tool_call_text"], EX12_ANSWER)
+        self.assertEqual(ag.store.log[-1]["content"], apothicaire.FAILED_TURN["fr"])
+
     def test_a_typed_tool_number_is_regenerated_with_the_reminder_at_the_end(self):
         ag = self.agent()
         def typed(messages):                                                  # half.life: a tool number that is not in the user's CSV
