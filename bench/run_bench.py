@@ -337,7 +337,7 @@ def render_oracle_md(o):
 def render_audit_md(a):
     if not a["calls"]: return []
     L = [f"## Tool-call argument audit: {a['deviating_calls']} of {a['calls']} `nca_run` / `data_import` calls differ from the exercise's intent "
-         f"(dose, route, AUC method alone as options; the CSV and the column units)", ""]
+         f"(dose, route, the AUC method and the units as options; the CSV and the column units)", ""]
     if a["by_deviation"]:
         L += ["| deviation | calls |", "|---|---|"] + [f"| {k} | {n} |" for k, n in sorted(a["by_deviation"].items(), key=lambda kv: (-kv[1], kv[0]))]
         L += ["", "In exercises: " + ", ".join(a["exercises_with_deviation"]) + ". A deviation is listed here whatever its effect; the oracle check calls it `wrong_option` only when "

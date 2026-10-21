@@ -69,7 +69,12 @@
       }
      },
      "options": {
-      "auc_method": "linear"
+      "auc_method": "linear",
+      "units": {
+       "time": "h",
+       "concentration": "ng/mL",
+       "dose": "mg"
+      }
      }
     },
     "parameters": {
@@ -95,19 +100,19 @@
      },
      "auclast": {
       "value": 37854.59,
-      "unit": "h*ng/mL"
+      "unit": "h·ng/mL"
      },
      "aucall": {
       "value": 37854.59,
-      "unit": "h*ng/mL"
+      "unit": "h·ng/mL"
      },
      "aumclast": {
       "value": 561018.152,
-      "unit": "h^2*ng/mL"
+      "unit": "h²·ng/mL"
      },
      "aumcall": {
       "value": 561018.152,
-      "unit": "h^2*ng/mL"
+      "unit": "h²·ng/mL"
      },
      "lambda.z": {
       "value": 0.05632574342791503,
@@ -147,19 +152,19 @@
      },
      "aucinf.obs": {
       "value": 39274.01201086646,
-      "unit": "h*ng/mL"
+      "unit": "h·ng/mL"
      },
      "aucinf.pred": {
       "value": 39239.407259059364,
-      "unit": "h*ng/mL"
+      "unit": "h·ng/mL"
      },
      "aumcinf.obs": {
       "value": 669964.2863500925,
-      "unit": "h^2*ng/mL"
+      "unit": "h²·ng/mL"
      },
      "aumcinf.pred": {
       "value": 667308.2376833351,
-      "unit": "h^2*ng/mL"
+      "unit": "h²·ng/mL"
      },
      "aucpext.obs": {
       "value": 3.6141507785701577,
@@ -190,80 +195,80 @@
       "unit": "h"
      },
      "cl.obs": {
-      "value": 0.003819319502130251,
-      "unit": "dose unit/(h*ng/mL)"
+      "value": 3.819319502130251,
+      "unit": "L/h"
      },
      "cl.pred": {
-      "value": 0.003822687713137381,
-      "unit": "dose unit/(h*ng/mL)"
+      "value": 3.8226877131373813,
+      "unit": "L/h"
      },
      "vz.obs": {
-      "value": 0.06780770691501245,
-      "unit": "dose unit/(ng/mL)"
+      "value": 67.80770691501245,
+      "unit": "L"
      },
      "vz.pred": {
-      "value": 0.06786750569976246,
-      "unit": "dose unit/(ng/mL)"
+      "value": 67.86750569976246,
+      "unit": "L"
      },
      "vss.iv.obs": {
-      "value": 0.061333373934937103,
-      "unit": "dose unit/(ng/mL)"
+      "value": 61.3333739349371,
+      "unit": "L"
      },
      "vss.iv.pred": {
-      "value": 0.06118621989411259,
-      "unit": "dose unit/(ng/mL)"
+      "value": 61.18621989411259,
+      "unit": "L"
      },
      "vss.obs": {
-      "value": 0.06515269343706735,
-      "unit": "dose unit/(ng/mL)"
+      "value": 65.15269343706736,
+      "unit": "L"
      },
      "vss.pred": {
-      "value": 0.06500890760724998,
-      "unit": "dose unit/(ng/mL)"
+      "value": 65.00890760724998,
+      "unit": "L"
      },
      "vss.iv.last": {
-      "value": 0.05476355762680833,
-      "unit": "dose unit/(ng/mL)"
+      "value": 54.76355762680833,
+      "unit": "L"
      },
      "cmax.dn": {
       "value": 14.006666666666666,
-      "unit": "ng/mL/(dose unit)"
+      "unit": "(ng/mL)/mg"
      },
      "clast.obs.dn": {
       "value": 0.533,
-      "unit": "ng/mL/(dose unit)"
+      "unit": "(ng/mL)/mg"
      },
      "auclast.dn": {
       "value": 252.3639333333333,
-      "unit": "h*ng/mL/(dose unit)"
+      "unit": "(h·ng/mL)/mg"
      },
      "aucall.dn": {
       "value": 252.3639333333333,
-      "unit": "h*ng/mL/(dose unit)"
+      "unit": "(h·ng/mL)/mg"
      },
      "aucinf.obs.dn": {
       "value": 261.82674673910975,
-      "unit": "h*ng/mL/(dose unit)"
+      "unit": "(h·ng/mL)/mg"
      },
      "aucinf.pred.dn": {
       "value": 261.5960483937291,
-      "unit": "h*ng/mL/(dose unit)"
+      "unit": "(h·ng/mL)/mg"
      },
      "aumclast.dn": {
       "value": 3740.1210133333334,
-      "unit": "h^2*ng/mL/(dose unit)"
+      "unit": "(h²·ng/mL)/mg"
      },
      "aumcall.dn": {
       "value": 3740.1210133333334,
-      "unit": "h^2*ng/mL/(dose unit)"
+      "unit": "(h²·ng/mL)/mg"
      },
      "aumcinf.obs.dn": {
       "value": 4466.428575667283,
-      "unit": "h^2*ng/mL/(dose unit)"
+      "unit": "(h²·ng/mL)/mg"
      },
      "aumcinf.pred.dn": {
       "value": 4448.7215845555675,
-      "unit": "h^2*ng/mL/(dose unit)"
+      "unit": "(h²·ng/mL)/mg"
      }
     },
     "not_calculated": {
@@ -320,7 +325,12 @@
       }
      },
      "options": {
-      "auc_method": "lin_up_log_down"
+      "auc_method": "lin_up_log_down",
+      "units": {
+       "time": "h",
+       "concentration": "ng/mL",
+       "dose": "mg"
+      }
      }
     },
     "parameters": {
@@ -346,19 +356,19 @@
      },
      "auclast": {
       "value": 35556.751704389404,
-      "unit": "h*ng/mL"
+      "unit": "h·ng/mL"
      },
      "aucall": {
       "value": 35556.751704389404,
-      "unit": "h*ng/mL"
+      "unit": "h·ng/mL"
      },
      "aumclast": {
       "value": 568749.402485437,
-      "unit": "h^2*ng/mL"
+      "unit": "h²·ng/mL"
      },
      "aumcall": {
       "value": 568749.402485437,
-      "unit": "h^2*ng/mL"
+      "unit": "h²·ng/mL"
      },
      "lambda.z": {
       "value": 0.05632574342791503,
@@ -398,19 +408,19 @@
      },
      "aucinf.obs": {
       "value": 36976.17371525587,
-      "unit": "h*ng/mL"
+      "unit": "h·ng/mL"
      },
      "aucinf.pred": {
       "value": 36941.56896344877,
-      "unit": "h*ng/mL"
+      "unit": "h·ng/mL"
      },
      "aumcinf.obs": {
       "value": 677695.5368355295,
-      "unit": "h^2*ng/mL"
+      "unit": "h²·ng/mL"
      },
      "aumcinf.pred": {
       "value": 675039.4881687721,
-      "unit": "h^2*ng/mL"
+      "unit": "h²·ng/mL"
      },
      "aucpext.obs": {
       "value": 3.838747680593113,
@@ -441,80 +451,80 @@
       "unit": "h"
      },
      "cl.obs": {
-      "value": 0.004056666359129312,
-      "unit": "dose unit/(h*ng/mL)"
+      "value": 4.056666359129312,
+      "unit": "L/h"
      },
      "cl.pred": {
-      "value": 0.004060466412469244,
-      "unit": "dose unit/(h*ng/mL)"
+      "value": 4.0604664124692444,
+      "unit": "L/h"
      },
      "vz.obs": {
-      "value": 0.07202153246891418,
-      "unit": "dose unit/(ng/mL)"
+      "value": 72.02153246891419,
+      "unit": "L"
      },
      "vz.pred": {
-      "value": 0.07208899812686498,
-      "unit": "dose unit/(ng/mL)"
+      "value": 72.08899812686498,
+      "unit": "L"
      },
      "vss.iv.obs": {
-      "value": 0.0702935005127473,
-      "unit": "dose unit/(ng/mL)"
+      "value": 70.2935005127473,
+      "unit": "L"
      },
      "vss.iv.pred": {
-      "value": 0.07013711765635419,
-      "unit": "dose unit/(ng/mL)"
+      "value": 70.13711765635419,
+      "unit": "L"
      },
      "vss.obs": {
-      "value": 0.07435016687187661,
-      "unit": "dose unit/(ng/mL)"
+      "value": 74.35016687187661,
+      "unit": "L"
      },
      "vss.pred": {
-      "value": 0.07419758406882343,
-      "unit": "dose unit/(ng/mL)"
+      "value": 74.19758406882343,
+      "unit": "L"
      },
      "vss.iv.last": {
-      "value": 0.06326030124747531,
-      "unit": "dose unit/(ng/mL)"
+      "value": 63.26030124747531,
+      "unit": "L"
      },
      "cmax.dn": {
       "value": 14.006666666666666,
-      "unit": "ng/mL/(dose unit)"
+      "unit": "(ng/mL)/mg"
      },
      "clast.obs.dn": {
       "value": 0.533,
-      "unit": "ng/mL/(dose unit)"
+      "unit": "(ng/mL)/mg"
      },
      "auclast.dn": {
       "value": 237.04501136259603,
-      "unit": "h*ng/mL/(dose unit)"
+      "unit": "(h·ng/mL)/mg"
      },
      "aucall.dn": {
       "value": 237.04501136259603,
-      "unit": "h*ng/mL/(dose unit)"
+      "unit": "(h·ng/mL)/mg"
      },
      "aucinf.obs.dn": {
       "value": 246.50782476837247,
-      "unit": "h*ng/mL/(dose unit)"
+      "unit": "(h·ng/mL)/mg"
      },
      "aucinf.pred.dn": {
       "value": 246.2771264229918,
-      "unit": "h*ng/mL/(dose unit)"
+      "unit": "(h·ng/mL)/mg"
      },
      "aumclast.dn": {
       "value": 3791.6626832362467,
-      "unit": "h^2*ng/mL/(dose unit)"
+      "unit": "(h²·ng/mL)/mg"
      },
      "aumcall.dn": {
       "value": 3791.6626832362467,
-      "unit": "h^2*ng/mL/(dose unit)"
+      "unit": "(h²·ng/mL)/mg"
      },
      "aumcinf.obs.dn": {
       "value": 4517.970245570196,
-      "unit": "h^2*ng/mL/(dose unit)"
+      "unit": "(h²·ng/mL)/mg"
      },
      "aumcinf.pred.dn": {
       "value": 4500.26325445848,
-      "unit": "h^2*ng/mL/(dose unit)"
+      "unit": "(h²·ng/mL)/mg"
      }
     },
     "not_calculated": {

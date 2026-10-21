@@ -409,7 +409,7 @@ def oracle_turn(answer, expect, meta, deviations=None, vocab=None):
 # ---------------------------------------------------------------- tool-call arguments against the exercise's intent
 def nca_call_deviations(meta, args):
     """How the arguments of an `nca_run` call differ from the intent of the exercise (`nca_run_arguments` of meta.json:
-    dose, route, options = the AUC method alone): [{"field", "got", "intended"}]. An option the call adds (start: zero)
+    dose, route, options = the AUC method and the units): [{"field", "got", "intended"}]. An option the call adds (start: zero)
     or changes is a deviation; so is an unknown AUC method, another dose or route, any other argument."""
     gt = meta["ground_truth"]["nca"]; out = []
     dev = lambda field, got, intended: out.append({"field": field, "got": got, "intended": intended})

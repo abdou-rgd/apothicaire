@@ -35,7 +35,7 @@ def generate(out_dir=OUT, seeds=SEEDS, mcp_bin=None):
                         meta, csv = mk.build(i + 100 * attempt, client.call, row)
                         meta["id"] = f"s{k}_ex{i:02d}_{meta['family']}"; meta["index"] = i
                         meta["seed"] = seed; meta["attempt"] = attempt
-                        truth = mk.run_oracle(client.call, meta, csv)
+                        truth = mk.run_oracle(client.call, meta, csv, units=False)   # the harness's convention: dose amount alone
                         break
                     except RuntimeError as e:
                         print(f"seed {seed} plan row {i} attempt {attempt}: {e}", file=sys.stderr)
