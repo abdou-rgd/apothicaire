@@ -185,6 +185,34 @@ the text the user sees.
 The rubric is implemented in `score.py` and `scripts.py` before the case freeze; from then on both files are frozen.
 In-sample runs are rescored with the new rubric and both figures are kept side by side, as T-066 requires.
 
+Implementation (2026-10-21, `score.rubric_turn`, version string `RUBRIC_VERSION`). Where the rules above needed a reading,
+the code takes this one; each is tested in `tests/test_bench_score.py` (class `TestRubric`):
+
+- Labels are the closed table `score.RUBRIC_ALIASES` (the oracle's, plus Tlag, tlast, Clast, AUMC, Vss and a stricter
+  label for the extrapolated percentage, so that "C0 (extrapolée)" is not read as it). A label of another parameter
+  written inside the label of an asked one ("Nombre de points pour la régression de λz : 3") is part of that label.
+- Rule 2: the scored text is the answer shown without gate v1's badge; gate v2's rendered values are scored like any
+  other. A unit is an exact rewriting when it normalises to the same string after merging factor-1 concentrations
+  (µg/mL = mg/L, µg/L = ng/mL) and sorting the factors of a product (ng·h/mL = h·ng/mL).
+- Rule 3: the negation words are searched in the clause before the number (from the start of the clause holding the
+  label) and in the words right after it, up to the next comma, parenthesis or end of clause.
+- Rule 4: a contradicting value has 3 significant digits or more, the asked unit or none, and is no other number of
+  the exercise (another parameter of either analysis, the analysis_compare row, the dose, the data, the quality
+  thresholds 20 %, 0.9, 2): "AUC(0-inf) = 3170,4 (observée) ; 3172,2 (prédite)" states two quantities, not two values
+  of one.
+- Rule 5 counts values, not names: each other computed parameter whose value is written (3 digits or more), or each
+  other label with a number attached, counts once; the dose and the thresholds do not count.
+- Rule 6: the echo of the question ("Est-ce acceptable ?", "Acceptabilité :") is not a verdict; a "oui" or "non" right
+  after it is.
+- Rule 7, compare: the difference and the percentage pass as the engine's signed values (b − a over a, a = the linear
+  analysis, or a = the lin-up/log-down one when the model's `analysis_compare` call took it as reference) or as their
+  absolute values, since the question asks for the difference "en valeur absolue". A percentage is labelled by its %
+  sign; a difference by its label or by the AUC unit in a clause that says it is a difference ("de moins", "écart").
+
+On the development set the mutation suite (`bench/mutations.py`, run by the tests) builds 1 024 correct answers and
+variants and 1 525 mutations from the gold of the 25 exercises: all 1 024 score CORRECT and all 1 525 score WRONG. The
+seven probes of the triage (RT-B3) are among the tests.
+
 ### 6.3 Success of an exercise and aggregation over sampling seeds
 
 An exercise **passes on a seed** when its 8 turns are CORRECT. An exercise **passes** when it passes on every seed

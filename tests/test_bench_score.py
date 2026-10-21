@@ -162,5 +162,106 @@ class TestRescoreWithToolResults(unittest.TestCase):
                     if with_shown: self.assertEqual((sc["forbidden"], sorted(sc["forbidden_from_tools"])), ([], ["CL/F x 10^3", "Vz/F x 10^3"]))
                     else: self.assertEqual(sorted(sc["forbidden"]), ["CL/F x 10^3", "Vz/F x 10^3"])
 
+class TestRubric(unittest.TestCase):
+    """The rubric of the frozen sets (FROZEN_SET.md §6.2, §7; score.rubric_turn), on the gold of the development set."""
+    @classmethod
+    def setUpClass(cls):
+        from bench import make_exercises as mk, scripts
+        cls.mk, cls.sc = mk, scripts
+        cls.ex = {os.path.basename(d): mk.load(d) for d in mk.list_exercises()}
+
+    def turn(self, ex, k):
+        meta, csv = self.ex[ex]
+        return self.sc.build_script(meta, csv)[k], meta
+
+    def test_mutation_suite_on_the_development_set(self):
+        """§7 pass criterion: every canonical answer and variant CORRECT, every mutation WRONG, on all 25 exercises."""
+        from bench import mutations
+        r = mutations.run([os.path.join(self.mk.OUT, i) for i in sorted(self.ex)], verbose=False)
+        self.assertEqual(r["failures"], [])
+        self.assertEqual(r["canonical"][0], r["canonical"][1]); self.assertEqual(r["mutations"][0], r["mutations"][1])
+        self.assertGreater(r["mutations"][1], 1000)
+
+    def test_the_seven_probes_of_the_triage(self):
+        """RT-B3 (red-team triage of 2026-10-19): the seven answers the development scorer accepted are WRONG."""
+        t4, meta = self.turn("ex13_oral_1", 3)
+        p = meta["ground_truth"]["nca"]["linear"]["parameters"]
+        vals = [v["value"] for v in p.values() if isinstance(v, dict) and isinstance(v.get("value"), (int, float))]
+        dump = "Tous les paramètres : " + " ; ".join(f"{x:.6g}".replace(".", ",") for x in vals) + ". Oui, acceptable."
+        probes = [(t4, meta, dump), (t4, meta, "Les résultats sont 3,30899 h et 9,81301 % ; non, pas acceptable.")]
+        for ex in ("ex01_iv_bolus", "ex02_oral_1"):
+            t2, m = self.turn(ex, 1)
+            pp = m["ground_truth"]["nca"]["linear"]["parameters"]; cm, tm = pp["cmax"], pp["tmax"]
+            c, t = f"{cm['value']:g} {cm['unit']}", f"{tm['value']:g} {tm['unit']}"
+            extra = f", C0 = {pp['c0']['value']:g} {pp['c0']['unit']}" if ex == "ex01_iv_bolus" else ""
+            probes += [(t2, m, f"Cmax = -{c}, Tmax = -{t}{extra}"), (t2, m, f"Cmax is NOT {c}, Tmax is NOT {t}{extra}")]
+            if ex == "ex01_iv_bolus":
+                probes.append((t2, m, f"Cmax = 999 {cm['unit']} ; l'ancienne Cmax, fausse, était {c}. Tmax = {t}{extra}"))
+        self.assertEqual(len(probes), 7)
+        for turn, m, a in probes:
+            r = score.rubric_turn(a, turn, m)
+            self.assertFalse(r["correct"], a); self.assertTrue(r["reasons"], a)
+
+    def test_rules_one_by_one(self):
+        t2, meta = self.turn("ex01_iv_bolus", 1)                      # C0, Cmax = 3.679 mg/L, Tmax = 2.7 h
+        pp = meta["ground_truth"]["nca"]["linear"]["parameters"]
+        c0 = f"{pp['c0']['value']:.6g}"
+        ok = f"C0 = {c0} mg/L, Cmax = 3,679 mg/L et Tmax = 2,7 h."
+        self.assertTrue(score.rubric_turn(ok, t2, meta)["correct"])
+        cases = {"unlabelled": f"{c0} mg/L, 3,679 mg/L, 2,7 h", "sign": ok.replace("3,679", "-3,679"),
+                 "negation": ok.replace("Cmax = 3,679", "Cmax n'est pas 3,679"), "disowned": ok + " L'ancienne Cmax, fausse, était 4,12 mg/L ; Cmax = 4,12",
+                 "contradiction": ok + " Autre lecture : Cmax = 4,12 mg/L.", "unit": ok.replace("3,679 mg/L", "3,679 ng/mL"),
+                 "dump": ok + " Par ailleurs AUC(0-tlast) = 67,0394 h·mg/L, AUC(0-inf) = 68,8061 h·mg/L, t½ = 9,94762 h et MRT = 14,8167 h."}
+        for name, a in cases.items():
+            with self.subTest(name):
+                self.assertFalse(score.rubric_turn(a, t2, meta)["correct"], a)
+        # legitimate: an obs/pred pair, a threshold, a 3-digit rounding, a unit rewritten, the badge cut off
+        for a in (ok + " (Cmax prédite : sans objet)", ok.replace("3,679 mg/L", "3,68 µg/mL"), ok + "\n\n⚠ 1 nombre non vérifié : 12"):
+            with self.subTest(a=a): self.assertTrue(score.rubric_turn(a, t2, meta)["correct"], score.rubric_turn(a, t2, meta)["reasons"])
+
+    def test_verdict(self):
+        self.assertEqual(score.verdict_of("**Est-ce acceptable ?** Oui. Le seuil est de 20 %."), "acceptable")
+        self.assertEqual(score.verdict_of("Est-ce acceptable ? Non : 25 % dépasse le seuil."), "not_acceptable")
+        self.assertEqual(score.verdict_of("**Acceptabilité** : oui."), "acceptable")
+        self.assertEqual(score.verdict_of("L'extrapolation n'est pas acceptable."), "not_acceptable")
+        self.assertEqual(score.verdict_of("C'est inacceptable."), "not_acceptable")
+        self.assertEqual(score.verdict_of("C'est acceptable, ou pas acceptable."), "both")
+        self.assertIsNone(score.verdict_of("Le pourcentage extrapolé est 3 %."))
+        t4, meta = self.turn("ex13_oral_1", 3)                       # 9.8 % extrapolated: acceptable
+        base = "t½ = 3,30899 h ; le pourcentage d'AUC extrapolé est 9,81301 %."
+        self.assertTrue(score.rubric_turn(base + " C'est acceptable.", t4, meta)["correct"])
+        self.assertFalse(score.rubric_turn(base + " Ce n'est pas acceptable.", t4, meta)["correct"])
+        self.assertFalse(score.rubric_turn(base, t4, meta)["correct"])
+        band = json.loads(json.dumps(meta)); band["ground_truth"]["nca"]["linear"]["parameters"]["aucpext.obs"]["value"] = 19.5
+        tb = self.sc.build_script(band, self.ex["ex13_oral_1"][1])[3]
+        for v in ("C'est acceptable.", "Ce n'est pas acceptable."):            # 18-22 %: either verdict, if the value is stated
+            self.assertTrue(score.rubric_turn("t½ = 3,30899 h ; % de l'AUC extrapolé : 19,5 %. " + v, tb, band)["correct"])
+
+    def test_compare_difference_and_percentage_are_required(self):
+        t7, meta = self.turn("ex02_oral_1", 6)
+        lin, lud = self.sc.truth_value(meta, "auclast"), self.sc.truth_value(meta, "auclast", "lin_up_log_down")
+        d, p = lud - lin, (lud - lin) / lin * 100
+        full = f"AUC(0-tlast) linear-up/log-down = {lud:.6g} h·ng/mL ; différence = {d:.6g} h·ng/mL ; soit {p:.6g} %."
+        self.assertTrue(score.rubric_turn(full, t7, meta)["correct"], score.rubric_turn(full, t7, meta)["reasons"])
+        self.assertTrue(score.rubric_turn(full.replace(f"{d:.6g}", f"{abs(d):.6g}").replace(f"{p:.6g}", f"{abs(p):.6g}"), t7, meta)["correct"])
+        self.assertFalse(score.rubric_turn(f"AUC(0-tlast) linear-up/log-down = {lud:.6g} h·ng/mL.", t7, meta)["correct"])
+        self.assertFalse(score.rubric_turn(full.replace(f"= {lud:.6g}", f"= {lin:.6g}"), t7, meta)["correct"])            # stale
+        self.assertFalse(score.rubric_turn(full + f" Méthode linéaire : {lin * 1.1:.6g} h·ng/mL.", t7, meta)["correct"])   # optional but wrong
+        self.assertTrue(score.rubric_turn(full + f" Méthode linéaire : {lin:.6g} h·ng/mL.", t7, meta)["correct"])
+
+    def test_outcome_classes_in_order(self):
+        rub = lambda ok: {"correct": ok, "items": [{"ok": ok}], "reasons": [] if ok else ["x"]}
+        base = {"kind": "cmax_tmax", "answer": "Cmax = 1", "wall_s": 10, "rounds": 2}
+        self.assertEqual(score.outcome_of({**base, "error": "LLMError"}, rub(True)), "ERROR")
+        self.assertEqual(score.outcome_of({**base, "answer": ""}, rub(True)), "ERROR")
+        self.assertEqual(score.outcome_of({**base, "wall_s": 301}, rub(True)), "TIMEOUT")
+        self.assertEqual(score.outcome_of({**base, "rounds": 8}, rub(True)), "LOOP")
+        self.assertEqual(score.outcome_of({**base, "tools_withdrawn": True}, rub(True)), "LOOP")
+        self.assertEqual(score.outcome_of({**base, "answer": "(stopped: too many tool rounds)"}, rub(False)), "LOOP")
+        self.assertEqual(score.outcome_of({**base, "answer": "Je ne peux pas répondre sans résultat."}, rub(False)), "ABSTAINED")
+        self.assertEqual(score.outcome_of({**base, "kind": "not_available", "answer": "Impossible : non calculé."}, rub(True)), "CORRECT")
+        self.assertEqual(score.outcome_of(base, rub(False)), "WRONG")
+        self.assertEqual(score.outcome_of(base, rub(True)), "CORRECT")
+
 if __name__ == "__main__":
     unittest.main()
