@@ -393,7 +393,36 @@ class TestSplits(unittest.TestCase):
             assert not cmp.left_only and not cmp.right_only
             for d in cmp.common_dirs:
                 assert filecmp.cmp(os.path.join(out, d, "data.csv"), os.path.join(md.EXTRA_DIR, d, "data.csv"), shallow=False), d
-                assert filecmp.cmp(os.path.join(out, d, "meta.json"), os.path.join(md.EXTRA_DIR, d, "meta.json"), shallow=False), d
+                with open(os.path.join(out, d, "meta.json"), encoding="utf-8") as f: new = json.load(f)
+                with open(os.path.join(md.EXTRA_DIR, d, "meta.json"), encoding="utf-8") as f: old = json.load(f)
+                diff = json_difference(new, old)
+                assert diff is None, f"{d}: {diff}"
+
+
+def json_difference(a, b, path="$", rel=1e-12):
+    """The first place where two JSON values differ, or None. Floats are equal within `rel` relative (the engine's
+    results differ by a few ulp between platforms: libm, not the method; Caladrius promises 1e-6, docs/validation.md);
+    everything else (keys and their order, strings, integers, booleans, null, list lengths) must be identical."""
+    if isinstance(a, float) or isinstance(b, float):
+        if type(a) is not type(b): return f"{path}: {a!r} vs {b!r}"
+        return None if a == b or abs(a - b) <= rel * max(abs(a), abs(b)) else f"{path}: {a!r} vs {b!r}"
+    if type(a) is not type(b): return f"{path}: {a!r} vs {b!r}"
+    if isinstance(a, dict):
+        if list(a) != list(b): return f"{path}: keys {list(a)} vs {list(b)}"
+        return next((r for k in a if (r := json_difference(a[k], b[k], f"{path}.{k}", rel))), None)
+    if isinstance(a, list):
+        if len(a) != len(b): return f"{path}: {len(a)} items vs {len(b)}"
+        return next((r for i, (x, y) in enumerate(zip(a, b)) if (r := json_difference(x, y, f"{path}[{i}]", rel))), None)
+    return None if a == b else f"{path}: {a!r} vs {b!r}"
+
+
+class TestJsonDifference(unittest.TestCase):
+    """The comparison of the regeneration test: a few ulp pass, anything else is a difference."""
+    def test_floats_within_1e_12_pass_and_the_rest_is_strict(self):
+        self.assertIsNone(json_difference({"x": [0.3696049252727319, 1, "a"]}, {"x": [0.369604925272732, 1, "a"]}))
+        for a, b in (({"x": 1.0}, {"x": 1.000001}), ({"x": 1}, {"x": 1.0}), ({"x": "1"}, {"x": "2"}), ({"x": 1, "y": 2}, {"y": 2, "x": 1}),
+                     ([1.0], [1.0, 2.0]), ({"x": None}, {"x": 0.0}), ({"x": True}, {"x": 1})):
+            self.assertIsNotNone(json_difference(a, b), (a, b))
 
 
 class TestReadme(unittest.TestCase):
