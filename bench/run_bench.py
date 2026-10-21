@@ -530,6 +530,13 @@ def rescore(run_dir, ids):
         with open(p, "w", encoding="utf-8") as f: json.dump(rec, f, ensure_ascii=False, indent=1)
     return changed
 
+def _gold_commit():
+    """The last commit that changed the development gold (bench/exercises/), short hash."""
+    import subprocess
+    try: return subprocess.run(["git", "log", "-1", "--format=%h", "--", "bench/exercises"], cwd=AGENT, capture_output=True,
+                               text=True, timeout=20).stdout.strip() or "unknown"
+    except Exception: return "unknown"
+
 def rubric_delta(run_dirs):
     """Old scorer against the rubric on stored runs, without touching them (T-066: the before/after delta next to the published
     figures). For each run folder: turns correct by `score_turn` as stored, turns CORRECT by the rubric, outcomes, by question
@@ -539,6 +546,9 @@ def rubric_delta(run_dirs):
          "No model and no engine: the stored answers and tool calls of each run, the gold of `bench/exercises/` the runs were scored "
          "with. The stored records and reports are not modified. These are in-sample development runs; the figures on the left are "
          "the ones published, the ones on the right what the frozen-set rubric says of the same answers.", "",
+         f"Gold: `bench/exercises/` as of commit {_gold_commit()}. These runs predate the gold computed with the dose units (T-059): "
+         "they answered CL and V in dose unit/..., so they can only be rescored against the gold they were run with, never against "
+         "the units gold.", "",
          "| run | turns | correct, development scorer (as published) | CORRECT, rubric | WRONG | ERROR | TIMEOUT | LOOP | ABSTAINED | exercises all CORRECT |",
          "|---|---|---|---|---|---|---|---|---|---|"]
     details = []
