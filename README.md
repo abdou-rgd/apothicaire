@@ -101,8 +101,8 @@ The first working version of Apothicaire, the DMPK agent of Officina: **Bonsai 2
 ```bash
 # 1. the engine (once; absolute target dir)
 cd ../caladrius && CARGO_TARGET_DIR=C:/Users/abdou/apothicaire/caladrius/target/agent-apothicaire cargo build --release -p caladrius-mcp
-# 2. the model server (Bonsai 2 27B, 2 slots of 12k tokens, http://127.0.0.1:18435; ~15 s)
-bash ../optchat/start_servers.sh && curl http://127.0.0.1:18435/health
+# 2. the model server (Bonsai 2 27B Q2_0 on upstream llama.cpp b11700, 2 slots of 12k tokens, http://127.0.0.1:18435; ~15 s)
+bash ../optchat/start_servers_upstream.sh && curl http://127.0.0.1:18435/health
 # 3. the agent
 python apothicaire.py chat            # interactive, memory in data/
 python apothicaire.py tools           # exposed tools and static prompt size
@@ -144,7 +144,7 @@ Known limits, stated plainly:
 
 ## Tests
 
-440 `unittest` test methods in `tests/` (84 of them for gate v2), `python -m unittest discover -s tests`, about 5-15 s (the agent tests start the real `caladrius-mcp`). Two things live outside this repository: the `caladrius-mcp` binary (`APOTHICAIRE_MCP`) and the `optchat` module of the sibling folder `../optchat` (clone <https://github.com/abdou-rgd/optchat> next to this repository). In a fresh clone without `optchat`, 17 test modules fail to import and only 81 tests run. The per-file counts below date from when the suite held 147 tests.
+440 `unittest` test methods in `tests/` (84 of them for gate v2), `python -m unittest discover -s tests`, about 5-15 s (the agent tests start the real `caladrius-mcp`). CI (`.github/workflows/ci.yml`) runs them on every pull request and push to main, with `optchat` and `caladrius` (main) checked out next to this repository and `caladrius-mcp` built from source; the tests that need `llama-server`, the generated decision datasets or the `datasets` library skip there. Two things live outside this repository: the `caladrius-mcp` binary (`APOTHICAIRE_MCP`) and the `optchat` module of the sibling folder `../optchat` (clone <https://github.com/abdou-rgd/optchat> next to this repository). In a fresh clone without `optchat`, 17 test modules fail to import and only 81 tests run. The per-file counts below date from when the suite held 147 tests.
 
 - `test_digest.py` (23): five frozen `nca_run` answers on PUBLIC data only (theoph subject 1 oral with the dose as an argument and explicit units; indometh IV bolus; edge_blq 6 subjects with BLQ removals and flags; edge_iv with a `no_rise` reason; edge_negative with per-subject errors), each next to the exact tool arguments, and the `tools/list` answer. They assert that `digest_analysis` reproduces every computed parameter as "value unit" at 6 significant digits with an independently written unit table, percentages as `%`, the not-calculated parameters with their reason, λz regression, options, flags, removed points, errors, and that **no number of the digest is absent from the payload**; plus a test that the detector fails when a value is converted or invented, and tests of `_inline` / `to_openai` on the stored schemas. Mutating the rounding or the percent rule in the digest makes 27 and 12 subtests fail.
 - `test_gate.py` (42): formats, rounding rule, exemptions, sources, and synthetic sentences built from public golden numbers that reproduce the run-2 hallucinations (CL/F and Vz/F times the dose, times 10^3; six converted values in one answer) and computed differences/percents; the transcripts themselves are not used in any test.
