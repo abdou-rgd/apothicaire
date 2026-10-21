@@ -26,6 +26,7 @@ def ideal_answer(turn, meta):
                  "perfusion" if isinstance(meta["route"], dict) else ("bolus intraveineux" if meta["route"] == "iv_bolus" else "voie orale"),
                  "méthode linéaire des trapèzes"]
     if k == "compare": parts.append("Caladrius ne calcule pas la différence, voici les deux valeurs")
+    if k == "half_life": parts.append("c'est acceptable")
     if k == "not_available": parts = [NEGATION]
     return ", ".join(parts)
 
@@ -137,6 +138,28 @@ class TestRunnerPieces(unittest.TestCase):
         for needle in ("6 / 35", "2 / 33", "unit_conversion", "| ex1 |", "Per exercise", "Failure taxonomy"):
             self.assertIn(needle, md)
 
+    def test_an_error_turn_stays_in_the_denominator(self):
+        """T-071 / FROZEN_SET.md §6.1: 4 planned turns, one raised: 4 in every correctness denominator, the error counted apart."""
+        recs = self.synthetic()
+        rep = rb.build_report(recs, {})
+        self.assertEqual((rep["correctness"]["turns"], rep["correctness"]["turns_error"], rep["correctness"]["correct_turns"]), (4, 1, 2))
+        self.assertEqual((rep["by_question_type"]["recall"]["turns"], rep["by_question_type"]["recall"]["correct"]), (2, 1))
+        self.assertEqual(rep["per_exercise"][1]["turns"], 2)
+        self.assertIsNone(rep["outcomes"])                             # no outcome stored: section left out
+        for r in recs:
+            for t in r["turns"]: t.setdefault("outcome", "CORRECT" if t.get("score", {}).get("correct") else "WRONG")
+        recs[1]["turns"][1]["outcome"] = "ERROR"
+        o = rb.build_report(recs, {})["outcomes"]
+        self.assertEqual(o["turns"], 4); self.assertEqual(o["classes"]["ERROR"], 1); self.assertEqual(o["classes"]["CORRECT"], 2)
+        self.assertEqual((o["exercises_all_correct"], o["exercises_failed"]), (1, ["ex2"]))
+        self.assertIn("| **total** | 2 | 0 | 0 | 0 | 1 | 1 |".replace("| 2 | 0 | 0 | 0 | 1 | 1 |", "| 1 | 0 | 0 | 0 | 1 | 2 |"), rb.render_md(rb.build_report(recs, {})))
+
+    def test_planned_error_record(self):
+        meta, csv = mk.load(mk.list_exercises()[0])
+        rec = rb.planned_error_record(meta, sc.build_script(meta, csv), "RuntimeError: engine did not start")
+        self.assertEqual([t["outcome"] for t in rec["turns"]], ["ERROR"] * 8)
+        self.assertEqual(rb.build_report([rec], {})["correctness"]["turns"], 8)
+
 def fr(x): return f"{x:.6g}"
 
 class FakeLLM:
@@ -183,6 +206,8 @@ class TestEndToEnd(unittest.TestCase):
             self.assertIn("unit_conversion", [f["class"] for f in t3["findings_before"]])
             self.assertTrue(t3["score"]["correct"]); self.assertIn("CL/F = ", t3["first_answer"])
             self.assertTrue(all(x["score"]["correct"] for x in t), [(x["kind"], x["score"]) for x in t if not x["score"]["correct"]])
+            self.assertEqual([x["outcome"] for x in t if x["kind"] != "compare"], ["CORRECT"] * 7, [x.get("rubric") for x in t])
+            self.assertEqual(t[6]["outcome"], "WRONG")                 # the old ideal compare answer has no difference: the rubric asks for it
             self.assertEqual(sum(x["numbers_unverified_after"] for x in t), 0)
             rep = rb.write_report(tmp, [rec], {"date": "test"})
             self.assertEqual(rep["hallucination"]["after_gate"]["unverified"], 0); self.assertGreater(rep["hallucination"]["before_gate"]["unverified"], 0)
