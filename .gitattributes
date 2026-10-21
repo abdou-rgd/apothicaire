@@ -1,0 +1,3 @@
+# Exercise data and gold are hashed (make_frozen.py --check, MANIFEST.json): keep LF on every OS so
+# a Windows checkout with core.autocrlf hashes the same bytes as the cloud.
+bench/** text=auto eol=lf
