@@ -136,6 +136,13 @@ are hashed at the case freeze. In the PAGE tier every frozen exercise is also ru
 `caladrius/oracle/scripts/nca_pknca.R` before the case freeze; any disagreement beyond the conformance tolerance is a
 ledger entry and the exercise is replaced before the freeze, never after (RT-B8).
 
+Implementation (2026-10-21, T-101). The cross-check runs in the demo tier too. `caladrius/oracle/scripts/nca_pknca.R`
+runs fixed oracle cases, so the frozen exercises go through `bench/pknca/frozen_nca_pknca.R`, written on it: same
+PKNCA version (0.12.1), same explicit options, same C0 handling for IV bolus data. `bench/pknca_check.py` compares
+with the tolerance of Caladrius's conformance tests (relative 1e-6). Its output (`bench/frozen/<tier>/pknca/`) is
+hashed at the case freeze. Demo tier, 2026-10-21: 3770 of 3770 gold values within tolerance, largest relative gap
+1.2e-13 (R 4.3.3; the caladrius oracle used R 4.5.2). Details: `bench/pknca/README.md`.
+
 ## 6. Scoring
 
 ### 6.1 Outcome of a turn

@@ -151,6 +151,20 @@ class TestAnalysis(unittest.TestCase):
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
+class TestPkncaCheck(unittest.TestCase):
+    """The committed PKNCA output (bench/pknca/frozen_nca_pknca.R) against the committed gold; no R needed."""
+    def test_the_demo_gold_agrees_with_pknca(self):
+        from bench import pknca_check
+        c = pknca_check.compare("demo")
+        self.assertEqual(c["counts"].get("differ", 0), 0, c["differ"][:5])
+        self.assertEqual(c["counts"]["agree"], 3770); self.assertEqual(c["versions"]["PKNCA"], "0.12.1")
+
+    def test_a_shifted_value_is_caught(self):
+        from bench import pknca_check
+        self.assertTrue(pknca_check.within(5.0, 5.0 * (1 + 9e-7))); self.assertFalse(pknca_check.within(5.0, 5.0 * (1 + 2e-6)))
+        self.assertTrue(pknca_check.within(0.0, 1e-13)); self.assertFalse(pknca_check.within(0.0, 1e-9))
+
+
 @unittest.skipUnless(os.path.exists(apothicaire.MCP_BIN), "caladrius-mcp is not built")
 class TestDryRun(unittest.TestCase):
     """The whole pipeline with the stub model: real client, real engine, both gates, rubric, reports, analysis."""

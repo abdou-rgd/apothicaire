@@ -8,6 +8,7 @@ This folder holds confirmation exercises: synthetic NCA (non-compartmental analy
 |---|---|---|
 | `demo/exercises/fdNN_<family>/` | 40 exercises (`data.csv`, `meta.json` with the gold and a `frozen` tag) | `bench/make_frozen.py`, tier seed 20261021 |
 | `demo/PLAN.json` | the drawn plan, the seed of every exercise, any redrawn attempt, the engine commit and binary hash | `bench/make_frozen.py` |
+| `demo/pknca/` | the PKNCA recomputation of the gold and its comparison (`CHECK.md`) | `bench/pknca/frozen_nca_pknca.R`, `bench/pknca_check.py` |
 | `demo/MANIFEST.json` | SHA-256 of every case file, the wordings hash and the wording seed (case freeze, §9) | `bench/make_frozen.py --manifest` |
 | `demo/wordings.json` | the questions, committed only at the system freeze (§5.3) | Abdou and dsh |
 | `demo/runs/<gate>/seed-<s>/` | one JSON per exercise, `report.md`, `run.json` | `bench/run_frozen.py run` |
@@ -97,4 +98,4 @@ With `--stub-error-rate` the stub errs on purpose (a value times 1.37 under gate
 
 ## Limits
 
-First, the exercises are new draws of the same generator as the development set: they test the system on unseen data and unseen wordings, not on new clinical workflows or real data. Second, the gold is the engine's own output; the independent check against PKNCA is a separate step (T-099). Third, 40 exercises bound a failure rate at 7.2 % at best (no failure, one-sided 95 %), so a small difference between the two gates cannot be seen here, and the paired comparison stays descriptive in this tier.
+First, the exercises are new draws of the same generator as the development set: they test the system on unseen data and unseen wordings, not on new clinical workflows or real data. Second, the gold is the engine's own output; PKNCA recomputes it independently and agrees on 3770 of 3770 values ([`../pknca/README.md`](../pknca/README.md)), which checks the engine on these exercises but not where both tools could share a mistake. Third, 40 exercises bound a failure rate at 7.2 % at best (no failure, one-sided 95 %), so a small difference between the two gates cannot be seen here, and the paired comparison stays descriptive in this tier.

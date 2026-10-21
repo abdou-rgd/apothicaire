@@ -39,6 +39,7 @@ MAX_ATTEMPTS = 20
 # The files the case freeze hashes besides the exercises (§9): the scorer, the scripts, the mutation suite, the statistics and
 # the analysis, the protocol itself, and the generator.
 CASE_FILES = ["bench/score.py", "bench/scripts.py", "bench/mutations.py", "bench/stats.py", "bench/run_frozen.py",
+              "bench/pknca/frozen_nca_pknca.R", "bench/pknca_check.py",
               "bench/FROZEN_SET.md", "bench/make_frozen.py", "bench/make_exercises.py", "tests/test_bench_score.py"]
 
 def tier_dir(tier): return os.path.join(FROZEN, tier)
@@ -157,7 +158,9 @@ def manifest(tier, wordings_sha256=None, wording_seed=None):
     for d in list_exercises(tier):
         for fn in ("data.csv", "meta.json"):
             p = os.path.join(d, fn); files[os.path.relpath(p, AGENT).replace(os.sep, "/")] = sha256_file(p)
-    for rel in [os.path.relpath(os.path.join(tier_dir(tier), "PLAN.json"), AGENT)] + CASE_FILES:
+    pk = os.path.join(tier_dir(tier), "pknca")                     # the PKNCA cross-check of §5.4 (T-101), when it has run
+    pk_files = [os.path.relpath(os.path.join(pk, fn), AGENT) for fn in ("pknca.csv", "pknca.json", "check.json") if os.path.exists(os.path.join(pk, fn))]
+    for rel in [os.path.relpath(os.path.join(tier_dir(tier), "PLAN.json"), AGENT)] + CASE_FILES + pk_files:
         p = os.path.join(AGENT, rel); files[rel.replace(os.sep, "/")] = sha256_file(p)
     return {"tier": tier, "tag": TIERS[tier]["tag"], "stage": "case freeze", "wordings_sha256": wordings_sha256,
             "wording_seed": wording_seed, "apothicaire_commit": _git("rev-parse", "HEAD", cwd=AGENT), "files": files}
