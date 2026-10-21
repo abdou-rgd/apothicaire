@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # apothicaire.py imports ../optchat/optchat.py and starts ../caladrius/target/agent-apothicaire/release/caladrius-mcp,
+      # so the three repositories are checked out side by side, as on the PC.
+      - uses: actions/checkout@v5
+        with:
+          path: apothicaire
+      - uses: actions/checkout@v5
+        with:
+          repository: abdou-rgd/optchat
+          ref: main
+          path: optchat
+      - uses: actions/checkout@v5
+        with:
+          repository: abdou-rgd/caladrius
+          ref: main
+          path: caladrius
+
+      # The engine: installs the toolchain of caladrius/rust-toolchain.toml, builds into the folder APOTHICAIRE_MCP defaults to.
+      - name: Install the Rust toolchain
+        working-directory: caladrius
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: caladrius -> target/agent-apothicaire
+      - name: Build caladrius-mcp
+        working-directory: caladrius
+        run: cargo build --release -p caladrius-mcp --target-dir target/agent-apothicaire
+      # Without the binary, the engine tests skip instead of failing: make its absence an error.
+      - name: caladrius-mcp is where the tests look for it
+        run: test -x caladrius/target/agent-apothicaire/release/caladrius-mcp
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install httpx (the only runtime dependency)
+        run: pip install httpx==0.28.1
+      # No model server here: the tests that need llama-server, the decision datasets or the `datasets` library skip.
+      - name: Tests
+        working-directory: apothicaire
+        run: python -m unittest discover -s tests
+      - name: The tests left the tracked files unchanged
+        working-directory: apothicaire
+        run: git diff --exit-code
