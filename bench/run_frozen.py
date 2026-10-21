@@ -17,6 +17,8 @@ every seed (§6.3, the strict endpoint); pass^k (stats.pass_k_curve) is printed 
   python bench/run_frozen.py run --tier demo --gate v1 --seeds 1,2 --stub --out DIR       dry run without a model (cloud)
   python bench/run_frozen.py replay --tier demo --gate v1 --seed 1 --ids fd01_oral_1,fd02_oral_0   replay check of §10.1
   python bench/run_frozen.py analyse --tier demo --c1 v1 --c2 v2 [--out DIR]
+  python bench/run_frozen.py run --tier demo --gate nolm --seeds 1,2,3 --wordings PATH --wording-seed N --decider-model DIR
+                                                    the decider-only arm, no language model (bench/decider_arm.py, NO_LM_ARM.md)
 
 The frozen runs refuse to start when MANIFEST.json exists and a hashed file differs (§9, T-082); without a manifest
 (before the case freeze) they run and every output says "not confirmatory". A stub run is never confirmatory.
@@ -28,6 +30,7 @@ AGENT = os.path.dirname(HERE)
 if AGENT not in sys.path: sys.path.insert(0, AGENT)
 import apothicaire, optchat  # noqa: E402,F401  (apothicaire puts optchat on the path)
 from bench import make_exercises as mk, make_frozen as mf, run_bench as rb, score, scripts, stats  # noqa: E402
+from bench import decider_arm  # noqa: E402
 
 DEV_BASE = os.path.join(HERE, "runs", "decision")
 SAMPLING = "temperature 0.3, thinking off"
@@ -43,14 +46,15 @@ def load_wordings(path):
     if errs: raise SystemExit("wordings rejected:\n  " + "\n  ".join(errs))
     return w, mf.sha256_file(path)
 
-def preflight(tier, wordings_path, stub):
+def preflight(tier, wordings_path, stub, gate=None):
     """(confirmatory, notes): refuses a frozen run whose hashed files differ from MANIFEST.json (§9)."""
     if tier == "dev": return False, ["development set: in-sample, never confirmatory (§8)"]
     notes = []
     bad = mf.verify_manifest(tier, wordings_path)
     if bad: raise SystemExit(f"MANIFEST.json mismatch, the run does not start (§9): {', '.join(bad)}")
     if bad is None: notes.append("no MANIFEST.json yet (before the case freeze): not confirmatory")
-    if stub: notes.append("stub model (bench/stub_model.py): a dry run of the pipeline, says nothing about a model")
+    if stub and gate == decider_arm.ARM: notes.append("stub decider (bench/decider_arm.py, gold decisions): the harness ceiling, says nothing about a model")
+    elif stub: notes.append("stub model (bench/stub_model.py): a dry run of the pipeline, says nothing about a model")
     if wordings_path is None: notes.append("development wordings of scripts.py instead of wordings.json: not confirmatory")
     return not notes, notes
 
@@ -76,17 +80,24 @@ def run_one(ex_dir, out, gate, seed, wordings=None, wording_seed=0, stub=None, c
         return rec
 
 def run(tier, gate, seeds, wordings_path=None, wording_seed=None, ids=None, resume=False, stub=False, stub_error_rate=0.0,
-        base=None, verbose=False, out=print):
-    """Runs every exercise of the tier with one gate, seed after seed (C1 first, all seeds, then C2: §10.2). Returns the base."""
+        base=None, verbose=False, out=print, decider="decider_unsloth:decide", decider_model=None):
+    """Runs every exercise of the tier with one gate, seed after seed (C1 first, all seeds, then C2: §10.2). Returns the base.
+    gate `nolm` is the decider-only arm (bench/decider_arm.py): `decider` (module:function) and `decider_model` (its folder) pick the
+    decision model, `stub` the gold decisions."""
     if tier != "dev" and wordings_path is None and not stub:
         raise SystemExit("a frozen tier runs with its wordings (--wordings PATH, FROZEN_SET.md §5.3); --stub for a dry run")
-    confirmatory, notes = preflight(tier, wordings_path, stub)
+    confirmatory, notes = preflight(tier, wordings_path, stub, gate)
+    nolm = gate == decider_arm.ARM
+    decide = None
+    if nolm: decide = decider_arm.StubDecider() if stub else decider_arm.load_decider(decider, decider_model)
     wordings, w_sha = load_wordings(wordings_path) if wordings_path else (None, None)
     if wordings and wording_seed is None: raise SystemExit("--wording-seed is required with --wordings (recorded in the manifest)")
     base = base or base_dir(tier)
     dirs = [d for d in tier_exercises(tier) if not ids or os.path.basename(d) in ids]
     cfg = dict(optchat.CFG, raw_max=1000, raw_max_chars=10 ** 9) if stub else None     # the stub has no compaction to do
-    label = "stub model (bench/stub_model.py), no language model" if stub else f"{rb.model_label()}, {SAMPLING}"
+    label = ("stub model (bench/stub_model.py), no language model" if stub and not nolm else
+             f"decision harness (decision/harness.py), decider {getattr(decide, 'name', decider)}, no language model" if nolm else
+             f"{rb.model_label()}, {SAMPLING}")
     for seed in seeds:
         rd = run_dir(base, gate, seed); os.makedirs(rd, exist_ok=True)
         info = {"tier": tier, "gate": gate, "seed": seed, "model": label, "started": datetime.datetime.now().isoformat(timespec="seconds"),
@@ -97,6 +108,11 @@ def run(tier, gate, seeds, wordings_path=None, wording_seed=None, ids=None, resu
             i = os.path.basename(d)
             if resume and os.path.exists(os.path.join(rd, i + ".json")): out(f"skip {gate} seed {seed} {i}"); continue
             t0 = time.time()
+            if nolm:
+                script = exercise_script(*mk.load(d), wordings, wording_seed)
+                r = decider_arm.run_one(d, rd, seed, script, decide, decide if stub else None)
+                oc = [t.get("outcome", "ERROR") for t in r["turns"]]
+                out(f"{gate} seed {seed} {i}: {oc.count('CORRECT')}/{len(oc)} CORRECT, {time.time() - t0:.0f} s"); continue
             model = None
             if stub:
                 from bench.stub_model import StubModel
@@ -106,6 +122,8 @@ def run(tier, gate, seeds, wordings_path=None, wording_seed=None, ids=None, resu
             out(f"{gate} seed {seed} {i}: {oc.count('CORRECT')}/{len(oc)} CORRECT, {time.time() - t0:.0f} s")
         meta = {"date": info["started"][:10], "exercises_run": len(dirs), "model": label, "gate": gate}
         rb.write_report(rd, rb.load_records(rd, info["exercises"]), meta)
+    if nolm and hasattr(decide, "summary"):
+        with open(os.path.join(base, gate, "decider_summary.json"), "w", encoding="utf-8") as f: json.dump(decide.summary(), f, indent=1)
     return base
 
 # ---------------------------------------------------------------- analysis (§11)
@@ -162,6 +180,12 @@ def config_section(runs_g, ids):
                           ("BLQ", "yes" if r["blq"] else "no")):
             b = strata.setdefault(name, {}).setdefault(val, [0, 0]); b[1] += 1; b[0] += per[i]["seeds_passed"] == k
     pairs = [(per[i]["turns_correct"], per[i]["turns"]) for i in ids]
+    checks = [(t["kind"], t["outcome"], t["decision_check"]) for t in turns if "decision_check" in t]
+    decisions = {kk: {"turns": sum(1 for k2, _, _ in checks if k2 == kk),
+                      "decisions_all_right": sum(1 for k2, _, c in checks if k2 == kk and c["asks"] == c["asks_right"]),
+                      "failed_with_right_decisions": sum(1 for k2, o, c in checks if k2 == kk and o != "CORRECT" and c["asks"] == c["asks_right"]),
+                      "questions_wrong": sorted({w["question"] for k2, _, c in checks if k2 == kk for w in c["wrong"]})}
+                 for kk in scripts.KINDS if any(k2 == kk for k2, _, _ in checks)}
     return {
         "seeds": seeds, "exercises": n,
         "failed": stats.failure_interval(len(failed), n), "failed_ids": failed,
@@ -178,7 +202,7 @@ def config_section(runs_g, ids):
         "wall_s_median": statistics.median(walls) if walls else None,
         "wall_s_p95": walls[min(len(walls) - 1, int(0.95 * len(walls)))] if walls else None,
         "first_prompt_tokens_median": statistics.median(first) if first else None,
-        "strata": strata, "per_exercise": per}
+        "strata": strata, "per_exercise": per, "decisions": decisions}
 
 def paired_section(c1, c2, ids):
     """§11.3: exact McNemar on the strict exercise outcomes, mean d with a paired bootstrap, sign-flip test, over the
@@ -257,7 +281,9 @@ def render_md(res):
               f"2. Exercises with an unverifiable quantity shown on any seed: **{rb._interval_text(c['unverified_shown'])}**"
               + (f" ({', '.join(c['unverified_shown_ids'])})" if c["unverified_shown_ids"] else ""),
               "   " + ("Gate v1: a number that appears in no tool text and no user message, shown with its badge."
-                       if g == "v1" else "Gate v2: a quantity not resolved and typed from a structured result, shown as a marker."), "",
+                       if g == "v1" else "Decider-only arm: the harness writes engine values only; gate v1 is run on its answers and "
+                       "counts a number found in no tool text and no user message." if g == decider_arm.ARM
+                       else "Gate v2: a quantity not resolved and typed from a structured result, shown as a marker."), "",
               "### pass^k next to the per-turn rate", "",
               "| | value |", "|---|---|",
               f"| turns CORRECT (descriptive, cluster bootstrap 95 %) | {c['turns_correct']} / {c['turns']} = {_pct(c['turns_correct'] / c['turns'] if c['turns'] else None)}"
@@ -283,6 +309,15 @@ def render_md(res):
         for name, vals in c["strata"].items():
             for v, (p, n) in sorted(vals.items()): L.append(f"| {name} | {v} | {p} / {n} |")
         L.append("")
+        if c.get("decisions"):
+            L += ["### Decisions against the gold decisions of each turn kind (decider-only arm, NO_LM_ARM.md §6)", "",
+                  "A failed turn whose decisions were all right failed in the deterministic part (reader, harness, templates), not in the "
+                  "decision model.", "",
+                  "| turn kind | turns | decisions all right | failed with right decisions | questions answered wrong |", "|---|---|---|---|---|"]
+            for kk, b in c["decisions"].items():
+                L.append(f"| {kk} | {b['turns']} | {b['decisions_all_right']} | {b['failed_with_right_decisions']} | "
+                         f"{', '.join(b['questions_wrong']) or '-'} |")
+            L.append("")
     if "paired" in res:
         p = res["paired"]
         L += [f"## Paired comparison C1 = {res['c1']} vs C2 = {res['c2']} (§11.3)" + (", descriptive in this tier" if res["tier"] != "page" else ""), "",
@@ -312,7 +347,10 @@ def main():
         p.add_argument("--tier", default="demo", choices=["dev"] + sorted(mf.TIERS))
         p.add_argument("--out", default=None, help="base folder (default bench/frozen/<tier>/runs, or bench/runs/decision for dev)")
     for p in (r, rp):
-        p.add_argument("--gate", required=True, choices=["v1", "v2"])
+        p.add_argument("--gate", required=True, choices=["v1", "v2", decider_arm.ARM],
+                       help=f"v1, v2 (the 27B agent with that gate) or {decider_arm.ARM} (the decider-only arm, no language model)")
+        p.add_argument("--decider", default="decider_unsloth:decide", help=f"{decider_arm.ARM}: the decision model, module:function")
+        p.add_argument("--decider-model", default=None, help=f"{decider_arm.ARM}: its folder (sets $D01_MODEL; serve the adapters)")
         p.add_argument("--wordings", default=None, help="wordings.json (FROZEN_SET.md §5.3), required for a frozen tier")
         p.add_argument("--wording-seed", type=int, default=None)
         p.add_argument("--ids", default="", help="comma-separated exercise ids")
@@ -334,14 +372,14 @@ def main():
         if not ids: raise SystemExit("--ids: the exercises to replay (two exercises x one seed, §10.1)")
         tmp = os.path.join(base, a.gate, "replay")
         run(a.tier, a.gate, [a.seed], a.wordings, a.wording_seed, ids, False, a.stub, a.stub_error_rate,
-            base=os.path.join(base, a.gate, "_replay"), verbose=a.verbose)
+            base=os.path.join(base, a.gate, "_replay"), verbose=a.verbose, decider=a.decider, decider_model=a.decider_model)
         src = run_dir(os.path.join(base, a.gate, "_replay"), a.gate, a.seed)
         dst = os.path.join(tmp, f"seed-{a.seed}")
         if os.path.exists(dst): shutil.rmtree(dst)
         shutil.move(src, dst); shutil.rmtree(os.path.join(base, a.gate, "_replay"), ignore_errors=True)
         print("replayed into", dst); return
     run(a.tier, a.gate, [int(s) for s in a.seeds.split(",")], a.wordings, a.wording_seed, ids, a.resume, a.stub,
-        a.stub_error_rate, base=base, verbose=a.verbose)
+        a.stub_error_rate, base=base, verbose=a.verbose, decider=a.decider, decider_model=a.decider_model)
     print("runs under", base, "- then: python bench/run_frozen.py analyse --tier", a.tier, *(["--out", a.out] if a.out else []))
 
 if __name__ == "__main__":

@@ -82,6 +82,8 @@ python bench/run_frozen.py replay --tier demo --gate <C1> --seed 1 --ids <two ex
 python bench/run_frozen.py analyse --tier demo --c1 <C1> --c2 <C2>
 ```
 
+The decider-only arm (no language model: the D-01 decision model, the deterministic harness and Caladrius) runs under the configuration name `nolm`, after C1 and C2; its protocol, thresholds and PC commands are in [`../NO_LM_ARM.md`](../NO_LM_ARM.md).
+
 A frozen run stops before its first exercise if `MANIFEST.json` exists and any hashed file differs. Without a manifest it runs, and every output says it is not confirmatory. `--resume` skips the exercises already written, after a power cut for instance (§10.3 says when a restart is allowed).
 
 ## Dry run without a model
