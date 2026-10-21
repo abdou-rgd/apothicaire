@@ -493,10 +493,20 @@ class TestState(unittest.TestCase):
         self.assertEqual(parts["intro"], t1.split("\n")[0]); self.assertEqual(parts["request"], t1.split("\n")[-1])
         self.assertEqual(md.split_first_message("Bonjour\nrien\nFais une NCA.")["csv"], "")
 
+def unitless_gold(meta, csv):
+    """The exercise with the gold of the harness's convention: nca_run with the dose amount alone, no options.units (CL and V in
+    dose unit/...; decision/harness.py), computed by the engine. The benchmark's gold carries the units since T-059."""
+    client = apothicaire.MCPClient([apothicaire.MCP_BIN])
+    try: truth = mk.run_oracle(client.call, meta, csv, units=False)
+    finally: client.close()
+    meta = copy.deepcopy(meta); meta["ground_truth"].update(truth)
+    return meta
+
 @unittest.skipUnless(os.path.exists(apothicaire.MCP_BIN), "caladrius-mcp is not built (see apothicaire.MCP_BIN)")
 class TestRealEngine(unittest.TestCase):
     def test_first_turn(self):
         meta, csv = mk.load(os.path.join(mk.OUT, "ex05_iv_infusion"))
+        meta = unitless_gold(meta, csv)
         st = scripts.build_script(meta, csv)[0]
         h = H.Harness(lambda s, q: dict(NCA, route="iv_infusion"))
         try: ans, _ = h.turn(st["question"])
@@ -511,11 +521,15 @@ class TestRealEngine(unittest.TestCase):
     def test_whole_exercise_with_gold_decisions(self):
         """ex18: AUC values above a million (the trailing '.0' of the 6-digit digest must not reach the answer)."""
         meta, csv = mk.load(os.path.join(mk.OUT, "ex18_pk2_iv_bolus"))
+        meta = unitless_gold(meta, csv)
         index = {rh.state_key(json.loads(r["state"])): {q: g["label"] for q, g in json.loads(r["gold"]).items()}
                  for r in md.exercise_rows(meta, csv, True) if json.loads(r["factors"])["scripted_wording"]}
         decide = lambda state, questions: index[rh.state_key(state)]
         with tempfile.TemporaryDirectory() as tmp:
-            rec = rh.run_exercise(os.path.join(mk.OUT, meta["id"]), tmp, decide)
+            ex_dir = os.path.join(tmp, meta["id"]); os.makedirs(ex_dir); run_dir = os.path.join(tmp, "run"); os.makedirs(run_dir)
+            with open(os.path.join(ex_dir, "meta.json"), "w", encoding="utf-8") as f: json.dump(meta, f, ensure_ascii=False)
+            with open(os.path.join(ex_dir, "data.csv"), "w", encoding="utf-8", newline="\n") as f: f.write(csv)
+            rec = rh.run_exercise(ex_dir, run_dir, decide)
         turns = rec["turns"]
         self.assertEqual([t.get("error") for t in turns], [None] * 8)
         self.assertTrue(all(t["oracle"]["correct"] for t in turns if t.get("oracle")), [t["answer"] for t in turns])

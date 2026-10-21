@@ -161,22 +161,31 @@ def build(index, call, plan_row):
     }
     return meta, csv
 
-def tool_arguments(meta, csv):
-    """The exact tool arguments of the oracle (and of a correct agent): (data_import arguments, nca_run arguments of a method)."""
+def tool_arguments(meta, csv, units=True):
+    """The exact tool arguments of the oracle (and of a correct agent): (data_import arguments, nca_run arguments of a method).
+    units=False: the dose amount alone, no options.units (CL and V in dose unit/...), the convention of decision/exercises/."""
     cols = [{"name": "time", "unit": meta["units"]["time"]}, {"name": "conc", "unit": meta["units"]["conc"]}]
     imp = {"name": meta["id"], "csv": csv, "columns": cols}
-    nca = lambda method: {"dose": meta["dose"]["amount"], "route": meta["route"], "options": {"auc_method": method}}
+    # options.units as the agent's client fills them from the worksheet and the dose unit (T-059): CL and V in L/time and L.
+    units = units and apothicaire.nca_units({"time": meta["units"]["time"], "conc": meta["units"]["conc"]}, meta["dose"]["unit"])
+    nca = lambda method: {"dose": meta["dose"]["amount"], "route": meta["route"],
+                          "options": {"auc_method": method, **({"units": units} if units else {})}}
     return imp, nca
 
-def run_oracle(call, meta, csv, methods=METHODS):
-    """Ground truth NCA: data_import + nca_run on the CSV. Each parameter carries the unit label the agent is shown."""
-    imp, nca = tool_arguments(meta, csv)
+def run_oracle(call, meta, csv, methods=METHODS, units=True):
+    """Ground truth NCA: data_import + nca_run on the CSV, with the units the agent's client sends. Each parameter carries
+    the unit label the agent is shown."""
+    imp, nca = tool_arguments(meta, csv, units=units)
     ok, text = call("data_import", imp)
     if not ok: raise RuntimeError(f"data_import failed for {meta['id']}: {text}")
     ws = json.loads(text)["worksheet"]
     roles = {c["role"]: c.get("unit") for c in ws["columns"]}
+    with_units = units
     units = {"time": roles.get("time"), "conc": roles.get("concentration"), "dose": roles.get("dose"),
              "derived": ws["derived_units"]}
+    sent = nca(METHODS[0])["options"].get("units")
+    if with_units and sent != apothicaire.nca_units(units, meta["dose"]["unit"]):
+        raise RuntimeError(f"{meta['id']}: the oracle's options.units differ from what the agent's client would send")
     out = {}
     for method in methods:
         ok, text = call("nca_run", {"worksheet": ws["id"], **nca(method)})
@@ -188,7 +197,9 @@ def run_oracle(call, meta, csv, methods=METHODS):
             raise RuntimeError(f"{meta['id']}: Caladrius cannot compute the half-life; change the sampling")
         for p in okk["parameters"]:
             v = p["value"]
-            if "value" in v: params[p["name"]] = {"value": v["value"], "unit": apothicaire.param_unit(p["name"], units)}
+            if "value" in v:                       # the engine's unit when it reports one, as the agent's digest shows it
+                unit = p["unit"] if p.get("unit") is not None else apothicaire.param_unit(p["name"], units)
+                params[p["name"]] = {"value": v["value"], "unit": unit}
             else: nc[p["name"]] = v["not_calculated"]
         sel = [c for c in okk["lambda_z_candidates"] if c.get("selected")]
         out[method] = {"nca_run_arguments": nca(method), "parameters": params, "not_calculated": nc,

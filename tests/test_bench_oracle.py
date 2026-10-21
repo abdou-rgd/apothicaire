@@ -131,9 +131,9 @@ class TestClasses(unittest.TestCase):
 
     def test_wrong_unit(self):
         t = self.turns["clearance_volume"]
-        res = verdict(t, self.meta, truth_answer(t, units={"CL/F": "L/h"}))
-        self.assertEqual(classes(res), {"CL/F": "wrong_unit"}); self.assertEqual(res["items"][0]["detail"], "l/h")
-        res = verdict(t, self.meta, truth_answer(t, units={"Vz/F": "µg/(ng/mL)"}))               # the dose unit replaces 'dose unit': not as Caladrius reports
+        res = verdict(t, self.meta, truth_answer(t, units={"CL/F": "mL/h"}))
+        self.assertEqual(classes(res), {"CL/F": "wrong_unit"}); self.assertEqual(res["items"][0]["detail"], "ml/h")
+        res = verdict(t, self.meta, truth_answer(t, units={"Vz/F": "µg/(ng/mL)"}))               # the unconverted label: not as Caladrius reports
         self.assertEqual(classes(res), {"Vz/F": "wrong_unit"})
         t = self.turns["cmax_tmax"]
         self.assertEqual(classes(verdict(t, self.meta, truth_answer(t, units={"Cmax": "mg/L"}))), {"Cmax": "wrong_unit"})
@@ -235,9 +235,11 @@ class TestToolArgumentAudit(unittest.TestCase):
 
     def test_each_kind_of_deviation(self):
         d = lambda **kw: score.nca_call_deviations(self.meta, {**self.ok, **kw})
-        self.assertEqual(d(options={"auc_method": "linear", "start": "zero"}), [{"field": "options.start", "got": "zero", "intended": None}])
-        self.assertEqual([x["field"] for x in d(options={"auc_method": "linear", "lambda_z": {"min_points": 4}})], ["options.lambda_z"])
-        self.assertEqual([x["field"] for x in d(options={"auc_method": "linear", "start": None})], [])          # null = absent
+        o = self.ok["options"]; self.assertEqual(set(o), {"auc_method", "units"})                              # the units since T-059
+        self.assertEqual(d(options={**o, "start": "zero"}), [{"field": "options.start", "got": "zero", "intended": None}])
+        self.assertEqual([x["field"] for x in d(options={**o, "lambda_z": {"min_points": 4}})], ["options.lambda_z"])
+        self.assertEqual([x["field"] for x in d(options={**o, "start": None})], [])                            # null = absent
+        self.assertEqual([x["field"] for x in d(options={"auc_method": "linear"})], ["options.units"])        # no dose unit given
         self.assertEqual([x["field"] for x in d(options={})], ["options.auc_method"])
         self.assertEqual([x["field"] for x in d(options={"auc_method": "linear-up/log-down"})], ["options.auc_method"])
         self.assertEqual([x["field"] for x in d(dose=1)], ["dose"]); self.assertEqual([x["field"] for x in d(dose=float(self.ok["dose"]))], [])
@@ -256,7 +258,7 @@ class TestToolArgumentAudit(unittest.TestCase):
     def test_audit_counts_calls_and_lists_deviations(self):
         turns = [{"turn": 1, "tool_calls": [{"name": "data_import", "args": {"csv": "<1 chars, identical to the exercise CSV>", "columns": [{"unit": u} for u in
                                                                                                                                         [c["unit"] for c in self.meta["ground_truth"]["data_import_columns"]]]}, "status": "valid"},
-                                           {"name": "nca_run", "args": {**self.ok, "options": {"auc_method": "linear", "start": "zero"}}, "status": "valid"},
+                                           {"name": "nca_run", "args": {**self.ok, "options": {**self.ok["options"], "start": "zero"}}, "status": "valid"},
                                            {"name": "analysis_get", "args": {"analysis": 2}, "status": "valid"}]},
                  {"turn": 2, "tool_calls": [{"name": "nca_run", "args": self.ok, "status": "valid"}]}]
         a = score.tool_arg_audit(self.meta, turns)
