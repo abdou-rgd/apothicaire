@@ -171,6 +171,35 @@ def header_columns(csv_text):
         out.append({"name": m.group(1), "unit": m.group(2).strip()} if m else {"name": cell.strip()})
     return out
 
+def split_message_anywhere(text):
+    """make_dataset.split_first_message for a first message written freely (the frozen-set wordings): the table is the first header line
+    followed by numeric rows with as many cells, wherever it is (words glued before the header, up to ": ", go to the text before it;
+    words glued after the last row go to the text after it); blank lines are dropped. Lines before it are the dose sentence (joined), lines after it the notes, the last line the request. On the benchmark's layout (sentence, table, notes, request) the result is the
+    one of split_first_message, so the decision model sees the states it was trained on. A message with nothing after the table takes
+    its last line before the table as the request (and as the sentence when it is the only one); a table first takes the first line
+    after it as the sentence. No table: split_first_message's answer (csv "")."""
+    lines = [l.strip() for l in (text or "").strip().split(chr(10)) if l.strip()]
+    data = md._is_data_row
+    head = lambda line: line.rpartition(": ")[2]           # the header part of a line: what follows its last ": ", if any
+    start = next((i for i in range(len(lines) - 1) if not data(lines[i]) and data(lines[i + 1])
+                  and head(lines[i]).count(",") == lines[i + 1].count(",") > 0), None)
+    if start is None: return md.split_first_message(text)
+    end = start + 1
+    while end < len(lines) and data(lines[end]): end += 1
+    k = head(lines[start]).count(",")
+    glued = end < len(lines) and re.match(r"(-?\d+(?:\.\d+)?(?:,-?\d+(?:\.\d+)?){%d})\s+(\S.*)$" % k, lines[end])
+    if glued:                                              # "86,0 500 mg par voie orale...": the last row, then the text after it
+        lines = lines[:end] + [glued.group(1), glued.group(2)] + lines[end + 1:]; end += 1
+    header, before, after = head(lines[start]), lines[:start], lines[end:]
+    if header != lines[start]:                             # "Voici les données : time (h),conc (mg/L)": the words go to the sentence
+        before = before + [lines[start][:len(lines[start]) - len(header)].strip()]
+    csv = chr(10).join([header] + lines[start + 1:end])
+    if before and after: intro, notes, request = " ".join(before), after[:-1], after[-1]
+    elif before: intro, notes, request = (" ".join(before[:-1]) or before[-1]), [], before[-1]
+    elif after: intro, notes, request = (after[0] if len(after) > 1 else ""), after[1:-1], after[-1]
+    else: intro, notes, request = "", [], ""
+    return {"intro": intro, "csv": csv, "notes": notes, "request": request}
+
 # ---------------------------------------------------------------- the decision model's answers
 def normalize_answers(raw, questions):
     """({question: label or None}, [questions whose answer is outside the offered options]). A label may come as a string, a dict
@@ -223,7 +252,11 @@ def _not_calculated_reason(subject, key):
     return None
 
 def _warnings(digest, subject):
-    out = [f"Avertissement de Caladrius : « {w.get('message', w)} »." for w in (digest.get("unit_warnings") or [])]
+    """The engine's unit warnings and quality flags, as it words them. The worksheet's "the dose has no unit" warning is left out when
+    the analysis itself received the dose unit (options.units, Harness engine_units): it describes the table, not this analysis."""
+    dose_given = bool(((digest.get("options_used") or {}).get("units") or {}).get("dose"))
+    out = [f"Avertissement de Caladrius : « {w.get('message', w)} »." for w in (digest.get("unit_warnings") or [])
+           if not (dose_given and isinstance(w, dict) and w.get("code") == "missing_unit" and "dose" in str(w.get("message", "")))]
     out += [f"Alerte qualité de Caladrius : « {m} »." for m in (subject.get("flag_messages") or [])]
     return out
 
@@ -244,11 +277,22 @@ def _converted_text(value, converted, subject, key, dose_unit):
     c = (converted.get(str(subject)) or {}).get(key)
     return T_CONVERTED.format(value=value_text(c), unit=dose_unit) if c else ""
 
-def render_params(digest, params, time_unit=None, footer=True, dose_unit=None, converted=None):
+def render_verdict(digest, subject):
+    """The engine's verdict on the extrapolation of AUC(0-inf): not acceptable when Caladrius raised its high-extrapolation flag on
+    aucpext.obs, acceptable otherwise, with the engine's threshold (options_used.quality_thresholds). The harness compares nothing."""
+    thr = ((digest.get("options_used") or {}).get("quality_thresholds") or {}).get("max_extrapolated_percent")
+    thr_txt = f" ({value_text(thr)} %)" if thr is not None else ""
+    high = any(isinstance(f, dict) and f.get("code") == "high_extrapolation" and f.get("parameter") == "aucpext.obs"
+               for f in (subject.get("flags") or []))
+    if high: return f"Extrapolation non acceptable : Caladrius signale que l'AUC extrapolée dépasse son seuil de qualité{thr_txt}."
+    return f"Extrapolation acceptable : Caladrius ne signale pas de dépassement de son seuil de qualité{thr_txt}."
+
+def render_params(digest, params, time_unit=None, footer=True, dose_unit=None, converted=None, verdict=False):
     """Lines "- label : value unit" for the parameters asked (keys of make_dataset.PARAMETERS), per subject, in the order of the engine's
     parameters; a parameter Caladrius did not compute is listed with the engine's reason. footer=False writes the not-computed ones
     inline instead of at the end. `dose_unit`: the user's token, written in the header; `converted`: the values of the same analysis
-    run by Caladrius with the units (see Harness._converted), written after the values labelled "dose unit/..."."""
+    run by Caladrius with the units (see Harness._converted), written after the values labelled "dose unit/...". `verdict`: when the
+    extrapolated percentage is shown, the engine's verdict on it follows (render_verdict, Harness extrapolation_verdict)."""
     lines = [render_header(digest, time_unit, dose_unit)]
     for s, head in _subject_blocks(digest):
         if head: lines.append(head)
@@ -266,17 +310,21 @@ def render_params(digest, params, time_unit=None, footer=True, dose_unit=None, c
         for p, why in missing:
             text = f"{label_fr(p, route)} n'est pas calculé par Caladrius" + (f" (« {why} »)" if why else "") + "."
             lines.append(("- " + text) if not footer else text)
+        if verdict and "aucpext" in [p for _, p, _ in found]: lines.append(render_verdict(digest, s))
         lines += _warnings(digest, s)
     return "\n".join(lines)
 
 def render_recall(digest, dose_unit=None, time_unit=None, converted=False):
     """The settings of an analysis as Caladrius recorded them; the dose unit is the token of the user's sentence (the analysis of record
-    receives the amount only; `converted`: Caladrius also received the unit, in the units session, to convert CL and V)."""
+    receives the amount only, unless it was run with options.units (Harness engine_units); `converted`: Caladrius also received the unit,
+    in the units session, to convert CL and V)."""
     s = (digest.get("subjects") or [{}])[0]
     method = (digest.get("options_used") or {}).get("auc_method")
     dose = value_text(s.get("dose")) if s.get("dose") is not None else "non indiquée"
-    unit = (f" {dose_unit} (unité de votre premier message ; " + (f"l'analyse {digest.get('analysis')} a reçu la dose sans unité, Caladrius "
-            "l'a reçue avec son unité pour convertir la clairance et le volume)" if converted else "Caladrius a reçu la dose sans unité)")
+    engine_dose = ((digest.get("options_used") or {}).get("units") or {}).get("dose")
+    unit = ((f" {dose_unit} (unité de votre premier message, transmise à Caladrius)" if engine_dose else
+             f" {dose_unit} (unité de votre premier message ; " + (f"l'analyse {digest.get('analysis')} a reçu la dose sans unité, Caladrius "
+             "l'a reçue avec son unité pour convertir la clairance et le volume)" if converted else "Caladrius a reçu la dose sans unité)"))
             if dose_unit else " (sans unité : vous n'en avez pas indiqué)")
     return "\n".join([f"Réglages de l'analyse {digest.get('analysis')} tels que Caladrius les a enregistrés :",
                       f"- Dose : {dose}{unit}",
@@ -332,10 +380,17 @@ def render_refusal(param, digest=None, route=None):
 # ---------------------------------------------------------------- the harness
 class Harness:
     """One conversation: one MCP session, the project's analyses, the tool log. `decide(state, questions)` is the decision model."""
-    def __init__(self, decide, mcp=None, mcp_bin=None, units_mcp=None):
+    def __init__(self, decide, mcp=None, mcp_bin=None, units_mcp=None, engine_units=False, free_layout=False, extrapolation_verdict=False):
         """`units_mcp`: the client of the units session (a second Caladrius session, see the module doc). With the real engine (mcp None)
-        it is started on first use; with an injected `mcp` and no `units_mcp`, no conversion is made."""
+        it is started on first use; with an injected `mcp` and no `units_mcp`, no conversion is made.
+
+        Three switches for the decider-only arm of the frozen set (bench/NO_LM_ARM.md), all off by default so the D-01 runs and the
+        dataset keep their behaviour: `engine_units` gives the analysis of record options.units (time, concentration, the user's dose
+        unit), as the agent's client does since T-059, so CL and V come in L/time and L like the frozen gold; `free_layout` reads a first
+        message whose table is not on the second line (split_message_anywhere); `extrapolation_verdict` follows the extrapolated
+        percentage with the engine's verdict on it (render_verdict), the question set having no question for it."""
         self.decide = decide
+        self.engine_units, self.free_layout, self.extrapolation_verdict = engine_units, free_layout, extrapolation_verdict
         self.mcp = mcp if mcp is not None else apothicaire.MCPClient([mcp_bin or apothicaire.MCP_BIN])
         self._units_mcp = units_mcp
         self._units_factory = (lambda: apothicaire.MCPClient([mcp_bin or apothicaire.MCP_BIN])) if mcp is None and units_mcp is None else None
@@ -382,6 +437,9 @@ class Harness:
     def _run_nca(self, dose, route, method):
         args = {"worksheet": self.worksheet, "dose": dose, "route": route}
         if method: args["options"] = {"auc_method": method}
+        if self.engine_units:
+            units = apothicaire.nca_units(self.units.get(self.worksheet), _mass(self.dose_unit()))
+            if units: args["options"] = {**args.get("options", {}), "units": units}
         d = self._call("nca_run", args)
         if d is None: return None
         self.analyses.append({"id": d.get("analysis"), "kind": "nca", "auc_method": (d.get("options_used") or {}).get("auc_method"), "args": args})
@@ -390,7 +448,8 @@ class Harness:
     # -- the dose unit: the units session
     def _dose_text(self):
         """The text of the first message where the dose, its unit and the infusion duration are read: the dose sentence, then the request."""
-        return "\n".join(t for t in (self.data.get("intro"), self.data.get("request")) if t)
+        notes = self.data.get("notes") if self.free_layout else None       # a free layout may put the dose on a line of its own
+        return "\n".join(t for t in (self.data.get("intro"), *(notes or ()), self.data.get("request")) if t)
 
     def dose_unit(self):
         """The unit token of the user's dose (first message), or None."""
@@ -458,7 +517,7 @@ class Harness:
         self.turns += 1; self.user_texts.append(text)
         self._info = {"decisions": [], "notes": []}
         if self.data is None:
-            first = md.split_first_message(text)
+            first = split_message_anywhere(text) if self.free_layout else md.split_first_message(text)
             if not first["csv"]: return T_NO_DATA, self._info
             self.data = {"intro": first["intro"], "csv": first["csv"], "notes": first["notes"], "request": first["request"]}
             request = first["request"]
@@ -501,7 +560,7 @@ class Harness:
         conv = self._converted(ref) if any("dose unit" in str(v) for s in (d.get("subjects") or [])
                                            for k, v in (s.get("parameters") or {}).items()
                                            if k in {engine_key(p, s.get("route")) for p in ps}) else None
-        return render_params(d, ps, self._time_unit(), dose_unit=self.dose_unit(), converted=conv)
+        return render_params(d, ps, self._time_unit(), dose_unit=self.dose_unit(), converted=conv, verdict=self.extrapolation_verdict)
 
     def _nca(self, a):
         args = self._nca_arguments(a)

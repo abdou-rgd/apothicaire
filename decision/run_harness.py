@@ -66,16 +66,19 @@ def load_decider(spec):
     return f
 
 # ---------------------------------------------------------------- one exercise
-def run_exercise(ex_dir, run_dir, decide, mcp_bin=None):
-    """The 8 scripted turns of one exercise through a fresh Harness; returns the record (also written to <run_dir>/<id>.json)."""
+def run_exercise(ex_dir, run_dir, decide, mcp_bin=None, script=None, harness_kw=None, on_turn=None):
+    """The 8 scripted turns of one exercise through a fresh Harness; returns the record (also written to <run_dir>/<id>.json).
+    `script` (default scripts.build_script), `harness_kw` (Harness switches) and `on_turn(k, turn)`: for bench/decider_arm.py."""
     meta, csv_text = mk.load(ex_dir)
-    script = scripts.build_script(meta, csv_text)
-    h = harness.Harness(decide, mcp_bin=mcp_bin)
+    script = script or scripts.build_script(meta, csv_text)
+    h = harness.Harness(decide, mcp_bin=mcp_bin, **(harness_kw or {}))
     turns, t_ex = [], time.time()
     try:
         for k, t in enumerate(script):
+            if on_turn is not None: on_turn(k, t)
             n_log, n_units = len(h.tool_log), len(h.unit_log)
             rec = {"exercise": meta["id"], "turn": k + 1, "id": t["id"], "kind": t["kind"], "question": t["question"]}
+            if t.get("wording"): rec["wording"] = t["wording"]
             t0 = time.time()
             try:
                 ans, info = h.turn(t["question"])
