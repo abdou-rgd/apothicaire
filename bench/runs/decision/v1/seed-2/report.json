@@ -1,0 +1,1162 @@
+{
+ "meta": {
+  "date": "2026-10-21",
+  "exercises_run": 25,
+  "model": "Ternary-Bonsai-2-27B-Q2_0-prism-fork-required.gguf (Q2_0) on llama-server b11700-23f7aabc1, temperature 0.3, thinking off",
+  "gate": "v1"
+ },
+ "exercises": 25,
+ "turns": 200,
+ "turns_failed": 0,
+ "hallucination": {
+  "before_gate": {
+   "unverified": 1,
+   "total": 865,
+   "rate": 0.0011560693641618498,
+   "ci95_cluster_bootstrap": [
+    0.0,
+    0.0035169988276670576
+   ]
+  },
+  "after_gate": {
+   "unverified": 0,
+   "total": 864,
+   "rate": 0.0,
+   "ci95_cluster_bootstrap": [
+    0.0,
+    0.0
+   ]
+  },
+  "turns_with_unverified_before": 1,
+  "turns_with_unverified_after": 0,
+  "turns_regenerated": 1,
+  "regeneration_kept": 1,
+  "turns_with_badge": 0
+ },
+ "taxonomy": {
+  "before_gate": {
+   "unit_conversion": 0,
+   "arithmetic": 1,
+   "unlabelled_misread": 0,
+   "recall_error": 0,
+   "other": 0
+  },
+  "after_gate": {
+   "unit_conversion": 0,
+   "arithmetic": 0,
+   "unlabelled_misread": 0,
+   "recall_error": 0,
+   "other": 0
+  }
+ },
+ "taxonomy_chance_baseline": {
+  "3": {
+   "unit_conversion": 136,
+   "arithmetic": 0,
+   "unlabelled_misread": 145,
+   "recall_error": 0,
+   "other": 969
+  },
+  "4": {
+   "unit_conversion": 48,
+   "arithmetic": 284,
+   "unlabelled_misread": 104,
+   "recall_error": 0,
+   "other": 814
+  }
+ },
+ "by_question_type": {
+  "import_nca": {
+   "turns": 25,
+   "correct": 24,
+   "found": 224,
+   "must": 225,
+   "unverified_before": 0,
+   "total_before": 414,
+   "unverified_after": 0,
+   "total_after": 414,
+   "correct_rate": 0.96,
+   "found_rate": 0.9955555555555555
+  },
+  "cmax_tmax": {
+   "turns": 25,
+   "correct": 25,
+   "found": 58,
+   "must": 58,
+   "unverified_before": 0,
+   "total_before": 59,
+   "unverified_after": 0,
+   "total_after": 59,
+   "correct_rate": 1.0,
+   "found_rate": 1.0
+  },
+  "clearance_volume": {
+   "turns": 25,
+   "correct": 25,
+   "found": 50,
+   "must": 50,
+   "unverified_before": 0,
+   "total_before": 54,
+   "unverified_after": 0,
+   "total_after": 54,
+   "correct_rate": 1.0,
+   "found_rate": 1.0
+  },
+  "half_life": {
+   "turns": 25,
+   "correct": 25,
+   "found": 50,
+   "must": 50,
+   "unverified_before": 0,
+   "total_before": 119,
+   "unverified_after": 0,
+   "total_after": 119,
+   "correct_rate": 1.0,
+   "found_rate": 1.0
+  },
+  "lambda_z_regression": {
+   "turns": 25,
+   "correct": 25,
+   "found": 50,
+   "must": 50,
+   "unverified_before": 0,
+   "total_before": 78,
+   "unverified_after": 0,
+   "total_after": 78,
+   "correct_rate": 1.0,
+   "found_rate": 1.0
+  },
+  "recall": {
+   "turns": 25,
+   "correct": 25,
+   "found": 25,
+   "must": 25,
+   "unverified_before": 0,
+   "total_before": 28,
+   "unverified_after": 0,
+   "total_after": 28,
+   "correct_rate": 1.0,
+   "found_rate": 1.0
+  },
+  "compare": {
+   "turns": 25,
+   "correct": 23,
+   "found": 96,
+   "must": 98,
+   "unverified_before": 1,
+   "total_before": 113,
+   "unverified_after": 0,
+   "total_after": 112,
+   "correct_rate": 0.92,
+   "found_rate": 0.9795918367346939
+  },
+  "not_available": {
+   "turns": 25,
+   "correct": 25,
+   "found": 0,
+   "must": 0,
+   "unverified_before": 0,
+   "total_before": 0,
+   "unverified_after": 0,
+   "total_after": 0,
+   "correct_rate": 1.0,
+   "found_rate": null
+  }
+ },
+ "correctness": {
+  "correct_turns": 197,
+  "turns": 200,
+  "turns_error": 0,
+  "expected_numbers_found": 553,
+  "expected_numbers": 556,
+  "forbidden_values_present": 0
+ },
+ "tool_calls": {
+  "valid": 146,
+  "invalid": 0,
+  "failed": 0,
+  "total": 146,
+  "validity_rate": 1.0,
+  "nca_run_calls": 51,
+  "nca_run_right_dose": 51,
+  "nca_run_right_route": 51,
+  "memory_calls": 0,
+  "by_tool": {
+   "analysis_compare": 26,
+   "analysis_get": 44,
+   "data_import": 25,
+   "nca_run": 51
+  }
+ },
+ "time": {
+  "mean_wall_s_per_turn": 7.058,
+  "mean_prompt_tokens_first_call": 4909.02,
+  "total_wall_s": 2376.1
+ },
+ "outcomes": {
+  "turns": 200,
+  "classes": {
+   "ERROR": 0,
+   "TIMEOUT": 0,
+   "LOOP": 0,
+   "ABSTAINED": 0,
+   "WRONG": 5,
+   "CORRECT": 195
+  },
+  "by_question_type": {
+   "import_nca": {
+    "ERROR": 0,
+    "TIMEOUT": 0,
+    "LOOP": 0,
+    "ABSTAINED": 0,
+    "WRONG": 1,
+    "CORRECT": 24
+   },
+   "cmax_tmax": {
+    "ERROR": 0,
+    "TIMEOUT": 0,
+    "LOOP": 0,
+    "ABSTAINED": 0,
+    "WRONG": 0,
+    "CORRECT": 25
+   },
+   "clearance_volume": {
+    "ERROR": 0,
+    "TIMEOUT": 0,
+    "LOOP": 0,
+    "ABSTAINED": 0,
+    "WRONG": 0,
+    "CORRECT": 25
+   },
+   "half_life": {
+    "ERROR": 0,
+    "TIMEOUT": 0,
+    "LOOP": 0,
+    "ABSTAINED": 0,
+    "WRONG": 2,
+    "CORRECT": 23
+   },
+   "lambda_z_regression": {
+    "ERROR": 0,
+    "TIMEOUT": 0,
+    "LOOP": 0,
+    "ABSTAINED": 0,
+    "WRONG": 0,
+    "CORRECT": 25
+   },
+   "recall": {
+    "ERROR": 0,
+    "TIMEOUT": 0,
+    "LOOP": 0,
+    "ABSTAINED": 0,
+    "WRONG": 0,
+    "CORRECT": 25
+   },
+   "compare": {
+    "ERROR": 0,
+    "TIMEOUT": 0,
+    "LOOP": 0,
+    "ABSTAINED": 0,
+    "WRONG": 2,
+    "CORRECT": 23
+   },
+   "not_available": {
+    "ERROR": 0,
+    "TIMEOUT": 0,
+    "LOOP": 0,
+    "ABSTAINED": 0,
+    "WRONG": 0,
+    "CORRECT": 25
+   }
+  },
+  "rubric": "2026-10-21",
+  "exercises": 25,
+  "exercises_all_correct": 20,
+  "exercises_failed": [
+   "ex01_iv_bolus",
+   "ex13_oral_1",
+   "ex14_iv_bolus",
+   "ex16_pk2_oral_1",
+   "ex17_oral_1"
+  ]
+ },
+ "exercise_level": {
+  "exercises": 25,
+  "judged_by": "rubric outcomes",
+  "not_passed": {
+   "failed": 5,
+   "n": 25,
+   "rate": 0.2,
+   "interval": [
+    0.06831146401248406,
+    0.4070374322786773
+   ],
+   "kind": "exact Clopper-Pearson, two-sided"
+  },
+  "not_passed_ids": [
+   "ex01_iv_bolus",
+   "ex13_oral_1",
+   "ex14_iv_bolus",
+   "ex16_pk2_oral_1",
+   "ex17_oral_1"
+  ],
+  "unverified_shown": {
+   "failed": 0,
+   "n": 25,
+   "rate": 0.0,
+   "interval": [
+    0.0,
+    0.11292814500684323
+   ],
+   "kind": "one-sided upper bound 1 - 0.05^(1/n)"
+  },
+  "unverified_shown_ids": []
+ },
+ "compare_tool": {
+  "turns": 25,
+  "turns_with_call": 25,
+  "calls": 26,
+  "valid_calls": 26,
+  "turns_usable": 24,
+  "turns_row_disagrees_with_truth": [],
+  "turns_without_call": [],
+  "analysis_compare_calls_all_turns": 26
+ },
+ "oracle": {
+  "turns": 175,
+  "correct_turns": 170,
+  "correct_turns_rate": 0.9714285714285714,
+  "correct_turns_ci95_cluster_bootstrap": [
+   0.9485714285714286,
+   0.9942857142857143
+  ],
+  "numbers": 556,
+  "numbers_ok": 550,
+  "numbers_ok_rate": 0.9892086330935251,
+  "numbers_ok_ci95_cluster_bootstrap": [
+   0.9800362976406534,
+   0.99644128113879
+  ],
+  "classes": {
+   "wrong_parameter": 1,
+   "wrong_method": 0,
+   "wrong_option": 0,
+   "missing_unit": 0,
+   "wrong_unit": 0,
+   "missing_value": 5
+  },
+  "by_question_type": {
+   "import_nca": {
+    "turns": 25,
+    "correct": 24,
+    "items": 225,
+    "ok": 224,
+    "classes": {
+     "wrong_parameter": 1,
+     "wrong_method": 0,
+     "wrong_option": 0,
+     "missing_unit": 0,
+     "wrong_unit": 0,
+     "missing_value": 0
+    },
+    "correct_rate": 0.96,
+    "ok_rate": 0.9955555555555555
+   },
+   "cmax_tmax": {
+    "turns": 25,
+    "correct": 25,
+    "items": 58,
+    "ok": 58,
+    "classes": {
+     "wrong_parameter": 0,
+     "wrong_method": 0,
+     "wrong_option": 0,
+     "missing_unit": 0,
+     "wrong_unit": 0,
+     "missing_value": 0
+    },
+    "correct_rate": 1.0,
+    "ok_rate": 1.0
+   },
+   "clearance_volume": {
+    "turns": 25,
+    "correct": 25,
+    "items": 50,
+    "ok": 50,
+    "classes": {
+     "wrong_parameter": 0,
+     "wrong_method": 0,
+     "wrong_option": 0,
+     "missing_unit": 0,
+     "wrong_unit": 0,
+     "missing_value": 0
+    },
+    "correct_rate": 1.0,
+    "ok_rate": 1.0
+   },
+   "half_life": {
+    "turns": 25,
+    "correct": 25,
+    "items": 50,
+    "ok": 50,
+    "classes": {
+     "wrong_parameter": 0,
+     "wrong_method": 0,
+     "wrong_option": 0,
+     "missing_unit": 0,
+     "wrong_unit": 0,
+     "missing_value": 0
+    },
+    "correct_rate": 1.0,
+    "ok_rate": 1.0
+   },
+   "lambda_z_regression": {
+    "turns": 25,
+    "correct": 25,
+    "items": 50,
+    "ok": 50,
+    "classes": {
+     "wrong_parameter": 0,
+     "wrong_method": 0,
+     "wrong_option": 0,
+     "missing_unit": 0,
+     "wrong_unit": 0,
+     "missing_value": 0
+    },
+    "correct_rate": 1.0,
+    "ok_rate": 1.0
+   },
+   "recall": {
+    "turns": 25,
+    "correct": 25,
+    "items": 25,
+    "ok": 25,
+    "classes": {
+     "wrong_parameter": 0,
+     "wrong_method": 0,
+     "wrong_option": 0,
+     "missing_unit": 0,
+     "wrong_unit": 0,
+     "missing_value": 0
+    },
+    "correct_rate": 1.0,
+    "ok_rate": 1.0
+   },
+   "compare": {
+    "turns": 25,
+    "correct": 21,
+    "items": 98,
+    "ok": 93,
+    "classes": {
+     "wrong_parameter": 0,
+     "wrong_method": 0,
+     "wrong_option": 0,
+     "missing_unit": 0,
+     "wrong_unit": 0,
+     "missing_value": 5
+    },
+    "correct_rate": 0.84,
+    "ok_rate": 0.9489795918367347
+   }
+  },
+  "not_covered": [
+   "not_available"
+  ],
+  "mismatches": [
+   {
+    "exercise": "ex02_oral_1",
+    "turn": 7,
+    "kind": "compare",
+    "label": "AUC(0-tlast) linear",
+    "class": "missing_value",
+    "detail": null,
+    "claimed": []
+   },
+   {
+    "exercise": "ex04_oral_1_lag",
+    "turn": 7,
+    "kind": "compare",
+    "label": "AUC(0-tlast) linear",
+    "class": "missing_value",
+    "detail": null,
+    "claimed": [
+     "0",
+     "68 899,9 h*ng/ml",
+     "4 503 h*ng/ml",
+     "6,13 %"
+    ]
+   },
+   {
+    "exercise": "ex06_oral_0",
+    "turn": 7,
+    "kind": "compare",
+    "label": "AUC difference in % (analysis_compare)",
+    "class": "missing_value",
+    "detail": null,
+    "claimed": []
+   },
+   {
+    "exercise": "ex16_pk2_oral_1",
+    "turn": 7,
+    "kind": "compare",
+    "label": "AUC(0-tlast) linear",
+    "class": "missing_value",
+    "detail": null,
+    "claimed": [
+     "21,08 h*ng/ml",
+     "4,01 %"
+    ]
+   },
+   {
+    "exercise": "ex16_pk2_oral_1",
+    "turn": 7,
+    "kind": "compare",
+    "label": "AUC difference (analysis_compare)",
+    "class": "missing_value",
+    "detail": null,
+    "claimed": []
+   },
+   {
+    "exercise": "ex17_oral_1",
+    "turn": 1,
+    "kind": "import_nca",
+    "label": "MRT",
+    "class": "wrong_parameter",
+    "detail": "mrt.pred",
+    "claimed": [
+     "18,21 h"
+    ]
+   }
+  ],
+  "disagreements_with_scorer": {
+   "items_oracle_wrong_scorer_found": [
+    "ex02_oral_1 t7 AUC(0-tlast) linear (missing_value)",
+    "ex06_oral_0 t7 AUC difference in % (analysis_compare) (missing_value)",
+    "ex16_pk2_oral_1 t7 AUC difference (analysis_compare) (missing_value)"
+   ],
+   "items_oracle_ok_scorer_missing": [],
+   "turns_oracle_wrong_scorer_correct": [
+    "ex02_oral_1 t7 compare",
+    "ex06_oral_0 t7 compare"
+   ],
+   "turns_oracle_ok_scorer_incorrect": []
+  }
+ },
+ "tool_arg_audit": {
+  "calls": 76,
+  "deviating_calls": 2,
+  "exercises_with_deviation": [
+   "ex13_oral_1",
+   "ex23_iv_bolus"
+  ],
+  "by_deviation": {
+   "nca_run: options.units = null (intended {\"time\": \"h\", \"concentration\": \"ng/mL\", \"dose\": \"mg\"})": 1,
+   "nca_run: options.units = null (intended {\"time\": \"min\", \"concentration\": \"ng/mL\", \"dose\": \"mg\"})": 1
+  },
+  "per_exercise": {
+   "ex01_iv_bolus": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex02_oral_1": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex03_pk2_iv_bolus": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex04_oral_1_lag": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex05_iv_infusion": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex06_oral_0": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex07_iv_bolus": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex08_oral_1": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex09_pk2_oral_1": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex10_oral_1_lag": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex11_pk2_iv_bolus": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex12_iv_infusion": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex13_oral_1": {
+    "calls": 3,
+    "deviating_calls": 1,
+    "deviations": [
+     {
+      "turn": 7,
+      "tool": "nca_run",
+      "status": "valid",
+      "field": "options.units",
+      "got": null,
+      "intended": {
+       "time": "h",
+       "concentration": "ng/mL",
+       "dose": "mg"
+      }
+     }
+    ]
+   },
+   "ex14_iv_bolus": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex15_oral_0": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex16_pk2_oral_1": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex17_oral_1": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex18_pk2_iv_bolus": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex19_oral_1_lag": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex20_iv_infusion": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex21_oral_0": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex22_pk2_oral_1": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex23_iv_bolus": {
+    "calls": 4,
+    "deviating_calls": 1,
+    "deviations": [
+     {
+      "turn": 7,
+      "tool": "nca_run",
+      "status": "valid",
+      "field": "options.units",
+      "got": null,
+      "intended": {
+       "time": "min",
+       "concentration": "ng/mL",
+       "dose": "mg"
+      }
+     }
+    ]
+   },
+   "ex24_pk2_iv_bolus": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   },
+   "ex25_oral_1": {
+    "calls": 3,
+    "deviating_calls": 0,
+    "deviations": []
+   }
+  }
+ },
+ "per_exercise": [
+  {
+   "id": "ex01_iv_bolus",
+   "family": "iv_bolus",
+   "dose": "200 mg",
+   "units": "h, mg/L",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 7,
+   "unverified_before": 0,
+   "total_before": 41,
+   "unverified_after": 0,
+   "total_after": 41,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 9,
+   "calls_total": 9,
+   "mean_wall_s": 9.8625
+  },
+  {
+   "id": "ex02_oral_1",
+   "family": "oral_1",
+   "dose": "400 mg",
+   "units": "h, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 32,
+   "unverified_after": 0,
+   "total_after": 32,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 6.025
+  },
+  {
+   "id": "ex03_pk2_iv_bolus",
+   "family": "pk2_iv_bolus",
+   "dose": "300 mg",
+   "units": "h, mg/L",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 37,
+   "unverified_after": 0,
+   "total_after": 37,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 6.6625
+  },
+  {
+   "id": "ex04_oral_1_lag",
+   "family": "oral_1_lag",
+   "dose": "300 mg",
+   "units": "h, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 32,
+   "unverified_after": 0,
+   "total_after": 32,
+   "correct_turns": 7,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 5.6499999999999995
+  },
+  {
+   "id": "ex05_iv_infusion",
+   "family": "iv_infusion",
+   "dose": "150 mg",
+   "units": "h, mg/L",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 32,
+   "unverified_after": 0,
+   "total_after": 32,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 7,
+   "calls_total": 7,
+   "mean_wall_s": 7.8625
+  },
+  {
+   "id": "ex06_oral_0",
+   "family": "oral_0",
+   "dose": "100 mg",
+   "units": "h, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 31,
+   "unverified_after": 0,
+   "total_after": 31,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 6.0125
+  },
+  {
+   "id": "ex07_iv_bolus",
+   "family": "iv_bolus",
+   "dose": "2000 ug",
+   "units": "h, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 39,
+   "unverified_after": 0,
+   "total_after": 39,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 9,
+   "calls_total": 9,
+   "mean_wall_s": 9.7375
+  },
+  {
+   "id": "ex08_oral_1",
+   "family": "oral_1",
+   "dose": "800 ug",
+   "units": "min, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 29,
+   "unverified_after": 0,
+   "total_after": 29,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 7,
+   "calls_total": 7,
+   "mean_wall_s": 7.5375
+  },
+  {
+   "id": "ex09_pk2_oral_1",
+   "family": "pk2_oral_1",
+   "dose": "300 mg",
+   "units": "h, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 38,
+   "unverified_after": 0,
+   "total_after": 38,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 6.6375
+  },
+  {
+   "id": "ex10_oral_1_lag",
+   "family": "oral_1_lag",
+   "dose": "100 mg",
+   "units": "h, mg/L",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 33,
+   "unverified_after": 0,
+   "total_after": 33,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 6.2
+  },
+  {
+   "id": "ex11_pk2_iv_bolus",
+   "family": "pk2_iv_bolus",
+   "dose": "1000 ug",
+   "units": "h, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 32,
+   "unverified_after": 0,
+   "total_after": 32,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 6.65
+  },
+  {
+   "id": "ex12_iv_infusion",
+   "family": "iv_infusion",
+   "dose": "500 ug",
+   "units": "min, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 35,
+   "unverified_after": 0,
+   "total_after": 35,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 6.1875
+  },
+  {
+   "id": "ex13_oral_1",
+   "family": "oral_1",
+   "dose": "50 mg",
+   "units": "h, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 7,
+   "unverified_before": 1,
+   "total_before": 39,
+   "unverified_after": 0,
+   "total_after": 38,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 8.0
+  },
+  {
+   "id": "ex14_iv_bolus",
+   "family": "iv_bolus",
+   "dose": "150 mg",
+   "units": "h, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 7,
+   "unverified_before": 0,
+   "total_before": 38,
+   "unverified_after": 0,
+   "total_after": 38,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 9,
+   "calls_total": 9,
+   "mean_wall_s": 9.6125
+  },
+  {
+   "id": "ex15_oral_0",
+   "family": "oral_0",
+   "dose": "400 mg",
+   "units": "h, mg/L",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 33,
+   "unverified_after": 0,
+   "total_after": 33,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 6.225
+  },
+  {
+   "id": "ex16_pk2_oral_1",
+   "family": "pk2_oral_1",
+   "dose": "2000 ug",
+   "units": "h, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 7,
+   "unverified_before": 0,
+   "total_before": 38,
+   "unverified_after": 0,
+   "total_after": 38,
+   "correct_turns": 7,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 6.35
+  },
+  {
+   "id": "ex17_oral_1",
+   "family": "oral_1",
+   "dose": "500 mg",
+   "units": "h, mg/L",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 7,
+   "unverified_before": 0,
+   "total_before": 31,
+   "unverified_after": 0,
+   "total_after": 31,
+   "correct_turns": 7,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 5.9
+  },
+  {
+   "id": "ex18_pk2_iv_bolus",
+   "family": "pk2_iv_bolus",
+   "dose": "200 mg",
+   "units": "min, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 34,
+   "unverified_after": 0,
+   "total_after": 34,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 6.8625
+  },
+  {
+   "id": "ex19_oral_1_lag",
+   "family": "oral_1_lag",
+   "dose": "2000 ug",
+   "units": "h, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 43,
+   "unverified_after": 0,
+   "total_after": 43,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 7.2875
+  },
+  {
+   "id": "ex20_iv_infusion",
+   "family": "iv_infusion",
+   "dose": "150 mg",
+   "units": "h, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 39,
+   "unverified_after": 0,
+   "total_after": 39,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 6.137499999999999
+  },
+  {
+   "id": "ex21_oral_0",
+   "family": "oral_0",
+   "dose": "5000 ug",
+   "units": "h, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 36,
+   "unverified_after": 0,
+   "total_after": 36,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 6.6625
+  },
+  {
+   "id": "ex22_pk2_oral_1",
+   "family": "pk2_oral_1",
+   "dose": "500 mg",
+   "units": "h, mg/L",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 31,
+   "unverified_after": 0,
+   "total_after": 31,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 5.9125
+  },
+  {
+   "id": "ex23_iv_bolus",
+   "family": "iv_bolus",
+   "dose": "300 mg",
+   "units": "min, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 28,
+   "unverified_after": 0,
+   "total_after": 28,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 10,
+   "calls_total": 10,
+   "mean_wall_s": 9.4875
+  },
+  {
+   "id": "ex24_pk2_iv_bolus",
+   "family": "pk2_iv_bolus",
+   "dose": "150 mg",
+   "units": "h, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 35,
+   "unverified_after": 0,
+   "total_after": 35,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 7.0625
+  },
+  {
+   "id": "ex25_oral_1",
+   "family": "oral_1",
+   "dose": "100 mg",
+   "units": "h, ng/mL",
+   "turns": 8,
+   "turns_failed": 0,
+   "outcome_correct": 8,
+   "unverified_before": 0,
+   "total_before": 29,
+   "unverified_after": 0,
+   "total_after": 29,
+   "correct_turns": 8,
+   "badge_turns": 0,
+   "calls_valid": 5,
+   "calls_total": 5,
+   "mean_wall_s": 5.925
+  }
+ ]
+}
