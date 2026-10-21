@@ -18,7 +18,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 AGENT = os.path.dirname(HERE)
 if AGENT not in sys.path: sys.path.insert(0, AGENT)
 import apothicaire, gate, optchat  # noqa: E402
-from bench import make_exercises as mk, scripts, score  # noqa: E402
+from bench import make_exercises as mk, scripts, score, stats  # noqa: E402
 
 RUNS = os.path.join(HERE, "runs")
 BADGE_MARK = "\n\n⚠ "
@@ -175,22 +175,15 @@ def run_exercise(ex_dir, run_dir, cfg_base=None, verbose=False, llm=None):
 def _sum(turns, key): return sum(t.get(key, 0) or 0 for t in turns)
 def _rate(u, n): return (u / n) if n else None
 
-def cluster_interval(records, num, den, n_boot=2000, seed=0):
+def cluster_interval(records, num, den, n_boot=stats.N_BOOT, seed=0):
     """95 % percentile interval of sum(num)/sum(den) with the exercises resampled (a cluster bootstrap: the numbers
     of one conversation are not independent)."""
     per = [(sum(t.get(num, 0) or 0 for t in r["turns"]), sum(t.get(den, 0) or 0 for t in r["turns"])) for r in records]
     return _cluster_ci(per, n_boot, seed)
 
-def _cluster_ci(per, n_boot=2000, seed=0):
-    """Percentile interval of sum(a)/sum(b) over resampled (a, b) pairs, one pair per exercise."""
-    if len(per) < 2: return None
-    rng, vals = random.Random(seed), []
-    for _ in range(n_boot):
-        s = [per[rng.randrange(len(per))] for _ in per]
-        d = sum(x[1] for x in s)
-        if d: vals.append(sum(x[0] for x in s) / d)
-    vals.sort()
-    return [vals[int(0.025 * len(vals))], vals[min(len(vals) - 1, int(0.975 * len(vals)))]] if vals else None
+def _cluster_ci(per, n_boot=stats.N_BOOT, seed=0):
+    """Percentile interval of sum(a)/sum(b) over resampled (a, b) pairs, one pair per exercise (stats.cluster_bootstrap)."""
+    return stats.cluster_bootstrap(per, n_boot, seed)
 
 def build_report(records, meta=None):
     turns = [t for r in records for t in r["turns"]]
@@ -245,6 +238,7 @@ def build_report(records, meta=None):
                    "mean_prompt_tokens_first_call": (sum(t["prompt_tokens"] for t in ok_turns) / len(ok_turns)) if ok_turns else None,
                    "total_wall_s": sum(r["wall_s"] for r in records)}
     out["outcomes"] = outcome_section(records)
+    out["exercise_level"] = exercise_level_section(records)
     out["compare_tool"] = compare_section(records)
     out["oracle"] = oracle_section(records)
     out["tool_arg_audit"] = audit_section(records)
@@ -278,6 +272,35 @@ def outcome_section(records):
     return {"turns": len(turns), "classes": total, "by_question_type": {k: byk[k] for k in scripts.KINDS if k in byk},
             "rubric": score.RUBRIC_VERSION, "exercises": len(records), "exercises_all_correct": len(passed),
             "exercises_failed": sorted(r["id"] for r in records if r["id"] not in passed)}
+
+def exercise_level_section(records):
+    """The figures of FROZEN_SET.md §11.1 for one run (one seed), with the exercise as the unit (T-083): exercises not passed
+    (a turn not CORRECT by the rubric, or by the development scorer for runs without outcomes) and exercises in which an answer
+    shown carried an unverified number (gate v1, with its badge) or a marker (gate v2), each with stats.failure_interval."""
+    n = len(records)
+    has_outcome = all("outcome" in t or "error" in t for r in records for t in r["turns"])
+    ok = lambda t: (t.get("outcome") == "CORRECT") if has_outcome else ("error" not in t and t["score"]["correct"])
+    failed = [r["id"] for r in records if not r["turns"] or not all(ok(t) for t in r["turns"])]
+    shown = [r["id"] for r in records if any(t.get("numbers_unverified_after") for t in r["turns"] if "error" not in t)]
+    return {"exercises": n, "judged_by": "rubric outcomes" if has_outcome else "development scorer (score_turn)",
+            "not_passed": stats.failure_interval(len(failed), n), "not_passed_ids": failed,
+            "unverified_shown": stats.failure_interval(len(shown), n), "unverified_shown_ids": shown}
+
+def _interval_text(fi):
+    if not fi or not fi["n"]: return "n/a"
+    lo, hi = fi["interval"]
+    if fi["failed"] == 0: return f"0 / {fi['n']} (one-sided 95 % upper bound {100 * hi:.1f} %)"
+    return f"{fi['failed']} / {fi['n']} = {100 * fi['rate']:.1f} % (exact 95 % CI {100 * lo:.1f}-{100 * hi:.1f} %)"
+
+def render_exercise_level_md(e):
+    if not e or not e["exercises"]: return []
+    return [f"## Exercise level (the unit of inference, FROZEN_SET.md §3)", "",
+            f"- exercises not passed (a turn not correct, judged by the {e['judged_by']}): **{_interval_text(e['not_passed'])}**"
+            + (f" ({', '.join(e['not_passed_ids'])})" if e["not_passed_ids"] else ""),
+            f"- exercises in which an answer shown carried an unverified number or a marker: **{_interval_text(e['unverified_shown'])}**"
+            + (f" ({', '.join(e['unverified_shown_ids'])})" if e["unverified_shown_ids"] else ""),
+            "", "Per-turn and per-number rates in this report are descriptive: turns of one exercise share the data and the memory, "
+            "numbers of one turn share one tool result, so no bound is computed on them (no rule of three on numbers).", ""]
 
 def render_outcomes_md(o):
     if not o: return []
@@ -401,8 +424,9 @@ def render_audit_md(a):
 
 def _pct(x): return "n/a" if x is None else f"{100 * x:.1f} %"
 def _ci(c, u=None, n=None):
-    if u == 0 and n: return f" (none observed: upper 95 % bound by the rule of three 3/{n} = {300 / n:.2f} %)"
-    return "" if not c else f" (95 % CI, exercises resampled: {100 * c[0]:.1f}-{100 * c[1]:.1f} %)"
+    """A descriptive cluster-bootstrap interval of a per-number rate; none when nothing was observed (the bound is per exercise)."""
+    if u == 0 and n: return " (none observed; descriptive, see the exercise level below)"
+    return "" if not c else f" (95 % CI, exercises resampled: {100 * c[0]:.1f}-{100 * c[1]:.1f} %, descriptive)"
 
 def render_md(rep):
     h, c, t, tm = rep["hallucination"], rep["correctness"], rep["tool_calls"], rep["time"]
@@ -416,6 +440,7 @@ def render_md(rep):
           f"- {rep['exercises']} exercises, {rep['turns']} turns ({rep['turns_failed']} failed by an error); turns with an unverified number: "
           f"{h['turns_with_unverified_before']} before, {h['turns_with_unverified_after']} after; regenerated {h['turns_regenerated']} "
           f"(regeneration kept {h['regeneration_kept']}); turns shown with the badge: {h['turns_with_badge']}", "",
+          *render_exercise_level_md(rep.get("exercise_level")),
           "## Failure taxonomy (unverified numbers)", "", "| class | before the gate | in the answers shown |", "|---|---|---|"]
     for k in score.CLASSES: L.append(f"| {k} | {rep['taxonomy']['before_gate'][k]} | {rep['taxonomy']['after_gate'][k]} |")
     L += ["", "Classes are heuristics (`bench/score.py`); the unverified counts above never depend on them. Chance baseline: how the "
