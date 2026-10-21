@@ -352,7 +352,10 @@ The recorded backup run of the demo is a separate recording; it is not part of t
 - Real data: everything is synthetic, by the rule of 2026-10-09.
 - A comparison with any commercial software.
 - The decision model: its 74 free-form requests by dsh, with gold decisions adjudicated by Abdou before he sees any
-  prediction, are frozen under the same rules but analysed in `decision/` (`decision/PLAN.md`), not here.
+  prediction, are frozen under the same rules but analysed in `decision/` (`decision/PLAN.md`), not here. The gold of
+  these 74 requests was adjudicated on 2026-10-21 by two models, blind to dsh's answers, with human arbitration of the
+  27 requests on which the three sources differed (`decision/ood/adjudication/`); no prediction of the trained model
+  on these 74 requests may be shown before the frozen run.
 
 ## 14. Objections taken into account
 

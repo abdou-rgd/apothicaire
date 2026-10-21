@@ -1,0 +1,27 @@
+{"id": "ood-002", "auc_method": "A"}
+{"id": "ood-003", "auc_method": "A"}
+{"id": "ood-009", "auc_method": "A"}
+{"id": "ood-013", "compare_pair": "A", "asked": "B"}
+{"id": "ood-014", "auc_method": "A", "asked": "B"}
+{"id": "ood-015", "auc_method": "A", "compare_pair": "A"}
+{"id": "ood-017", "auc_method": "A"}
+{"id": "ood-018", "auc_method": "A"}
+{"id": "ood-019", "analysis": "A", "route": "A", "is_not_available": "A"}
+{"id": "ood-020", "analysis": "A", "route": "A", "is_not_available": "A"}
+{"id": "ood-024", "dose_has_unit": "A"}
+{"id": "ood-025", "auc_method": "A"}
+{"id": "ood-030", "compare_pair": "A", "asked": "B"}
+{"id": "ood-034", "analysis": "A", "auc_method": "A", "is_not_available": "A"}
+{"id": "ood-038", "auc_method": "A"}
+{"id": "ood-039", "route": "B"}
+{"id": "ood-048", "analysis": "A", "auc_method": "A", "is_not_available": "A"}
+{"id": "ood-056", "auc_method": "A"}
+{"id": "ood-057", "auc_method": "A"}
+{"id": "ood-058", "auc_method": "B", "compare_pair": "A", "asked": "B"}
+{"id": "ood-060", "auc_method": "A"}
+{"id": "ood-061", "auc_method": "A"}
+{"id": "ood-064", "analysis": "A", "route": "A", "is_not_available": "A"}
+{"id": "ood-065", "analysis": "A", "is_not_available": "A"}
+{"id": "ood-069", "dose_has_unit": "A"}
+{"id": "ood-071", "compare_pair": "A", "asked": "B"}
+{"id": "ood-072", "auc_method": "A", "compare_pair": "A", "asked": "B"}
