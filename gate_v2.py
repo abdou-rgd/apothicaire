@@ -569,12 +569,15 @@ def unit_dimension(u):
 
 def contradicts(written, rendered):
     """True when the unit `written` by the model has the dimension of the `rendered` one but another scale (mg/L for ng/mL,
-    µg/mL for ng/mL, min for h). When the engine's unit carries "dose unit" (the dose unit was not given), any written unit of
+    µg/mL for ng/mL, min for h), or a per-kg unit written without its /kg (L/h for L/h/kg). When the engine's unit carries "dose unit" (the dose unit was not given), any written unit of
     that dimension (L/h for dose unit/(h*ng/mL)) is a conversion the engine did not make. A unit of another dimension (a time
     next to a concentration) is not a contradiction; a unit the closed atoms cannot read is not judged."""
     dose_unit = "dose unit" in (rendered or "")            # the engine did not know the dose unit: any unit of that dimension is a conversion
     a, b = unit_dimension(written), unit_dimension(re.sub(r"dose\s+unit", "g", rendered or ""))
-    if a is None or b is None or a[0] != b[0] or not any(b[0]): return False
+    if a is None or b is None or not any(b[0]): return False
+    if re.search(r"/\s*kg\s*$", rendered or "") and a[0] == (b[0][0] + 1,) + b[0][1:]:
+        return True                                        # a per-kg value (L/h/kg) written without its /kg (L/h): not the engine's unit
+    if a[0] != b[0]: return False
     return dose_unit or abs(a[1] / b[1] - 1) > 1e-9
 
 _INTRO_RE = re.compile(r"(?<![\w])(?:exprim[ée]e?s?[ \t]+en|expressed[ \t]+in|unit[ée]s?[ \t]*:?|units?[ \t]*:?|en|in)[ \t]+$", re.I)

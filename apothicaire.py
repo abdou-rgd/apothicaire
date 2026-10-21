@@ -42,6 +42,13 @@ EXPOSED = ["data_import", "nca_run", "analysis_get", "export_table", "analysis_c
 UNIT_TIME = ("s", "min", "h", "d")
 UNIT_MASS = ("ng", "µg", "μg", "ug", "mcg", "mg", "g")
 UNIT_VOLUME = ("mL", "ml", "L", "l")
+# A dose may also be a mass per kilogram of body weight (caladrius T-098): the engine then gives CL in L/time/kg and V in L/kg.
+DOSE_UNITS_SHOWN = ["ng", "ug", "mg", "g", "ng/kg", "ug/kg", "mg/kg", "g/kg"]
+
+def dose_unit_ok(d):
+    """True for a dose unit the engine converts with: a mass of UNIT_MASS, or such a mass per kg (`mg/kg`, `µg / kg`)."""
+    mass, slash, body = (d or "").partition("/")
+    return mass.strip() in UNIT_MASS and (not slash or body.strip() == "kg")
 # data_import may take a file `path` (a client convenience): it is resolved inside this folder only.
 INPUTS_DIR = os.environ.get("APOTHICAIRE_INPUTS", os.path.join(HERE, "inputs"))
 # nca_run options kept in the schema shown to the model (the full schema is ~1k tokens; the
@@ -163,8 +170,8 @@ def to_openai(tool):
                                          "description": "oral = extravascular; infusion = iv_infusion with infusion_duration"}
         params["properties"]["infusion_duration"] = {"type": "number", "description": "Only with route iv_infusion: duration of the infusion in the time unit of the data (2 h -> 2)."}
         params["properties"]["dose"] = {"type": "number", "description": "Dose amount in the unit the user gives (10 mg -> 10)."}
-        params["properties"]["dose_unit"] = {"type": "string", "enum": ["ng", "ug", "mg", "g"],
-                                             "description": "Unit of that dose as the user gives it (10 mg -> mg; µg -> ug). With it Caladrius gives CL in L/time and V in L."}
+        params["properties"]["dose_unit"] = {"type": "string", "enum": DOSE_UNITS_SHOWN,
+                                             "description": "Unit of that dose as the user gives it (10 mg -> mg; µg -> ug; 50 mg/kg -> mg/kg). With it Caladrius gives CL in L/time and V in L (L/time/kg and L/kg for a dose per kg)."}
         params["properties"]["subject"] = {"description": "One subject label; omit for all subjects."}
     if tool["name"] == "analysis_compare":
         desc = ("Differences, relative differences in percent and ratios (b minus a) of the parameters two analyses of one "
@@ -207,12 +214,13 @@ def param_unit(name, u):
 
 def nca_units(ws_units, dose_unit=None):
     """options.units for nca_run: the worksheet's time and concentration units and the dose unit (the model's `dose_unit`,
-    else the worksheet's dose column), or None when one is missing or outside the engine's table (UNIT_*)."""
+    else the worksheet's dose column; a mass or a mass per kg), or None when one is missing or outside the engine's table
+    (UNIT_*, dose_unit_ok)."""
     u = ws_units or {}
     t, c = (u.get("time") or "").strip(), (u.get("conc") or "").strip()
     d = dose_unit if isinstance(dose_unit, str) and dose_unit.strip() else (u.get("dose") or "")
     d = d.strip(); mass, _, volume = c.partition("/")
-    if t in UNIT_TIME and d in UNIT_MASS and mass.strip() in UNIT_MASS and volume.strip() in UNIT_VOLUME:
+    if t in UNIT_TIME and dose_unit_ok(d) and mass.strip() in UNIT_MASS and volume.strip() in UNIT_VOLUME:
         return {"time": t, "concentration": c, "dose": d}
     return None
 

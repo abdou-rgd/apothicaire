@@ -692,6 +692,13 @@ class TestRedTeamMutations(Base):
         self.assertTrue(gate_v2.contradicts("L/h", "dose unit/(h*ng/mL)")); self.assertFalse(gate_v2.contradicts("h", "dose unit/(h*ng/mL)"))
         for u in ("dose unit", "points", "", "mg/kg/j/x", "fois"): self.assertIsNone(gate_v2.unit_dimension(u), u)
 
+    def test_a_per_kg_unit_must_keep_its_kg(self):
+        # T-102: with a dose per kg the engine gives L/h/kg and L/kg; another scale or a dropped /kg is not its unit
+        for w, r in (("L/h", "L/h/kg"), ("mL/min/kg", "L/h/kg"), ("L", "L/kg"), ("mL/kg", "L/kg"), ("L/h", "L/h / kg")):
+            self.assertTrue(gate_v2.contradicts(w, r), (w, r))
+        for w, r in (("L/h/kg", "L/h/kg"), ("L·h⁻¹/kg", "L/h/kg"), ("L/kg", "L/kg"), ("h", "L/h/kg"), ("L/h", "L/h"), ("L", "L")):
+            self.assertFalse(gate_v2.contradicts(w, r), (w, r))
+
     # RT-A10 / T-058: sign through emphasis, signs and multipliers in words, English numerals, Unicode numerals
     def test_the_eight_probes_of_rt_a10(self):
         for t in ("Cmax = -**{{call_2.cmax}}**", "Cmax = negative {{call_2.cmax}}", "hundredfold higher than {{call_2.cmax}}",
