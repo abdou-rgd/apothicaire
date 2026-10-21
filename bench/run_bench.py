@@ -107,20 +107,39 @@ def planned_error_record(meta, script, error):
             "blq": bool(meta.get("blq")), "wall_s": 0.0, "taxonomy_chance_baseline": {}, "turns": turns}
 
 # ---------------------------------------------------------------- one exercise
-def run_exercise(ex_dir, run_dir, cfg_base=None, verbose=False, llm=None):
-    """Runs the 8 turns of one exercise; returns the record (also written to <run_dir>/<id>.json)."""
+def seed_requests(llm, seed):
+    """Sends `seed` in every request of an optchat.LLM (llama-server's sampler seed; T-069 for the agent itself). The seed fixes
+    the sampler; bitwise replay across hardware is not claimed (FROZEN_SET.md §10)."""
+    post = llm.http.post
+    def seeded(url, *args, json=None, **kw): return post(url, *args, json={**(json or {}), "seed": seed}, **kw)
+    llm.http.post = seeded
+    return llm
+
+def run_exercise(ex_dir, run_dir, cfg_base=None, verbose=False, llm=None, script=None, seed=None, gate_version=None, on_turn=None,
+                 allow_frozen=False):
+    """Runs the 8 turns of one exercise; returns the record (also written to <run_dir>/<id>.json). `script`: the turns to ask
+    (default scripts.build_script; the frozen runner passes them with their wordings); `seed`: the sampler seed sent with each
+    request; `gate_version`: v1 or v2 (default APOTHICAIRE_GATE); `on_turn(k, turn)`: called before each turn (the stub model);
+    `allow_frozen`: only bench/run_frozen.py runs the exercises of a frozen set."""
     meta, csv_text = mk.load(ex_dir)
-    script = scripts.build_script(meta, csv_text)
+    if meta.get("frozen") and not allow_frozen:
+        raise SystemExit(f"{meta['id']} belongs to {meta['frozen']['tag']}: confirmation only, run it with bench/run_frozen.py")
+    script = script or scripts.build_script(meta, csv_text)
     data = os.path.join(run_dir, meta["id"] + "-data")
     if os.path.exists(data): shutil.rmtree(data)
     cfg = dict(cfg_base or optchat.CFG, data_dir=data)
-    ag = apothicaire.Apothicaire(cfg=cfg)
-    if llm is not None: ag.llm = llm; ag.compactor.llm = llm          # tests: a scripted model
+    ag = apothicaire.Apothicaire(cfg=cfg, gate_version=gate_version)
+    if llm is not None: ag.llm = llm; ag.compactor.llm = llm          # tests and the dry run: a scripted model
+    elif seed is not None:
+        seed_requests(ag.llm, seed)
+        if ag.compactor.llm is not ag.llm: seed_requests(ag.compactor.llm, seed)
     turns, t_ex = [], time.time()
     try:
         for k, t in enumerate(script):
+            if on_turn is not None: on_turn(k, t)
             n_log, n_msgs = len(ag.tool_log), len(ag.store.log)
             rec = {"exercise": meta["id"], "turn": k + 1, "id": t["id"], "kind": t["kind"], "question": t["question"]}
+            if t.get("wording"): rec["wording"] = t["wording"]
             t0 = time.time()
             try:
                 ans, st = ag.turn(t["question"], verbose=verbose)
@@ -165,7 +184,7 @@ def run_exercise(ex_dir, run_dir, cfg_base=None, verbose=False, llm=None):
         ag.close()
     record = {"id": meta["id"], "family": meta["family"], "model": meta["model"], "units": meta["units"],
               "dose": meta["dose"], "blq": bool(meta.get("blq")), "wall_s": round(time.time() - t_ex, 1),
-              "taxonomy_chance_baseline": baseline, "turns": turns}
+              "gate": ag.gate_version, "seed": seed, "taxonomy_chance_baseline": baseline, "turns": turns}
     attach_oracle(record, meta, script)
     with open(os.path.join(run_dir, meta["id"] + ".json"), "w", encoding="utf-8") as f:
         json.dump(record, f, ensure_ascii=False, indent=1)

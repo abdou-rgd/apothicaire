@@ -311,9 +311,16 @@ may not. The tag `frozen-set-<tier>` is set on the system-freeze commit and is n
    are committed too, not ignored, so a reader can check any verdict.
 6. Any deviation is a dated entry in `bench/frozen/LEDGER.md`.
 
+Implementation (2026-10-21). The seeds, the manifest check and the replay are in `bench/run_frozen.py`, not in
+`run_bench.py` as written above: `run_frozen.py run --seeds 1,2,3` sends the seed in every request
+(`run_bench.seed_requests`), refuses to start on a manifest mismatch (`make_frozen.verify_manifest`), and
+`run_frozen.py replay` replays exercise × seed pairs into `<gate>/replay/` for the comparison of item 1.
+`run_bench.py` refuses the frozen folders. The same runner, with `--tier dev`, runs the development set for the
+decision of §8. Layout, wordings format and commands: `bench/frozen/README.md`.
+
 ## 11. Analysis, declared before the run
 
-Implemented in one script, frozen at the case freeze. No test is run that is not listed here; anything else is
+Implemented in one script, frozen at the case freeze (`bench/run_frozen.py analyse`, with `bench/stats.py`). No test is run that is not listed here; anything else is
 exploratory and labelled so.
 
 ### 11.1 Primary endpoints, per configuration
