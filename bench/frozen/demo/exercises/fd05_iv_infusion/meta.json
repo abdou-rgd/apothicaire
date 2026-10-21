@@ -1,0 +1,602 @@
+{
+ "id": "fd05_iv_infusion",
+ "index": 5,
+ "family": "iv_infusion",
+ "model": "pk1.iv_infusion",
+ "route": {
+  "iv_infusion": {
+   "duration": 1.5
+  }
+ },
+ "dose": {
+  "amount": 500,
+  "unit": "mg"
+ },
+ "units": {
+  "time": "h",
+  "conc": "ng/mL"
+ },
+ "n_points": 12,
+ "noise": {
+  "type": "proportional",
+  "cv": 0.08,
+  "distribution": "gaussian, clipped at +-2 sd",
+  "seed": 20261021100
+ },
+ "blq": {
+  "lloq": 110.0,
+  "unit": "ng/mL",
+  "n_blq": 1,
+  "written_as": 0
+ },
+ "simulation": {
+  "parameters": {
+   "cl": 6.84,
+   "v": 134.0,
+   "dur": 1.5
+  },
+  "parameter_units": "times and rates in h, volumes in L, clearances in L/h, dose in the dose unit",
+  "time_scale_to_csv": 1,
+  "conc_factor_to_csv": 1000,
+  "terminal_half_life_h": 13.579199151320566
+ },
+ "ground_truth": {
+  "data_import_columns": [
+   {
+    "name": "time",
+    "unit": "h"
+   },
+   {
+    "name": "conc",
+    "unit": "ng/mL"
+   }
+  ],
+  "worksheet_derived_units": {
+   "auc": "h*ng/mL",
+   "aumc": "h^2*ng/mL",
+   "half_life": "h",
+   "lambda_z": "1/h",
+   "mrt": "h"
+  },
+  "worksheet_unit_warnings": [
+   {
+    "code": "missing_unit",
+    "message": "the dose has no unit; derived units (AUC, clearance, volume) cannot be named"
+   }
+  ],
+  "nca": {
+   "linear": {
+    "nca_run_arguments": {
+     "dose": 500,
+     "route": {
+      "iv_infusion": {
+       "duration": 1.5
+      }
+     },
+     "options": {
+      "auc_method": "linear",
+      "units": {
+       "time": "h",
+       "concentration": "ng/mL",
+       "dose": "mg"
+      }
+     }
+    },
+    "parameters": {
+     "cmax": {
+      "value": 3710.0,
+      "unit": "ng/mL"
+     },
+     "tmax": {
+      "value": 2.4,
+      "unit": "h"
+     },
+     "tfirst": {
+      "value": 0.5,
+      "unit": "h"
+     },
+     "tlast": {
+      "value": 56.0,
+      "unit": "h"
+     },
+     "clast.obs": {
+      "value": 216.7,
+      "unit": "ng/mL"
+     },
+     "auclast": {
+      "value": 67301.75,
+      "unit": "h·ng/mL"
+     },
+     "aucall": {
+      "value": 71527.4,
+      "unit": "h·ng/mL"
+     },
+     "aumclast": {
+      "value": 1099085.125,
+      "unit": "h²·ng/mL"
+     },
+     "aumcall": {
+      "value": 1335721.525,
+      "unit": "h²·ng/mL"
+     },
+     "lambda.z": {
+      "value": 0.04958376106135965,
+      "unit": "1/h"
+     },
+     "r.squared": {
+      "value": 0.9981173536529347,
+      "unit": ""
+     },
+     "adj.r.squared": {
+      "value": 0.9971760304794022,
+      "unit": ""
+     },
+     "lambda.z.time.first": {
+      "value": 12.0,
+      "unit": "h"
+     },
+     "lambda.z.time.last": {
+      "value": 56.0,
+      "unit": "h"
+     },
+     "lambda.z.n.points": {
+      "value": 4.0,
+      "unit": ""
+     },
+     "clast.pred": {
+      "value": 220.20108657084504,
+      "unit": "ng/mL"
+     },
+     "half.life": {
+      "value": 13.979318343805732,
+      "unit": "h"
+     },
+     "span.ratio": {
+      "value": 3.1475068324412616,
+      "unit": ""
+     },
+     "aucinf.obs": {
+      "value": 71672.13246719193,
+      "unit": "h·ng/mL"
+     },
+     "aucinf.pred": {
+      "value": 71742.7420074104,
+      "unit": "h·ng/mL"
+     },
+     "aumcinf.obs": {
+      "value": 1431967.950221071,
+      "unit": "h²·ng/mL"
+     },
+     "aumcinf.pred": {
+      "value": 1437346.130142836,
+      "unit": "h²·ng/mL"
+     },
+     "aucpext.obs": {
+      "value": 6.097743037285075,
+      "unit": "%"
+     },
+     "aucpext.pred": {
+      "value": 6.190162075142991,
+      "unit": "%"
+     },
+     "aumcpext.obs": {
+      "value": 23.24652763140961,
+      "unit": "%"
+     },
+     "aumcpext.pred": {
+      "value": 23.533719404749178,
+      "unit": "%"
+     },
+     "mrt.iv.last": {
+      "value": 15.5807064823723,
+      "unit": "h"
+     },
+     "mrt.iv.obs": {
+      "value": 19.229424372179206,
+      "unit": "h"
+     },
+     "mrt.iv.pred": {
+      "value": 19.284725324470738,
+      "unit": "h"
+     },
+     "cl.obs": {
+      "value": 6.976212131386994,
+      "unit": "L/h"
+     },
+     "cl.pred": {
+      "value": 6.9693461109746035,
+      "unit": "L/h"
+     },
+     "vz.obs": {
+      "value": 140.6955015524935,
+      "unit": "L"
+     },
+     "vz.pred": {
+      "value": 140.55702838576673,
+      "unit": "L"
+     },
+     "vss.iv.obs": {
+      "value": 134.1485435847853,
+      "unit": "L"
+     },
+     "vss.iv.pred": {
+      "value": 134.40192544131358,
+      "unit": "L"
+     },
+     "vss.obs": {
+      "value": 139.38070268332555,
+      "unit": "L"
+     },
+     "vss.pred": {
+      "value": 139.62893502454455,
+      "unit": "L"
+     },
+     "vss.iv.last": {
+      "value": 115.7526103137905,
+      "unit": "L"
+     },
+     "cmax.dn": {
+      "value": 7.42,
+      "unit": "(ng/mL)/mg"
+     },
+     "clast.obs.dn": {
+      "value": 0.43339999999999995,
+      "unit": "(ng/mL)/mg"
+     },
+     "auclast.dn": {
+      "value": 134.6035,
+      "unit": "(h·ng/mL)/mg"
+     },
+     "aucall.dn": {
+      "value": 143.0548,
+      "unit": "(h·ng/mL)/mg"
+     },
+     "aucinf.obs.dn": {
+      "value": 143.34426493438386,
+      "unit": "(h·ng/mL)/mg"
+     },
+     "aucinf.pred.dn": {
+      "value": 143.4854840148208,
+      "unit": "(h·ng/mL)/mg"
+     },
+     "aumclast.dn": {
+      "value": 2198.17025,
+      "unit": "(h²·ng/mL)/mg"
+     },
+     "aumcall.dn": {
+      "value": 2671.44305,
+      "unit": "(h²·ng/mL)/mg"
+     },
+     "aumcinf.obs.dn": {
+      "value": 2863.935900442142,
+      "unit": "(h²·ng/mL)/mg"
+     },
+     "aumcinf.pred.dn": {
+      "value": 2874.6922602856716,
+      "unit": "(h²·ng/mL)/mg"
+     }
+    },
+    "not_calculated": {
+     "c0": "not_applicable_to_route",
+     "tlag": "not_applicable_to_route",
+     "mrt.last": "not_applicable_to_route",
+     "mrt.obs": "not_applicable_to_route",
+     "mrt.pred": "not_applicable_to_route",
+     "aucivlast": "not_applicable_to_route",
+     "aucivall": "not_applicable_to_route",
+     "aucivinf.obs": "not_applicable_to_route",
+     "aucivinf.pred": "not_applicable_to_route",
+     "aucivpbextlast": "not_applicable_to_route",
+     "aucivpbextall": "not_applicable_to_route",
+     "aucivpbextinf.obs": "not_applicable_to_route",
+     "aucivpbextinf.pred": "not_applicable_to_route"
+    },
+    "not_calculated_messages": {
+     "aucivall": "not defined for this route of administration",
+     "aucivinf.obs": "not defined for this route of administration",
+     "aucivinf.pred": "not defined for this route of administration",
+     "aucivlast": "not defined for this route of administration",
+     "aucivpbextall": "not defined for this route of administration",
+     "aucivpbextinf.obs": "not defined for this route of administration",
+     "aucivpbextinf.pred": "not defined for this route of administration",
+     "aucivpbextlast": "not defined for this route of administration",
+     "c0": "not defined for this route of administration",
+     "mrt.last": "not defined for this route of administration",
+     "mrt.obs": "not defined for this route of administration",
+     "mrt.pred": "not defined for this route of administration",
+     "tlag": "not defined for this route of administration"
+    },
+    "flags": [],
+    "flag_messages": [],
+    "lambda_z_regression": {
+     "adj_r_squared": 0.9971760304794022,
+     "intercept": 8.171231778185048,
+     "lambda_z": 0.04958376106135965,
+     "n_points": 4,
+     "r_squared": 0.9981173536529347,
+     "replaced_points": 0,
+     "selected": true,
+     "time_first": 12.0,
+     "time_last": 56.0,
+     "valid": true
+    }
+   },
+   "lin_up_log_down": {
+    "nca_run_arguments": {
+     "dose": 500,
+     "route": {
+      "iv_infusion": {
+       "duration": 1.5
+      }
+     },
+     "options": {
+      "auc_method": "lin_up_log_down",
+      "units": {
+       "time": "h",
+       "concentration": "ng/mL",
+       "dose": "mg"
+      }
+     }
+    },
+    "parameters": {
+     "cmax": {
+      "value": 3710.0,
+      "unit": "ng/mL"
+     },
+     "tmax": {
+      "value": 2.4,
+      "unit": "h"
+     },
+     "tfirst": {
+      "value": 0.5,
+      "unit": "h"
+     },
+     "tlast": {
+      "value": 56.0,
+      "unit": "h"
+     },
+     "clast.obs": {
+      "value": 216.7,
+      "unit": "ng/mL"
+     },
+     "auclast": {
+      "value": 65490.437768882366,
+      "unit": "h·ng/mL"
+     },
+     "aucall": {
+      "value": 69716.08776888237,
+      "unit": "h·ng/mL"
+     },
+     "aumclast": {
+      "value": 1106385.65251972,
+      "unit": "h²·ng/mL"
+     },
+     "aumcall": {
+      "value": 1343022.0525197198,
+      "unit": "h²·ng/mL"
+     },
+     "lambda.z": {
+      "value": 0.04958376106135965,
+      "unit": "1/h"
+     },
+     "r.squared": {
+      "value": 0.9981173536529347,
+      "unit": ""
+     },
+     "adj.r.squared": {
+      "value": 0.9971760304794022,
+      "unit": ""
+     },
+     "lambda.z.time.first": {
+      "value": 12.0,
+      "unit": "h"
+     },
+     "lambda.z.time.last": {
+      "value": 56.0,
+      "unit": "h"
+     },
+     "lambda.z.n.points": {
+      "value": 4.0,
+      "unit": ""
+     },
+     "clast.pred": {
+      "value": 220.20108657084504,
+      "unit": "ng/mL"
+     },
+     "half.life": {
+      "value": 13.979318343805732,
+      "unit": "h"
+     },
+     "span.ratio": {
+      "value": 3.1475068324412616,
+      "unit": ""
+     },
+     "aucinf.obs": {
+      "value": 69860.82023607429,
+      "unit": "h·ng/mL"
+     },
+     "aucinf.pred": {
+      "value": 69931.42977629276,
+      "unit": "h·ng/mL"
+     },
+     "aumcinf.obs": {
+      "value": 1439268.4777407907,
+      "unit": "h²·ng/mL"
+     },
+     "aumcinf.pred": {
+      "value": 1444646.6576625556,
+      "unit": "h²·ng/mL"
+     },
+     "aucpext.obs": {
+      "value": 6.255841904551773,
+      "unit": "%"
+     },
+     "aucpext.pred": {
+      "value": 6.350495080133367,
+      "unit": "%"
+     },
+     "aumcpext.obs": {
+      "value": 23.128612233875543,
+      "unit": "%"
+     },
+     "aumcpext.pred": {
+      "value": 23.41479166193784,
+      "unit": "%"
+     },
+     "mrt.iv.last": {
+      "value": 16.143850311768972,
+      "unit": "h"
+     },
+     "mrt.iv.obs": {
+      "value": 19.851940728396865,
+      "unit": "h"
+     },
+     "mrt.iv.pred": {
+      "value": 19.90804549233313,
+      "unit": "h"
+     },
+     "cl.obs": {
+      "value": 7.157087453459545,
+      "unit": "L/h"
+     },
+     "cl.pred": {
+      "value": 7.14986096522659,
+      "unit": "L/h"
+     },
+     "vz.obs": {
+      "value": 144.34337573954275,
+      "unit": "L"
+     },
+     "vz.pred": {
+      "value": 144.1976326962909,
+      "unit": "L"
+     },
+     "vss.iv.obs": {
+      "value": 142.08207591403175,
+      "unit": "L"
+     },
+     "vss.iv.pred": {
+      "value": 142.33975735958782,
+      "unit": "L"
+     },
+     "vss.obs": {
+      "value": 147.4498915041264,
+      "unit": "L"
+     },
+     "vss.pred": {
+      "value": 147.70215308350777,
+      "unit": "L"
+     },
+     "vss.iv.last": {
+      "value": 123.25349212614125,
+      "unit": "L"
+     },
+     "cmax.dn": {
+      "value": 7.42,
+      "unit": "(ng/mL)/mg"
+     },
+     "clast.obs.dn": {
+      "value": 0.43339999999999995,
+      "unit": "(ng/mL)/mg"
+     },
+     "auclast.dn": {
+      "value": 130.98087553776475,
+      "unit": "(h·ng/mL)/mg"
+     },
+     "aucall.dn": {
+      "value": 139.43217553776475,
+      "unit": "(h·ng/mL)/mg"
+     },
+     "aucinf.obs.dn": {
+      "value": 139.72164047214858,
+      "unit": "(h·ng/mL)/mg"
+     },
+     "aucinf.pred.dn": {
+      "value": 139.86285955258552,
+      "unit": "(h·ng/mL)/mg"
+     },
+     "aumclast.dn": {
+      "value": 2212.77130503944,
+      "unit": "(h²·ng/mL)/mg"
+     },
+     "aumcall.dn": {
+      "value": 2686.0441050394397,
+      "unit": "(h²·ng/mL)/mg"
+     },
+     "aumcinf.obs.dn": {
+      "value": 2878.5369554815816,
+      "unit": "(h²·ng/mL)/mg"
+     },
+     "aumcinf.pred.dn": {
+      "value": 2889.293315325111,
+      "unit": "(h²·ng/mL)/mg"
+     }
+    },
+    "not_calculated": {
+     "c0": "not_applicable_to_route",
+     "tlag": "not_applicable_to_route",
+     "mrt.last": "not_applicable_to_route",
+     "mrt.obs": "not_applicable_to_route",
+     "mrt.pred": "not_applicable_to_route",
+     "aucivlast": "not_applicable_to_route",
+     "aucivall": "not_applicable_to_route",
+     "aucivinf.obs": "not_applicable_to_route",
+     "aucivinf.pred": "not_applicable_to_route",
+     "aucivpbextlast": "not_applicable_to_route",
+     "aucivpbextall": "not_applicable_to_route",
+     "aucivpbextinf.obs": "not_applicable_to_route",
+     "aucivpbextinf.pred": "not_applicable_to_route"
+    },
+    "not_calculated_messages": {
+     "aucivall": "not defined for this route of administration",
+     "aucivinf.obs": "not defined for this route of administration",
+     "aucivinf.pred": "not defined for this route of administration",
+     "aucivlast": "not defined for this route of administration",
+     "aucivpbextall": "not defined for this route of administration",
+     "aucivpbextinf.obs": "not defined for this route of administration",
+     "aucivpbextinf.pred": "not defined for this route of administration",
+     "aucivpbextlast": "not defined for this route of administration",
+     "c0": "not defined for this route of administration",
+     "mrt.last": "not defined for this route of administration",
+     "mrt.obs": "not defined for this route of administration",
+     "mrt.pred": "not defined for this route of administration",
+     "tlag": "not defined for this route of administration"
+    },
+    "flags": [],
+    "flag_messages": [],
+    "lambda_z_regression": {
+     "adj_r_squared": 0.9971760304794022,
+     "intercept": 8.171231778185048,
+     "lambda_z": 0.04958376106135965,
+     "n_points": 4,
+     "r_squared": 0.9981173536529347,
+     "replaced_points": 0,
+     "selected": true,
+     "time_first": 12.0,
+     "time_last": 56.0,
+     "valid": true
+    }
+   }
+  },
+  "fit_parameters": {
+   "cl": 6.84,
+   "v": 134.0,
+   "dur": 1.5
+  },
+  "units_in_nca_run": true
+ },
+ "frozen": {
+  "tier": "demo",
+  "tag": "frozen-set-demo",
+  "use": "confirmation only, never development (FROZEN_SET.md §8)",
+  "plan_row": [
+   "iv_infusion",
+   "pk1.iv_infusion",
+   "mg",
+   "ng/mL",
+   "h",
+   true
+  ],
+  "attempt": 0
+ }
+}
