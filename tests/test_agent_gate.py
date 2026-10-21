@@ -253,7 +253,16 @@ class TestNcaUnits(unittest.TestCase):
     def test_nca_run_function_offers_dose_unit(self):
         tools = td.load("tools_list.json")["tools"]
         f = apothicaire.to_openai(next(t for t in tools if t["name"] == "nca_run"))["function"]["parameters"]["properties"]
-        self.assertEqual(f["dose_unit"]["enum"], ["ng", "ug", "mg", "g"])
+        self.assertEqual(f["dose_unit"]["enum"], ["ng", "ug", "mg", "g", "ng/kg", "ug/kg", "mg/kg", "g/kg"])
+        self.assertIn("mg/kg", f["dose_unit"]["description"])
+
+    def test_a_dose_per_kg_is_passed_unchanged(self):
+        # T-102: a mass per kg of body weight (caladrius T-098), from the dose argument or the worksheet's dose column
+        self.assertEqual(apothicaire.nca_units(self.WS, "mg/kg"), {"time": "h", "concentration": "ng/mL", "dose": "mg/kg"})
+        self.assertEqual(apothicaire.nca_units({**self.WS, "dose": "µg/kg"})["dose"], "µg/kg")
+        self.assertEqual(apothicaire.nca_units(self.WS, "ug / kg")["dose"], "ug / kg")
+        for du in ("mg/m2", "mg/h", "mg/L", "kg", "tablet/kg", "mg/kg/d"):
+            self.assertIsNone(apothicaire.nca_units(self.WS, du), du)
 
 
 @unittest.skipUnless(os.path.exists(apothicaire.MCP_BIN), "caladrius-mcp is not built")
@@ -288,6 +297,15 @@ class TestUnitsReachTheEngine(unittest.TestCase):
         for k in ("cl.obs", "vz.obs"):
             self.assertAlmostEqual(conv[k][0] / plain[k][0], 1000, delta=1000 * 1e-5, msg=k)
         self.assertEqual(d["dose_unit"], "mg"); self.assertEqual(d["options_used"]["units"]["dose"], "mg")
+
+    def test_a_dose_per_kg_gives_cl_per_kg_and_vz_per_kg(self):
+        # T-102: same numbers as the mass dose, labels from the engine (L/h/kg, L/kg), nothing built by the client
+        _, per_kg = self.run_nca(dose_unit="mg/kg")
+        self.assertEqual(self.ag.tool_log[-1]["args"]["options"]["units"]["dose"], "mg/kg")
+        _, mass = self.run_nca(dose_unit="mg")
+        self.assertEqual(per_kg["cl.obs"], (mass["cl.obs"][0], "L/h/kg"))
+        self.assertEqual(per_kg["vz.obs"], (mass["vz.obs"][0], "L/kg"))
+        self.assertEqual(per_kg["cmax"], mass["cmax"])
 
     def test_units_the_model_wrote_are_kept(self):
         mine = {"time": "h", "concentration": "ng/mL", "dose": "ug"}

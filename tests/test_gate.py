@@ -322,3 +322,17 @@ class TestReportShape(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPerKgUnits(unittest.TestCase):
+    """T-102: a value quoted with its per-kg unit is read as one number with that unit; a converted value is not in the sources."""
+    SOURCE = json.dumps({"parameters": {"cl.obs": "0.0482 L/h/kg", "vz.obs": "0.581 L/kg"}})
+
+    def test_quoted_per_kg_values_pass(self):
+        r = gate.check("CL = 0.0482 L/h/kg et Vz = 0.581 L/kg.", tool_results=[self.SOURCE])
+        self.assertEqual(r["numbers_unverified"], 0, r["findings"])
+        self.assertEqual([n.unit for n in gate.extract_numbers("0.0482 L/h/kg")], ["L/h/kg"])
+
+    def test_a_converted_value_is_a_finding(self):
+        r = gate.check("CL = 0.803 mL/min/kg.", tool_results=[self.SOURCE])        # 0.0482 L/h/kg converted by hand
+        self.assertEqual(r["numbers_unverified"], 1)
