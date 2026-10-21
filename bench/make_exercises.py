@@ -120,10 +120,13 @@ def route_of(family, params, tscale):
     if family == "iv_infusion": return {"iv_infusion": {"duration": sig(params["dur"] * tscale, 3)}}
     return "extravascular"
 
-def build(index, call, plan_row):
-    """The simulated part of an exercise (needs the engine for model_simulate): (meta without ground truth, CSV text)."""
+def build(index, call, plan_row, seed=None, ex_id=None):
+    """The simulated part of an exercise (needs the engine for model_simulate): (meta without ground truth, CSV text).
+    `seed` (default SEED * 100 + index, the development set) seeds the parameters, the sampling and the noise; `ex_id`
+    replaces the default id ex<index>_<family>."""
     family, model, dose_unit, conc_unit, time_unit, blq = plan_row
-    rng = random.Random(SEED * 100 + index)
+    seed = SEED * 100 + index if seed is None else seed
+    rng = random.Random(seed)
     params, th, early = draw_parameters(family, rng)
     dose = rng.choice(DOSES[dose_unit]); tscale = TIME_SCALE[time_unit]
     n = rng.randint(8, 12); n = max(n, 11) if blq else n; cv = rng.choice([0.05, 0.06, 0.07, 0.08, 0.09, 0.10])
@@ -148,11 +151,11 @@ def build(index, call, plan_row):
     if any("e" in r for r in rows): raise RuntimeError(f"exercise {index}: exponent in the CSV")
     csv = f"time ({time_unit}),conc ({conc_unit})\n" + "\n".join(rows) + "\n"
     meta = {
-        "id": f"ex{index:02d}_{family}", "index": index, "family": family, "model": model,
+        "id": ex_id or f"ex{index:02d}_{family}", "index": index, "family": family, "model": model,
         "route": route_of(family, params, tscale), "dose": {"amount": dose, "unit": dose_unit},
         "units": {"time": time_unit, "conc": conc_unit}, "n_points": len(times),
         "noise": {"type": "proportional", "cv": cv, "distribution": "gaussian, clipped at +-2 sd",
-                  "seed": SEED * 100 + index},
+                  "seed": seed},
         "blq": None if lloq is None else {"lloq": lloq, "unit": conc_unit, "n_blq": n_blq, "written_as": 0},
         "simulation": {"parameters": params,
                        "parameter_units": "times and rates in h, volumes in L, clearances in L/h, dose in the dose unit",

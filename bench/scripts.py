@@ -109,6 +109,86 @@ def first_message(meta, csv_text):
                  f"AUC(0-tlast), AUC(0-inf), λz, t½, {cl_name}, {vz_name} et MRT, avec les unités.")
     return chr(10).join(lines)
 
+# ---------------------------------------------------------------- frozen-set wordings (FROZEN_SET.md §5.3)
+# A wordings file holds, per turn kind, several questions written by people who never tune the system. The expectation of a
+# turn never depends on its wording: build_script builds it from the gold, then the question is replaced. A wording is a
+# template; the placeholders below are filled from the exercise (the data, the dose, the route...), in the wording's language.
+# Required placeholders make sure every wording asks the question its expectation scores.
+WORDING_PLACEHOLDERS = {
+    "import_nca": ("table", "dose", "route", "blq_note", "param_list", "time_unit", "conc_unit", "cl_name", "vz_name"),
+    "cmax_tmax": ("cmax_params",), "clearance_volume": ("cl_name", "vz_name"), "half_life": (), "lambda_z_regression": (),
+    "recall": (), "compare": (), "not_available": ("missing_param",)}
+WORDING_REQUIRED = {"import_nca": ("table", "dose", "route", "blq_note", "param_list"), "cmax_tmax": ("cmax_params",),
+                    "clearance_volume": ("cl_name", "vz_name"), "not_available": ("missing_param",)}
+# what a wording of the kind must also say in words, since the expectation scores it
+WORDING_MUST_SAY = {"import_nca": r"lin[ée]air|linear|trap[èe]z|trapezoid", "half_life": r"accept", "compare": r"log[\s_-]*down"}
+
+def wording_values(meta, csv_text, lang="fr"):
+    """The values of the placeholders for one exercise, in French or English."""
+    kind = kind_of(meta); u = meta["units"]; blq = meta.get("blq"); oral = kind == "oral"
+    cl_name, vz_name = ("CL/F", "Vz/F") if oral else ("CL", "Vz")
+    if lang == "en":
+        num = lambda x: f"{x:g}"
+        dose_u = {"ug": "µg", "mg": "mg"}[meta["dose"]["unit"]]
+        route = (f"as an intravenous infusion of {num(meta['route']['iv_infusion']['duration'])} {u['time']}" if kind == "iv_infusion"
+                 else "as an intravenous bolus" if kind == "iv_bolus" else "orally")
+        blq_note = f"Values equal to 0 are below the limit of quantification (LLOQ = {num(blq['lloq'])} {u['conc']})." if blq else ""
+        cmax = "the extrapolated initial concentration C0, Cmax and Tmax" if kind == "iv_bolus" else "Cmax and Tmax"
+        missing = "the extrapolated initial concentration C0" if oral else "the lag time Tlag"
+        plist = f"Cmax, Tmax, AUC(0-tlast), AUC(0-inf), λz, t½, {cl_name}, {vz_name} and MRT"
+    else:
+        num = fr; dose_u = UNIT_FR[meta["dose"]["unit"]]
+        route = route_fr(meta)
+        blq_note = f"Les valeurs égales à 0 sont sous la limite de quantification (LLOQ = {fr(blq['lloq'])} {u['conc']})." if blq else ""
+        cmax = "la concentration initiale C0 (extrapolée), la Cmax et le Tmax" if kind == "iv_bolus" else "la Cmax et le Tmax"
+        missing = "la concentration initiale extrapolée C0" if oral else "le temps de latence Tlag"
+        plist = f"Cmax, Tmax, AUC(0-tlast), AUC(0-inf), λz, t½, {cl_name}, {vz_name} et MRT"
+    return {"table": csv_text.strip(), "dose": f"{num(meta['dose']['amount'])} {dose_u}", "route": route, "blq_note": blq_note,
+            "param_list": plist, "time_unit": u["time"], "conc_unit": u["conc"], "cl_name": cl_name, "vz_name": vz_name,
+            "cmax_params": cmax, "missing_param": missing}
+
+def validate_wordings(w, min_per_kind=3):
+    """Errors of a wordings file ({"wordings": {kind: [{"text", "author", "lang"}]}}): a kind missing or with fewer than
+    `min_per_kind` wordings, an unknown or a missing required placeholder, a wording that does not say what is scored."""
+    import string, re as _re
+    errs, ws = [], (w or {}).get("wordings") or {}
+    for kind in KINDS:
+        items = ws.get(kind) or []
+        if len(items) < min_per_kind: errs.append(f"{kind}: {len(items)} wordings, {min_per_kind} needed")
+        for i, it in enumerate(items):
+            text = it.get("text") if isinstance(it, dict) else None
+            if not isinstance(text, str) or not text.strip(): errs.append(f"{kind}[{i}]: no text"); continue
+            if it.get("lang", "fr") not in ("fr", "en"): errs.append(f"{kind}[{i}]: lang must be fr or en")
+            try: names = {f for _, f, _, _ in string.Formatter().parse(text) if f is not None}
+            except ValueError as e: errs.append(f"{kind}[{i}]: {e}"); continue
+            bad = names - set(WORDING_PLACEHOLDERS[kind])
+            if bad: errs.append(f"{kind}[{i}]: unknown placeholder(s) {sorted(bad)}")
+            miss = set(WORDING_REQUIRED.get(kind, ())) - names
+            if miss: errs.append(f"{kind}[{i}]: missing placeholder(s) {sorted(miss)}")
+            must = WORDING_MUST_SAY.get(kind)
+            if must and not _re.search(must, text, _re.I): errs.append(f"{kind}[{i}]: does not say /{must}/")
+    for kind in ws:
+        if kind not in KINDS: errs.append(f"unknown kind {kind}")
+    return errs
+
+def wording_choice(exercise_id, kind, n, seed):
+    """Which of the n wordings of a kind an exercise gets: a seeded draw, the same on every machine (str seeds hash with SHA-512)."""
+    import random as _random
+    return _random.Random(f"{seed}:{exercise_id}:{kind}").randrange(n)
+
+def apply_wordings(script, meta, csv_text, wordings, seed):
+    """The script with each question replaced by its drawn wording; each turn records `wording` = {"index", "author", "lang"}.
+    The expectations are untouched."""
+    ws = wordings["wordings"]; vals = {}
+    out = []
+    for t in script:
+        items = ws[t["kind"]]; i = wording_choice(meta["id"], t["kind"], len(items), seed); it = items[i]
+        lang = it.get("lang", "fr")
+        if lang not in vals: vals[lang] = wording_values(meta, csv_text, lang)
+        q = it["text"].format(**vals[lang]).strip()
+        out.append({**t, "question": q, "wording": {"index": i, "author": it.get("author"), "lang": lang}})
+    return out
+
 def build_script(meta, csv_text):
     """The 8 turns for an exercise: [{"id", "kind", "question", "expect"}]."""
     kind = kind_of(meta); u = meta["units"]; du = UNIT_FR[meta["dose"]["unit"]]

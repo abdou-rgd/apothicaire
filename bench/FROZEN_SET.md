@@ -136,6 +136,13 @@ are hashed at the case freeze. In the PAGE tier every frozen exercise is also ru
 `caladrius/oracle/scripts/nca_pknca.R` before the case freeze; any disagreement beyond the conformance tolerance is a
 ledger entry and the exercise is replaced before the freeze, never after (RT-B8).
 
+Implementation (2026-10-21, T-101). The cross-check runs in the demo tier too. `caladrius/oracle/scripts/nca_pknca.R`
+runs fixed oracle cases, so the frozen exercises go through `bench/pknca/frozen_nca_pknca.R`, written on it: same
+PKNCA version (0.12.1), same explicit options, same C0 handling for IV bolus data. `bench/pknca_check.py` compares
+with the tolerance of Caladrius's conformance tests (relative 1e-6). Its output (`bench/frozen/<tier>/pknca/`) is
+hashed at the case freeze. Demo tier, 2026-10-21: 3770 of 3770 gold values within tolerance, largest relative gap
+1.2e-13 (R 4.3.3; the caladrius oracle used R 4.5.2). Details: `bench/pknca/README.md`.
+
 ## 6. Scoring
 
 ### 6.1 Outcome of a turn
@@ -184,6 +191,34 @@ the text the user sees.
 
 The rubric is implemented in `score.py` and `scripts.py` before the case freeze; from then on both files are frozen.
 In-sample runs are rescored with the new rubric and both figures are kept side by side, as T-066 requires.
+
+Implementation (2026-10-21, `score.rubric_turn`, version string `RUBRIC_VERSION`). Where the rules above needed a reading,
+the code takes this one; each is tested in `tests/test_bench_score.py` (class `TestRubric`):
+
+- Labels are the closed table `score.RUBRIC_ALIASES` (the oracle's, plus Tlag, tlast, Clast, AUMC, Vss and a stricter
+  label for the extrapolated percentage, so that "C0 (extrapolée)" is not read as it). A label of another parameter
+  written inside the label of an asked one ("Nombre de points pour la régression de λz : 3") is part of that label.
+- Rule 2: the scored text is the answer shown without gate v1's badge; gate v2's rendered values are scored like any
+  other. A unit is an exact rewriting when it normalises to the same string after merging factor-1 concentrations
+  (µg/mL = mg/L, µg/L = ng/mL) and sorting the factors of a product (ng·h/mL = h·ng/mL).
+- Rule 3: the negation words are searched in the clause before the number (from the start of the clause holding the
+  label) and in the words right after it, up to the next comma, parenthesis or end of clause.
+- Rule 4: a contradicting value has 3 significant digits or more, the asked unit or none, and is no other number of
+  the exercise (another parameter of either analysis, the analysis_compare row, the dose, the data, the quality
+  thresholds 20 %, 0.9, 2): "AUC(0-inf) = 3170,4 (observée) ; 3172,2 (prédite)" states two quantities, not two values
+  of one.
+- Rule 5 counts values, not names: each other computed parameter whose value is written (3 digits or more), or each
+  other label with a number attached, counts once; the dose and the thresholds do not count.
+- Rule 6: the echo of the question ("Est-ce acceptable ?", "Acceptabilité :") is not a verdict; a "oui" or "non" right
+  after it is.
+- Rule 7, compare: the difference and the percentage pass as the engine's signed values (b − a over a, a = the linear
+  analysis, or a = the lin-up/log-down one when the model's `analysis_compare` call took it as reference) or as their
+  absolute values, since the question asks for the difference "en valeur absolue". A percentage is labelled by its %
+  sign; a difference by its label or by the AUC unit in a clause that says it is a difference ("de moins", "écart").
+
+On the development set the mutation suite (`bench/mutations.py`, run by the tests) builds 1 024 correct answers and
+variants and 1 525 mutations from the gold of the 25 exercises: all 1 024 score CORRECT and all 1 525 score WRONG. The
+seven probes of the triage (RT-B3) are among the tests.
 
 ### 6.3 Success of an exercise and aggregation over sampling seeds
 
@@ -283,9 +318,16 @@ may not. The tag `frozen-set-<tier>` is set on the system-freeze commit and is n
    are committed too, not ignored, so a reader can check any verdict.
 6. Any deviation is a dated entry in `bench/frozen/LEDGER.md`.
 
+Implementation (2026-10-21). The seeds, the manifest check and the replay are in `bench/run_frozen.py`, not in
+`run_bench.py` as written above: `run_frozen.py run --seeds 1,2,3` sends the seed in every request
+(`run_bench.seed_requests`), refuses to start on a manifest mismatch (`make_frozen.verify_manifest`), and
+`run_frozen.py replay` replays exercise × seed pairs into `<gate>/replay/` for the comparison of item 1.
+`run_bench.py` refuses the frozen folders. The same runner, with `--tier dev`, runs the development set for the
+decision of §8. Layout, wordings format and commands: `bench/frozen/README.md`.
+
 ## 11. Analysis, declared before the run
 
-Implemented in one script, frozen at the case freeze. No test is run that is not listed here; anything else is
+Implemented in one script, frozen at the case freeze (`bench/run_frozen.py analyse`, with `bench/stats.py`). No test is run that is not listed here; anything else is
 exploratory and labelled so.
 
 ### 11.1 Primary endpoints, per configuration

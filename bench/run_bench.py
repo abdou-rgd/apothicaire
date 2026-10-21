@@ -18,7 +18,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 AGENT = os.path.dirname(HERE)
 if AGENT not in sys.path: sys.path.insert(0, AGENT)
 import apothicaire, gate, optchat  # noqa: E402
-from bench import make_exercises as mk, scripts, score  # noqa: E402
+from bench import make_exercises as mk, scripts, score, stats  # noqa: E402
 
 RUNS = os.path.join(HERE, "runs")
 BADGE_MARK = "\n\n⚠ "
@@ -86,26 +86,65 @@ def attach_oracle(rec, meta, script):
         else: t["oracle"] = o
     rec["tool_arg_audit"] = score.tool_arg_audit(meta, rec["turns"])
 
+# ---------------------------------------------------------------- rubric and outcome (FROZEN_SET.md §6, T-066, T-071)
+def attach_rubric(rec, meta, st, csv_text, prior_turns):
+    """Adds the rubric verdict (`rubric`, score.rubric_turn on the answer shown) and the outcome class (`outcome`, §6.1) to a
+    turn record. The compare turn is judged with what the model did with analysis_compare (its reference analysis)."""
+    if "error" in rec:
+        rec["outcome"] = "ERROR"; rec.pop("rubric", None); return rec
+    _, usage = resolve_turn(meta, st, prior_turns, rec.get("tool_calls", []))
+    shown = [c.get("shown", "") for c in rec.get("tool_calls", [])]
+    rec["rubric"] = score.rubric_turn(rec.get("answer") or "", st, meta, shown, usage, BADGE_MARK, scripts.csv_numbers(csv_text))
+    rec["outcome"] = score.outcome_of(rec, rec["rubric"])
+    return rec
+
+def planned_error_record(meta, script, error):
+    """The record of an exercise that could not run at all (the agent or the engine failed to start): every planned turn is
+    an ERROR, so the exercise stays in every denominator (§6.1)."""
+    turns = [{"exercise": meta["id"], "turn": k + 1, "id": t["id"], "kind": t["kind"], "question": t["question"],
+              "error": error, "wall_s": 0.0, "outcome": "ERROR"} for k, t in enumerate(script)]
+    return {"id": meta["id"], "family": meta["family"], "model": meta["model"], "units": meta["units"], "dose": meta["dose"],
+            "blq": bool(meta.get("blq")), "wall_s": 0.0, "taxonomy_chance_baseline": {}, "turns": turns}
+
 # ---------------------------------------------------------------- one exercise
-def run_exercise(ex_dir, run_dir, cfg_base=None, verbose=False, llm=None):
-    """Runs the 8 turns of one exercise; returns the record (also written to <run_dir>/<id>.json)."""
+def seed_requests(llm, seed):
+    """Sends `seed` in every request of an optchat.LLM (llama-server's sampler seed; T-069 for the agent itself). The seed fixes
+    the sampler; bitwise replay across hardware is not claimed (FROZEN_SET.md §10)."""
+    post = llm.http.post
+    def seeded(url, *args, json=None, **kw): return post(url, *args, json={**(json or {}), "seed": seed}, **kw)
+    llm.http.post = seeded
+    return llm
+
+def run_exercise(ex_dir, run_dir, cfg_base=None, verbose=False, llm=None, script=None, seed=None, gate_version=None, on_turn=None,
+                 allow_frozen=False):
+    """Runs the 8 turns of one exercise; returns the record (also written to <run_dir>/<id>.json). `script`: the turns to ask
+    (default scripts.build_script; the frozen runner passes them with their wordings); `seed`: the sampler seed sent with each
+    request; `gate_version`: v1 or v2 (default APOTHICAIRE_GATE); `on_turn(k, turn)`: called before each turn (the stub model);
+    `allow_frozen`: only bench/run_frozen.py runs the exercises of a frozen set."""
     meta, csv_text = mk.load(ex_dir)
-    script = scripts.build_script(meta, csv_text)
+    if meta.get("frozen") and not allow_frozen:
+        raise SystemExit(f"{meta['id']} belongs to {meta['frozen']['tag']}: confirmation only, run it with bench/run_frozen.py")
+    script = script or scripts.build_script(meta, csv_text)
     data = os.path.join(run_dir, meta["id"] + "-data")
     if os.path.exists(data): shutil.rmtree(data)
     cfg = dict(cfg_base or optchat.CFG, data_dir=data)
-    ag = apothicaire.Apothicaire(cfg=cfg)
-    if llm is not None: ag.llm = llm; ag.compactor.llm = llm          # tests: a scripted model
+    ag = apothicaire.Apothicaire(cfg=cfg, gate_version=gate_version)
+    if llm is not None: ag.llm = llm; ag.compactor.llm = llm          # tests and the dry run: a scripted model
+    elif seed is not None:
+        seed_requests(ag.llm, seed)
+        if ag.compactor.llm is not ag.llm: seed_requests(ag.compactor.llm, seed)
     turns, t_ex = [], time.time()
     try:
         for k, t in enumerate(script):
+            if on_turn is not None: on_turn(k, t)
             n_log, n_msgs = len(ag.tool_log), len(ag.store.log)
             rec = {"exercise": meta["id"], "turn": k + 1, "id": t["id"], "kind": t["kind"], "question": t["question"]}
+            if t.get("wording"): rec["wording"] = t["wording"]
             t0 = time.time()
             try:
                 ans, st = ag.turn(t["question"], verbose=verbose)
             except Exception as e:                                   # a model / server failure: recorded, the exercise continues
-                rec.update(error=f"{type(e).__name__}: {e}", wall_s=round(time.time() - t0, 1)); turns.append(rec)
+                rec.update(error=f"{type(e).__name__}: {e}", wall_s=round(time.time() - t0, 1), outcome="ERROR"); turns.append(rec)
                 try: ag.wait_bg()
                 except Exception: pass
                 continue
@@ -125,6 +164,7 @@ def run_exercise(ex_dir, run_dir, cfg_base=None, verbose=False, llm=None):
             tool_recs = tool_records(ag.tool_log[n_log:], meta, csv_text, set(ag.mcp.tools))
             st_resolved, usage = resolve_turn(meta, t, turns, tool_recs)
             sc = score.score_turn(answer, st_resolved["expect"], after.get("numbers_unverified", 0), [c["shown"] for c in ag.tool_log[n_log:]])
+            rec.update(tools_withdrawn=bool(ag._withdraw_tools or g.get("tool_call_text")), max_tool_rounds=cfg["max_tool_rounds"])
             rec.update(
                 answer=ans, wall_s=round(wall, 1), prompt_tokens=st["prompt_tokens"], rounds=st["rounds"],
                 numbers_total_before=before.get("numbers_total", 0), numbers_unverified_before=before.get("numbers_unverified", 0),
@@ -134,6 +174,7 @@ def run_exercise(ex_dir, run_dir, cfg_base=None, verbose=False, llm=None):
                 first_answer=g.get("first_answer") if g.get("regenerated") else None,
                 tool_calls=tool_recs, memory_calls=mem_calls, score=sc)
             if usage is not None: rec["compare_tool"] = usage
+            attach_rubric(rec, meta, t, csv_text, turns)
             turns.append(rec)
             ag.wait_bg()                                             # compaction does not leak into the next turn's time
         tool_texts, users = apothicaire.gate_context(ag.store.log, ag.mcp.tools)
@@ -143,7 +184,7 @@ def run_exercise(ex_dir, run_dir, cfg_base=None, verbose=False, llm=None):
         ag.close()
     record = {"id": meta["id"], "family": meta["family"], "model": meta["model"], "units": meta["units"],
               "dose": meta["dose"], "blq": bool(meta.get("blq")), "wall_s": round(time.time() - t_ex, 1),
-              "taxonomy_chance_baseline": baseline, "turns": turns}
+              "gate": ag.gate_version, "seed": seed, "taxonomy_chance_baseline": baseline, "turns": turns}
     attach_oracle(record, meta, script)
     with open(os.path.join(run_dir, meta["id"] + ".json"), "w", encoding="utf-8") as f:
         json.dump(record, f, ensure_ascii=False, indent=1)
@@ -153,22 +194,15 @@ def run_exercise(ex_dir, run_dir, cfg_base=None, verbose=False, llm=None):
 def _sum(turns, key): return sum(t.get(key, 0) or 0 for t in turns)
 def _rate(u, n): return (u / n) if n else None
 
-def cluster_interval(records, num, den, n_boot=2000, seed=0):
+def cluster_interval(records, num, den, n_boot=stats.N_BOOT, seed=0):
     """95 % percentile interval of sum(num)/sum(den) with the exercises resampled (a cluster bootstrap: the numbers
     of one conversation are not independent)."""
     per = [(sum(t.get(num, 0) or 0 for t in r["turns"]), sum(t.get(den, 0) or 0 for t in r["turns"])) for r in records]
     return _cluster_ci(per, n_boot, seed)
 
-def _cluster_ci(per, n_boot=2000, seed=0):
-    """Percentile interval of sum(a)/sum(b) over resampled (a, b) pairs, one pair per exercise."""
-    if len(per) < 2: return None
-    rng, vals = random.Random(seed), []
-    for _ in range(n_boot):
-        s = [per[rng.randrange(len(per))] for _ in per]
-        d = sum(x[1] for x in s)
-        if d: vals.append(sum(x[0] for x in s) / d)
-    vals.sort()
-    return [vals[int(0.025 * len(vals))], vals[min(len(vals) - 1, int(0.975 * len(vals)))]] if vals else None
+def _cluster_ci(per, n_boot=stats.N_BOOT, seed=0):
+    """Percentile interval of sum(a)/sum(b) over resampled (a, b) pairs, one pair per exercise (stats.cluster_bootstrap)."""
+    return stats.cluster_bootstrap(per, n_boot, seed)
 
 def build_report(records, meta=None):
     turns = [t for r in records for t in r["turns"]]
@@ -196,15 +230,17 @@ def build_report(records, meta=None):
             for c, v in cnt.items(): base[d][c] += v
     out["taxonomy_chance_baseline"] = base
     bykind = {}
-    for t in ok_turns:
+    for t in turns:                                                  # every planned turn is in the denominator (T-071)
         b = bykind.setdefault(t["kind"], {"turns": 0, "correct": 0, "found": 0, "must": 0, "unverified_before": 0, "total_before": 0,
                                           "unverified_after": 0, "total_after": 0})
-        b["turns"] += 1; b["correct"] += t["score"]["correct"]; b["found"] += len(t["score"]["found"]); b["must"] += t["score"]["n_must"]
+        b["turns"] += 1
+        if "error" in t: continue
+        b["correct"] += t["score"]["correct"]; b["found"] += len(t["score"]["found"]); b["must"] += t["score"]["n_must"]
         b["unverified_before"] += t["numbers_unverified_before"]; b["total_before"] += t["numbers_total_before"]
         b["unverified_after"] += t["numbers_unverified_after"]; b["total_after"] += t["numbers_total_after"]
     for b in bykind.values(): b["correct_rate"] = _rate(b["correct"], b["turns"]); b["found_rate"] = _rate(b["found"], b["must"])
     out["by_question_type"] = {k: bykind[k] for k in scripts.KINDS if k in bykind}
-    out["correctness"] = {"correct_turns": sum(t["score"]["correct"] for t in ok_turns), "turns": len(ok_turns),
+    out["correctness"] = {"correct_turns": sum(t["score"]["correct"] for t in ok_turns), "turns": len(turns), "turns_error": len(turns) - len(ok_turns),
                           "expected_numbers_found": sum(len(t["score"]["found"]) for t in ok_turns),
                           "expected_numbers": sum(t["score"]["n_must"] for t in ok_turns),
                           "forbidden_values_present": sum(len(t["score"]["forbidden"]) for t in ok_turns)}
@@ -220,6 +256,8 @@ def build_report(records, meta=None):
     out["time"] = {"mean_wall_s_per_turn": sum(walls) / len(walls) if walls else None,
                    "mean_prompt_tokens_first_call": (sum(t["prompt_tokens"] for t in ok_turns) / len(ok_turns)) if ok_turns else None,
                    "total_wall_s": sum(r["wall_s"] for r in records)}
+    out["outcomes"] = outcome_section(records)
+    out["exercise_level"] = exercise_level_section(records)
     out["compare_tool"] = compare_section(records)
     out["oracle"] = oracle_section(records)
     out["tool_arg_audit"] = audit_section(records)
@@ -229,6 +267,7 @@ def build_report(records, meta=None):
         out["per_exercise"].append({
             "id": r["id"], "family": r["family"], "dose": f"{r['dose']['amount']} {r['dose']['unit']}", "units": f"{r['units']['time']}, {r['units']['conc']}",
             "turns": len(r["turns"]), "turns_failed": len(r["turns"]) - len(ts),
+            "outcome_correct": sum(1 for t in r["turns"] if t.get("outcome") == "CORRECT"),
             "unverified_before": _sum(ts, "numbers_unverified_before"), "total_before": _sum(ts, "numbers_total_before"),
             "unverified_after": _sum(ts, "numbers_unverified_after"), "total_after": _sum(ts, "numbers_total_after"),
             "correct_turns": sum(t["score"]["correct"] for t in ts), "badge_turns": sum(1 for t in ts if t["badge"]),
@@ -236,6 +275,63 @@ def build_report(records, meta=None):
             "calls_total": sum(len(t["tool_calls"]) for t in ts),
             "mean_wall_s": (sum(t["wall_s"] for t in ts) / len(ts)) if ts else None})
     return out
+
+def outcome_section(records):
+    """Outcome classes of FROZEN_SET.md §6.1 over every planned turn (score.outcome_of; ERROR for a turn that raised), in total
+    and by question type, with the rubric's correct turns and the exercises whose 8 turns are all CORRECT. None when the records
+    carry no outcome (runs older than 2026-10-21 that were not rescored)."""
+    turns = [t for r in records for t in r["turns"]]
+    if not turns or not all("outcome" in t or "error" in t for t in turns): return None
+    oc = lambda t: t.get("outcome") or "ERROR"
+    total = {c: sum(1 for t in turns if oc(t) == c) for c in score.OUTCOMES}
+    byk = {}
+    for t in turns:
+        b = byk.setdefault(t["kind"], {c: 0 for c in score.OUTCOMES}); b[oc(t)] += 1
+    passed = [r["id"] for r in records if r["turns"] and all(oc(t) == "CORRECT" for t in r["turns"])]
+    return {"turns": len(turns), "classes": total, "by_question_type": {k: byk[k] for k in scripts.KINDS if k in byk},
+            "rubric": score.RUBRIC_VERSION, "exercises": len(records), "exercises_all_correct": len(passed),
+            "exercises_failed": sorted(r["id"] for r in records if r["id"] not in passed)}
+
+def exercise_level_section(records):
+    """The figures of FROZEN_SET.md §11.1 for one run (one seed), with the exercise as the unit (T-083): exercises not passed
+    (a turn not CORRECT by the rubric, or by the development scorer for runs without outcomes) and exercises in which an answer
+    shown carried an unverified number (gate v1, with its badge) or a marker (gate v2), each with stats.failure_interval."""
+    n = len(records)
+    has_outcome = all("outcome" in t or "error" in t for r in records for t in r["turns"])
+    ok = lambda t: (t.get("outcome") == "CORRECT") if has_outcome else ("error" not in t and t["score"]["correct"])
+    failed = [r["id"] for r in records if not r["turns"] or not all(ok(t) for t in r["turns"])]
+    shown = [r["id"] for r in records if any(t.get("numbers_unverified_after") for t in r["turns"] if "error" not in t)]
+    return {"exercises": n, "judged_by": "rubric outcomes" if has_outcome else "development scorer (score_turn)",
+            "not_passed": stats.failure_interval(len(failed), n), "not_passed_ids": failed,
+            "unverified_shown": stats.failure_interval(len(shown), n), "unverified_shown_ids": shown}
+
+def _interval_text(fi):
+    if not fi or not fi["n"]: return "n/a"
+    lo, hi = fi["interval"]
+    if fi["failed"] == 0: return f"0 / {fi['n']} (one-sided 95 % upper bound {100 * hi:.1f} %)"
+    return f"{fi['failed']} / {fi['n']} = {100 * fi['rate']:.1f} % (exact 95 % CI {100 * lo:.1f}-{100 * hi:.1f} %)"
+
+def render_exercise_level_md(e):
+    if not e or not e["exercises"]: return []
+    return [f"## Exercise level (the unit of inference, FROZEN_SET.md §3)", "",
+            f"- exercises not passed (a turn not correct, judged by the {e['judged_by']}): **{_interval_text(e['not_passed'])}**"
+            + (f" ({', '.join(e['not_passed_ids'])})" if e["not_passed_ids"] else ""),
+            f"- exercises in which an answer shown carried an unverified number or a marker: **{_interval_text(e['unverified_shown'])}**"
+            + (f" ({', '.join(e['unverified_shown_ids'])})" if e["unverified_shown_ids"] else ""),
+            "", "Per-turn and per-number rates in this report are descriptive: turns of one exercise share the data and the memory, "
+            "numbers of one turn share one tool result, so no bound is computed on them (no rule of three on numbers).", ""]
+
+def render_outcomes_md(o):
+    if not o: return []
+    L = [f"## Outcomes (FROZEN_SET.md §6.1, rubric {o['rubric']}): {o['classes']['CORRECT']} / {o['turns']} turns CORRECT; "
+         f"exercises with all turns CORRECT {o['exercises_all_correct']} / {o['exercises']}", "",
+         "Every planned turn is in the denominator: a turn that raised is ERROR, over the wall-clock cap TIMEOUT, ended by the tool-round "
+         "cap or the repeated-call guard LOOP, without any expected value and saying it cannot answer ABSTAINED; otherwise the rubric of "
+         "§6.2 (`score.rubric_turn`) says CORRECT or WRONG.", "",
+         "| question type | " + " | ".join(score.OUTCOMES) + " |", "|---|" + "---|" * len(score.OUTCOMES)]
+    for k, b in o["by_question_type"].items(): L.append(f"| {k} | " + " | ".join(str(b[c]) for c in score.OUTCOMES) + " |")
+    L += ["| **total** | " + " | ".join(str(o["classes"][c]) for c in score.OUTCOMES) + " |", ""]
+    return L
 
 def compare_section(records):
     """What the model did on the compare turn with `analysis_compare`: turns that called it, calls (valid / invalid), turns where the call
@@ -347,8 +443,9 @@ def render_audit_md(a):
 
 def _pct(x): return "n/a" if x is None else f"{100 * x:.1f} %"
 def _ci(c, u=None, n=None):
-    if u == 0 and n: return f" (none observed: upper 95 % bound by the rule of three 3/{n} = {300 / n:.2f} %)"
-    return "" if not c else f" (95 % CI, exercises resampled: {100 * c[0]:.1f}-{100 * c[1]:.1f} %)"
+    """A descriptive cluster-bootstrap interval of a per-number rate; none when nothing was observed (the bound is per exercise)."""
+    if u == 0 and n: return " (none observed; descriptive, see the exercise level below)"
+    return "" if not c else f" (95 % CI, exercises resampled: {100 * c[0]:.1f}-{100 * c[1]:.1f} %, descriptive)"
 
 def render_md(rep):
     h, c, t, tm = rep["hallucination"], rep["correctness"], rep["tool_calls"], rep["time"]
@@ -362,6 +459,7 @@ def render_md(rep):
           f"- {rep['exercises']} exercises, {rep['turns']} turns ({rep['turns_failed']} failed by an error); turns with an unverified number: "
           f"{h['turns_with_unverified_before']} before, {h['turns_with_unverified_after']} after; regenerated {h['turns_regenerated']} "
           f"(regeneration kept {h['regeneration_kept']}); turns shown with the badge: {h['turns_with_badge']}", "",
+          *render_exercise_level_md(rep.get("exercise_level")),
           "## Failure taxonomy (unverified numbers)", "", "| class | before the gate | in the answers shown |", "|---|---|---|"]
     for k in score.CLASSES: L.append(f"| {k} | {rep['taxonomy']['before_gate'][k]} | {rep['taxonomy']['after_gate'][k]} |")
     L += ["", "Classes are heuristics (`bench/score.py`); the unverified counts above never depend on them. Chance baseline: how the "
@@ -372,7 +470,8 @@ def render_md(rep):
     n3, n4 = sum(b3.values()) or 1, sum(b4.values()) or 1
     for k in score.CLASSES: L.append(f"| {k} | {_pct(b3[k] / n3)} | {_pct(b4[k] / n4)} |")
     L += ["",
-          f"## Correctness: {c['correct_turns']} / {c['turns']} turns fully correct; expected numbers found {c['expected_numbers_found']} / {c['expected_numbers']}; "
+          f"## Correctness (development scorer `score_turn`): {c['correct_turns']} / {c['turns']} turns fully correct "
+          f"({c.get('turns_error', 0)} turns failed by an error count as incorrect); expected numbers found {c['expected_numbers_found']} / {c['expected_numbers']}; "
           f"forbidden (converted or computed) values present in {c['forbidden_values_present']} answers", "",
           "| question type | turns | correct | found / expected numbers | unverified / total before | unverified / total shown |", "|---|---|---|---|---|---|"]
     for k, v in rep["by_question_type"].items():
@@ -385,7 +484,8 @@ def render_md(rep):
               f"difference and percentage, equal to the ground-truth arithmetic: then the engine's difference and percentage are expected and allowed, other computed values stay forbidden); "
               f"row disagreeing with the ground truth: {len(ct['turns_row_disagrees_with_truth'])}; no call: {len(ct['turns_without_call'])}" +
               (f" ({', '.join(ct['turns_without_call'])})" if ct["turns_without_call"] else ""), ""]
-    L += [""] + render_oracle_md(rep.get("oracle") or oracle_section([]))
+    L += [""] + render_outcomes_md(rep.get("outcomes"))
+    L += render_oracle_md(rep.get("oracle") or oracle_section([]))
     L += [f"## Tool calls: {t['valid']} valid, {t['invalid']} invalid, {t['failed']} failed of {t['total']} (validity {_pct(t['validity_rate'])})", "",
           f"`nca_run` calls: {t['nca_run_calls']}, with the right dose {t['nca_run_right_dose']}, with the right route {t['nca_run_right_route']}; "
           f"memory calls (zoom / read_message): {t['memory_calls']}; by tool: {t['by_tool']}. "
@@ -398,7 +498,7 @@ def render_md(rep):
     for e in rep["per_exercise"]:
         w = "n/a" if e["mean_wall_s"] is None else f"{e['mean_wall_s']:.1f}"
         L.append(f"| {e['id']} | {e['dose']} | {e['units']} | {e['unverified_before']} / {e['total_before']} | {e['unverified_after']} / {e['total_after']} | "
-                 f"{e['correct_turns']} / {e['turns'] - e['turns_failed']} | {e['badge_turns']} | {e['calls_valid']} / {e['calls_total']} | {w} |")
+                 f"{e['correct_turns']} / {e['turns']} | {e['badge_turns']} | {e['calls_valid']} / {e['calls_total']} | {w} |")
     return "\n".join(L) + "\n"
 
 def rescore(run_dir, ids):
@@ -422,12 +522,62 @@ def rescore(run_dir, ids):
             new = score.score_turn(ans, st["expect"], t["numbers_unverified_after"], shown)
             if new != t["score"]: changed.append((i, t["turn"], t["kind"], t["score"]["correct"], new["correct"]))
             t["score"] = new
+        for k, (t, st) in enumerate(zip(rec["turns"], script)): attach_rubric(t, meta, st, csv_text, rec["turns"][:k])
         before = [(t.get("oracle") or {}).get("correct") for t in rec["turns"]]
         attach_oracle(rec, meta, script)
         for t, b in zip(rec["turns"], before):
             if (t.get("oracle") or {}).get("correct") != b: changed.append((i, t["turn"], t["kind"], "oracle", b, (t.get("oracle") or {}).get("correct")))
         with open(p, "w", encoding="utf-8") as f: json.dump(rec, f, ensure_ascii=False, indent=1)
     return changed
+
+def _gold_commit():
+    """The last commit that changed the development gold (bench/exercises/), short hash."""
+    import subprocess
+    try: return subprocess.run(["git", "log", "-1", "--format=%h", "--", "bench/exercises"], cwd=AGENT, capture_output=True,
+                               text=True, timeout=20).stdout.strip() or "unknown"
+    except Exception: return "unknown"
+
+def rubric_delta(run_dirs):
+    """Old scorer against the rubric on stored runs, without touching them (T-066: the before/after delta next to the published
+    figures). For each run folder: turns correct by `score_turn` as stored, turns CORRECT by the rubric, outcomes, by question
+    type, and every turn on which the two disagree with the rubric's reasons. Returns the Markdown text."""
+    L = ["# Stored runs rescored with the frozen-set rubric", "",
+         f"Generated by `python bench/run_bench.py --rubric-delta` (rubric {score.RUBRIC_VERSION}, `score.rubric_turn`, FROZEN_SET.md §6.2). "
+         "No model and no engine: the stored answers and tool calls of each run, the gold of `bench/exercises/` the runs were scored "
+         "with. The stored records and reports are not modified. These are in-sample development runs; the figures on the left are "
+         "the ones published, the ones on the right what the frozen-set rubric says of the same answers.", "",
+         f"Gold: `bench/exercises/` as of commit {_gold_commit()}. These runs predate the gold computed with the dose units (T-059): "
+         "they answered CL and V in dose unit/..., so they can only be rescored against the gold they were run with, never against "
+         "the units gold.", "",
+         "| run | turns | correct, development scorer (as published) | CORRECT, rubric | WRONG | ERROR | TIMEOUT | LOOP | ABSTAINED | exercises all CORRECT |",
+         "|---|---|---|---|---|---|---|---|---|---|"]
+    details = []
+    for d in run_dirs:
+        ids = [os.path.basename(x) for x in mk.list_exercises()]
+        recs = load_records(d, ids)
+        if not recs: continue
+        cnt, byk, dis, n_old, ex_ok = {c: 0 for c in score.OUTCOMES}, {}, [], 0, 0
+        for r in recs:
+            meta, csv_text = mk.load(os.path.join(mk.OUT, r["id"]))
+            script = scripts.build_script(meta, csv_text)
+            all_ok = True
+            for k, (t, st) in enumerate(zip(r["turns"], script)):
+                t = dict(t); old = bool(t.get("score", {}).get("correct")) and "error" not in t
+                attach_rubric(t, meta, st, csv_text, r["turns"][:k])
+                cnt[t["outcome"]] += 1; n_old += old; all_ok &= t["outcome"] == "CORRECT"
+                b = byk.setdefault(t["kind"], [0, 0, 0]); b[0] += 1; b[1] += old; b[2] += t["outcome"] == "CORRECT"
+                if old != (t["outcome"] == "CORRECT"):
+                    dis.append(f"| {r['id']} | {t['turn']} {t['kind']} | {'correct' if old else 'incorrect'} | {t['outcome']} | "
+                               f"{'; '.join((t.get('rubric') or {}).get('reasons', [])) or '(none)'} |")
+            ex_ok += all_ok
+        n = sum(cnt.values()); name = os.path.basename(os.path.normpath(d))
+        L.append(f"| {name} | {n} | {n_old} | {cnt['CORRECT']} | {cnt['WRONG']} | {cnt['ERROR']} | {cnt['TIMEOUT']} | {cnt['LOOP']} | "
+                 f"{cnt['ABSTAINED']} | {ex_ok} / {len(recs)} |")
+        details += ["", f"## {name}", "", "| question type | turns | correct, development scorer | CORRECT, rubric |", "|---|---|---|---|"]
+        details += [f"| {k} | {v[0]} | {v[1]} | {v[2]} |" for k, v in sorted(byk.items(), key=lambda kv: scripts.KINDS.index(kv[0]))]
+        details += ["", f"Turns on which the two disagree: {len(dis)}.", ""]
+        if dis: details += ["| exercise | turn | development scorer | rubric | rubric's reasons |", "|---|---|---|---|---|"] + dis
+    return "\n".join(L + details) + "\n"
 
 def print_tool_arg_audit(records, out=print):
     """Per exercise, every `nca_run` / `data_import` call whose arguments differ from the script's intent, with counts."""
@@ -480,9 +630,15 @@ def main():
     ap.add_argument("--report-only", action="store_true")
     ap.add_argument("--tool-arg-audit", action="store_true", help="list, per exercise, every tool call whose arguments differ from the script's intent (needs the stored records; run --rescore first on an older run)")
     ap.add_argument("--rescore", action="store_true", help="recompute the scores of the stored turns with the current rules, then the report")
+    ap.add_argument("--rubric-delta", default="", metavar="RUN,RUN", help="stored run folders (names under bench/runs/) rescored with the frozen-set "
+                    "rubric, without modifying them; writes bench/runs/RUBRIC-RESCORE.md")
     ap.add_argument("--gate", default=os.environ.get("APOTHICAIRE_GATE", "v1"), choices=["v1", "v2"],
                     help="v1: the number gate (gate.py); v2: typed rendering (gate_v2.py, GATE_V2.md). Sets APOTHICAIRE_GATE for the run.")
     a = ap.parse_args(); optchat._utf8_stdout()
+    if a.rubric_delta:
+        out = os.path.join(RUNS, "RUBRIC-RESCORE.md")
+        with open(out, "w", encoding="utf-8", newline="\n") as f: f.write(rubric_delta([os.path.join(RUNS, x) for x in a.rubric_delta.split(",")]))
+        print("written", out); return
     os.environ["APOTHICAIRE_GATE"] = a.gate
     MODEL = f"{model_label()}, temperature 0.3, no fixed seed, gate {a.gate}"
     run_dir = os.path.join(RUNS, a.date); os.makedirs(run_dir, exist_ok=True)

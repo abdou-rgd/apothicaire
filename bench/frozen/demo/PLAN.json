@@ -1,0 +1,572 @@
+{
+ "tier": "demo",
+ "tag": "frozen-set-demo",
+ "seed": 20261021,
+ "n": 40,
+ "generator": "bench/make_frozen.py",
+ "development_seed_excluded": 20261009,
+ "caladrius_commit": "da818d26fc5975cbb94ef0fa6bd88a2451a014d7",
+ "mcp_binary_sha256": "6bbf99ab7618725ec218f1f57b64aef4a2bfec8861a7678fce386f1f4c60c13f",
+ "exercises": [
+  {
+   "id": "fd01_oral_1",
+   "plan_row": [
+    "oral_1",
+    "pk1.oral_1",
+    "ug",
+    "ng/mL",
+    "h",
+    true
+   ],
+   "seed": 20261021020,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd02_oral_0",
+   "plan_row": [
+    "oral_0",
+    "pk1.oral_0",
+    "mg",
+    "ng/mL",
+    "h",
+    true
+   ],
+   "seed": 20261021040,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd03_iv_infusion",
+   "plan_row": [
+    "iv_infusion",
+    "pk1.iv_infusion",
+    "mg",
+    "mg/L",
+    "h",
+    false
+   ],
+   "seed": 20261021060,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd04_iv_infusion",
+   "plan_row": [
+    "iv_infusion",
+    "pk1.iv_infusion",
+    "ug",
+    "ng/mL",
+    "h",
+    false
+   ],
+   "seed": 20261021080,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd05_iv_infusion",
+   "plan_row": [
+    "iv_infusion",
+    "pk1.iv_infusion",
+    "mg",
+    "ng/mL",
+    "h",
+    true
+   ],
+   "seed": 20261021100,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd06_oral_0",
+   "plan_row": [
+    "oral_0",
+    "pk1.oral_0",
+    "mg",
+    "ng/mL",
+    "min",
+    false
+   ],
+   "seed": 20261021120,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd07_iv_bolus",
+   "plan_row": [
+    "iv_bolus",
+    "pk1.iv_bolus",
+    "ug",
+    "ng/mL",
+    "min",
+    false
+   ],
+   "seed": 20261021140,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd08_pk2_oral_1",
+   "plan_row": [
+    "pk2_oral_1",
+    "pk2.oral_1",
+    "mg",
+    "ng/mL",
+    "h",
+    false
+   ],
+   "seed": 20261021160,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd09_iv_infusion",
+   "plan_row": [
+    "iv_infusion",
+    "pk1.iv_infusion",
+    "mg",
+    "mg/L",
+    "h",
+    false
+   ],
+   "seed": 20261021180,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd10_oral_1",
+   "plan_row": [
+    "oral_1",
+    "pk1.oral_1",
+    "ug",
+    "ng/mL",
+    "h",
+    false
+   ],
+   "seed": 20261021200,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd11_oral_1",
+   "plan_row": [
+    "oral_1",
+    "pk1.oral_1",
+    "ug",
+    "ng/mL",
+    "h",
+    true
+   ],
+   "seed": 20261021220,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd12_oral_1_lag",
+   "plan_row": [
+    "oral_1_lag",
+    "pk1.oral_1_lag",
+    "mg",
+    "mg/L",
+    "h",
+    false
+   ],
+   "seed": 20261021240,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd13_iv_infusion",
+   "plan_row": [
+    "iv_infusion",
+    "pk1.iv_infusion",
+    "mg",
+    "ng/mL",
+    "h",
+    false
+   ],
+   "seed": 20261021260,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd14_oral_0",
+   "plan_row": [
+    "oral_0",
+    "pk1.oral_0",
+    "mg",
+    "ng/mL",
+    "min",
+    true
+   ],
+   "seed": 20261021280,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd15_iv_bolus",
+   "plan_row": [
+    "iv_bolus",
+    "pk1.iv_bolus",
+    "mg",
+    "mg/L",
+    "h",
+    false
+   ],
+   "seed": 20261021300,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd16_oral_1_lag",
+   "plan_row": [
+    "oral_1_lag",
+    "pk1.oral_1_lag",
+    "mg",
+    "ng/mL",
+    "h",
+    false
+   ],
+   "seed": 20261021320,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd17_iv_bolus",
+   "plan_row": [
+    "iv_bolus",
+    "pk1.iv_bolus",
+    "mg",
+    "mg/L",
+    "h",
+    false
+   ],
+   "seed": 20261021340,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd18_oral_1",
+   "plan_row": [
+    "oral_1",
+    "pk1.oral_1",
+    "ug",
+    "ng/mL",
+    "h",
+    true
+   ],
+   "seed": 20261021360,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd19_pk2_iv_bolus",
+   "plan_row": [
+    "pk2_iv_bolus",
+    "pk2.iv_bolus",
+    "mg",
+    "mg/L",
+    "h",
+    false
+   ],
+   "seed": 20261021380,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd20_iv_bolus",
+   "plan_row": [
+    "iv_bolus",
+    "pk1.iv_bolus",
+    "mg",
+    "ng/mL",
+    "min",
+    false
+   ],
+   "seed": 20261021400,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd21_pk2_oral_1",
+   "plan_row": [
+    "pk2_oral_1",
+    "pk2.oral_1",
+    "mg",
+    "mg/L",
+    "h",
+    false
+   ],
+   "seed": 20261021420,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd22_pk2_iv_bolus",
+   "plan_row": [
+    "pk2_iv_bolus",
+    "pk2.iv_bolus",
+    "mg",
+    "mg/L",
+    "h",
+    true
+   ],
+   "seed": 20261021440,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd23_oral_1_lag",
+   "plan_row": [
+    "oral_1_lag",
+    "pk1.oral_1_lag",
+    "ug",
+    "ng/mL",
+    "h",
+    false
+   ],
+   "seed": 20261021460,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd24_oral_1_lag",
+   "plan_row": [
+    "oral_1_lag",
+    "pk1.oral_1_lag",
+    "ug",
+    "ng/mL",
+    "h",
+    false
+   ],
+   "seed": 20261021480,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd25_oral_1_lag",
+   "plan_row": [
+    "oral_1_lag",
+    "pk1.oral_1_lag",
+    "mg",
+    "mg/L",
+    "min",
+    false
+   ],
+   "seed": 20261021500,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd26_iv_bolus",
+   "plan_row": [
+    "iv_bolus",
+    "pk1.iv_bolus",
+    "mg",
+    "mg/L",
+    "min",
+    false
+   ],
+   "seed": 20261021520,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd27_oral_0",
+   "plan_row": [
+    "oral_0",
+    "pk1.oral_0",
+    "mg",
+    "ng/mL",
+    "h",
+    false
+   ],
+   "seed": 20261021540,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd28_iv_infusion",
+   "plan_row": [
+    "iv_infusion",
+    "pk1.iv_infusion",
+    "mg",
+    "mg/L",
+    "min",
+    false
+   ],
+   "seed": 20261021560,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd29_pk2_oral_1",
+   "plan_row": [
+    "pk2_oral_1",
+    "pk2.oral_1",
+    "mg",
+    "mg/L",
+    "h",
+    false
+   ],
+   "seed": 20261021580,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd30_pk2_iv_bolus",
+   "plan_row": [
+    "pk2_iv_bolus",
+    "pk2.iv_bolus",
+    "mg",
+    "mg/L",
+    "min",
+    false
+   ],
+   "seed": 20261021600,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd31_oral_1",
+   "plan_row": [
+    "oral_1",
+    "pk1.oral_1",
+    "mg",
+    "mg/L",
+    "h",
+    false
+   ],
+   "seed": 20261021620,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd32_pk2_iv_bolus",
+   "plan_row": [
+    "pk2_iv_bolus",
+    "pk2.iv_bolus",
+    "mg",
+    "ng/mL",
+    "h",
+    false
+   ],
+   "seed": 20261021640,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd33_oral_1",
+   "plan_row": [
+    "oral_1",
+    "pk1.oral_1",
+    "mg",
+    "ng/mL",
+    "h",
+    false
+   ],
+   "seed": 20261021660,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd34_oral_1_lag",
+   "plan_row": [
+    "oral_1_lag",
+    "pk1.oral_1_lag",
+    "ug",
+    "ng/mL",
+    "h",
+    false
+   ],
+   "seed": 20261021680,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd35_oral_0",
+   "plan_row": [
+    "oral_0",
+    "pk1.oral_0",
+    "mg",
+    "mg/L",
+    "min",
+    false
+   ],
+   "seed": 20261021700,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd36_pk2_oral_1",
+   "plan_row": [
+    "pk2_oral_1",
+    "pk2.oral_1",
+    "ug",
+    "ng/mL",
+    "h",
+    true
+   ],
+   "seed": 20261021720,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd37_iv_bolus",
+   "plan_row": [
+    "iv_bolus",
+    "pk1.iv_bolus",
+    "mg",
+    "ng/mL",
+    "min",
+    false
+   ],
+   "seed": 20261021740,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd38_pk2_oral_1",
+   "plan_row": [
+    "pk2_oral_1",
+    "pk2.oral_1",
+    "mg",
+    "ng/mL",
+    "h",
+    false
+   ],
+   "seed": 20261021760,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd39_oral_0",
+   "plan_row": [
+    "oral_0",
+    "pk1.oral_0",
+    "mg",
+    "mg/L",
+    "h",
+    false
+   ],
+   "seed": 20261021780,
+   "attempt": 0,
+   "rejected": []
+  },
+  {
+   "id": "fd40_pk2_iv_bolus",
+   "plan_row": [
+    "pk2_iv_bolus",
+    "pk2.iv_bolus",
+    "mg",
+    "ng/mL",
+    "h",
+    false
+   ],
+   "seed": 20261021800,
+   "attempt": 0,
+   "rejected": []
+  }
+ ]
+}

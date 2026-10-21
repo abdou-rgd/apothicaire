@@ -1,0 +1,188 @@
+{
+ "tier": "demo",
+ "tolerance": {
+  "relative": 1e-06,
+  "absolute_at_zero": 1e-12
+ },
+ "versions": {
+  "R": "R version 4.3.3 (2024-02-29)",
+  "PKNCA": "0.12.1",
+  "jsonlite": "2.0.0"
+ },
+ "exercises": 40,
+ "counts": {
+  "agree": 3770
+ },
+ "worst": {
+  "exercise": "fd38_pk2_oral_1",
+  "method": "lin_up_log_down",
+  "parameter": "aumcall",
+  "gold": 212025.54693294634,
+  "pknca": 212025.54693292,
+  "rel_gap": 1.2422543860563072e-13
+ },
+ "by_parameter": {
+  "adj.r.squared": {
+   "agree": 80
+  },
+  "aucall": {
+   "agree": 80
+  },
+  "aucall.dn": {
+   "agree": 80
+  },
+  "aucinf.obs": {
+   "agree": 80
+  },
+  "aucinf.obs.dn": {
+   "agree": 80
+  },
+  "aucinf.pred": {
+   "agree": 80
+  },
+  "aucinf.pred.dn": {
+   "agree": 80
+  },
+  "auclast": {
+   "agree": 80
+  },
+  "auclast.dn": {
+   "agree": 80
+  },
+  "aucpext.obs": {
+   "agree": 80
+  },
+  "aucpext.pred": {
+   "agree": 80
+  },
+  "aumcall": {
+   "agree": 80
+  },
+  "aumcall.dn": {
+   "agree": 80
+  },
+  "aumcinf.obs": {
+   "agree": 80
+  },
+  "aumcinf.obs.dn": {
+   "agree": 80
+  },
+  "aumcinf.pred": {
+   "agree": 80
+  },
+  "aumcinf.pred.dn": {
+   "agree": 80
+  },
+  "aumclast": {
+   "agree": 80
+  },
+  "aumclast.dn": {
+   "agree": 80
+  },
+  "aumcpext.obs": {
+   "agree": 80
+  },
+  "aumcpext.pred": {
+   "agree": 80
+  },
+  "c0": {
+   "agree": 22
+  },
+  "cl.obs": {
+   "agree": 80
+  },
+  "cl.pred": {
+   "agree": 80
+  },
+  "clast.obs": {
+   "agree": 80
+  },
+  "clast.obs.dn": {
+   "agree": 80
+  },
+  "clast.pred": {
+   "agree": 80
+  },
+  "cmax": {
+   "agree": 80
+  },
+  "cmax.dn": {
+   "agree": 80
+  },
+  "half.life": {
+   "agree": 80
+  },
+  "lambda.z": {
+   "agree": 80
+  },
+  "lambda.z.n.points": {
+   "agree": 80
+  },
+  "lambda.z.time.first": {
+   "agree": 80
+  },
+  "lambda.z.time.last": {
+   "agree": 80
+  },
+  "mrt.iv.last": {
+   "agree": 34
+  },
+  "mrt.iv.obs": {
+   "agree": 34
+  },
+  "mrt.iv.pred": {
+   "agree": 34
+  },
+  "mrt.last": {
+   "agree": 46
+  },
+  "mrt.obs": {
+   "agree": 46
+  },
+  "mrt.pred": {
+   "agree": 46
+  },
+  "r.squared": {
+   "agree": 80
+  },
+  "span.ratio": {
+   "agree": 80
+  },
+  "tfirst": {
+   "agree": 80
+  },
+  "tlag": {
+   "agree": 46
+  },
+  "tlast": {
+   "agree": 80
+  },
+  "tmax": {
+   "agree": 80
+  },
+  "vss.iv.last": {
+   "agree": 34
+  },
+  "vss.iv.obs": {
+   "agree": 34
+  },
+  "vss.iv.pred": {
+   "agree": 34
+  },
+  "vss.obs": {
+   "agree": 80
+  },
+  "vss.pred": {
+   "agree": 80
+  },
+  "vz.obs": {
+   "agree": 80
+  },
+  "vz.pred": {
+   "agree": 80
+  }
+ },
+ "differ": [],
+ "pknca_only": [],
+ "gold_only_parameters": []
+}
