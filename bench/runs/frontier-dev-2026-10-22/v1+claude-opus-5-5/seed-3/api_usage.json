@@ -1,0 +1,20 @@
+{
+ "provider": "anthropic",
+ "model": "claude-opus-5-5",
+ "thinking": "adaptive",
+ "effort": "medium",
+ "thinking_headroom": 8000,
+ "prompt_caching": "automatic",
+ "fallback_model": null,
+ "calls": 416,
+ "input_tokens": 1402,
+ "output_tokens": 147479,
+ "cache_creation_input_tokens": 747833,
+ "cache_read_input_tokens": 1794084,
+ "cost_usd": 7.053168,
+ "wall_s": 1762.76,
+ "served_by": [
+  "claude-opus-5-5"
+ ],
+ "refusals": []
+}

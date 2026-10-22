@@ -35,11 +35,458 @@
  ],
  "models": [
   "Ternary-Bonsai-2-27B-Q2_0-prism-fork-required.gguf (Q2_0) on llama-server b11700-23f7aabc1, temperature 0.3, thinking off",
+  "claude-opus-5-5 on the Anthropic Messages API, thinking adaptive, effort medium, provider sampling (no temperature, no seed)",
   "claude-sonnet-5-5 on the Anthropic Messages API, thinking between_tools, effort high, provider sampling (no temperature, no seed)"
  ],
  "c1": "v1",
  "c2": "v1+claude-sonnet-5-5",
  "configurations": {
+  "v1+claude-opus-5-5": {
+   "seeds": [
+    1,
+    2,
+    3
+   ],
+   "exercises": 25,
+   "failed": {
+    "failed": 25,
+    "n": 25,
+    "rate": 1.0,
+    "interval": [
+     0.8628148284692874,
+     1.0
+    ],
+    "kind": "exact Clopper-Pearson, two-sided"
+   },
+   "failed_ids": [
+    "ex01_iv_bolus",
+    "ex02_oral_1",
+    "ex03_pk2_iv_bolus",
+    "ex04_oral_1_lag",
+    "ex05_iv_infusion",
+    "ex06_oral_0",
+    "ex07_iv_bolus",
+    "ex08_oral_1",
+    "ex09_pk2_oral_1",
+    "ex10_oral_1_lag",
+    "ex11_pk2_iv_bolus",
+    "ex12_iv_infusion",
+    "ex13_oral_1",
+    "ex14_iv_bolus",
+    "ex15_oral_0",
+    "ex16_pk2_oral_1",
+    "ex17_oral_1",
+    "ex18_pk2_iv_bolus",
+    "ex19_oral_1_lag",
+    "ex20_iv_infusion",
+    "ex21_oral_0",
+    "ex22_pk2_oral_1",
+    "ex23_iv_bolus",
+    "ex24_pk2_iv_bolus",
+    "ex25_oral_1"
+   ],
+   "unverified_shown": {
+    "failed": 0,
+    "n": 25,
+    "rate": 0.0,
+    "interval": [
+     0.0,
+     0.11292814500684323
+    ],
+    "kind": "one-sided upper bound 1 - 0.05^(1/n)"
+   },
+   "unverified_shown_ids": [],
+   "pass_k": {
+    "1": 0.04,
+    "2": 0.0,
+    "3": 0.0
+   },
+   "turns_correct": 481,
+   "turns": 600,
+   "turn_rate_ci": [
+    0.78,
+    0.8233333333333334
+   ],
+   "mixed_across_seeds": [
+    "ex17_oral_1",
+    "ex18_pk2_iv_bolus",
+    "ex19_oral_1_lag"
+   ],
+   "outcomes": {
+    "ERROR": 0,
+    "TIMEOUT": 0,
+    "LOOP": 0,
+    "ABSTAINED": 0,
+    "WRONG": 119,
+    "CORRECT": 481
+   },
+   "outcomes_by_kind": {
+    "import_nca": {
+     "ERROR": 0,
+     "TIMEOUT": 0,
+     "LOOP": 0,
+     "ABSTAINED": 0,
+     "WRONG": 0,
+     "CORRECT": 75
+    },
+    "cmax_tmax": {
+     "ERROR": 0,
+     "TIMEOUT": 0,
+     "LOOP": 0,
+     "ABSTAINED": 0,
+     "WRONG": 3,
+     "CORRECT": 72
+    },
+    "clearance_volume": {
+     "ERROR": 0,
+     "TIMEOUT": 0,
+     "LOOP": 0,
+     "ABSTAINED": 0,
+     "WRONG": 0,
+     "CORRECT": 75
+    },
+    "half_life": {
+     "ERROR": 0,
+     "TIMEOUT": 0,
+     "LOOP": 0,
+     "ABSTAINED": 0,
+     "WRONG": 42,
+     "CORRECT": 33
+    },
+    "lambda_z_regression": {
+     "ERROR": 0,
+     "TIMEOUT": 0,
+     "LOOP": 0,
+     "ABSTAINED": 0,
+     "WRONG": 0,
+     "CORRECT": 75
+    },
+    "recall": {
+     "ERROR": 0,
+     "TIMEOUT": 0,
+     "LOOP": 0,
+     "ABSTAINED": 0,
+     "WRONG": 0,
+     "CORRECT": 75
+    },
+    "compare": {
+     "ERROR": 0,
+     "TIMEOUT": 0,
+     "LOOP": 0,
+     "ABSTAINED": 0,
+     "WRONG": 61,
+     "CORRECT": 14
+    },
+    "not_available": {
+     "ERROR": 0,
+     "TIMEOUT": 0,
+     "LOOP": 0,
+     "ABSTAINED": 0,
+     "WRONG": 13,
+     "CORRECT": 62
+    }
+   },
+   "wrong_unflagged": {
+    "ex01_iv_bolus": 6,
+    "ex02_oral_1": 5,
+    "ex03_pk2_iv_bolus": 6,
+    "ex04_oral_1_lag": 6,
+    "ex05_iv_infusion": 4,
+    "ex06_oral_0": 3,
+    "ex07_iv_bolus": 5,
+    "ex08_oral_1": 4,
+    "ex09_pk2_oral_1": 6,
+    "ex10_oral_1_lag": 8,
+    "ex11_pk2_iv_bolus": 5,
+    "ex12_iv_infusion": 6,
+    "ex13_oral_1": 5,
+    "ex14_iv_bolus": 5,
+    "ex15_oral_0": 4,
+    "ex16_pk2_oral_1": 6,
+    "ex17_oral_1": 2,
+    "ex18_pk2_iv_bolus": 2,
+    "ex19_oral_1_lag": 3,
+    "ex20_iv_infusion": 4,
+    "ex21_oral_0": 5,
+    "ex22_pk2_oral_1": 5,
+    "ex23_iv_bolus": 6,
+    "ex24_pk2_iv_bolus": 4,
+    "ex25_oral_1": 4
+   },
+   "tool_calls": 365,
+   "tool_calls_not_valid": 65,
+   "tool_arg_deviating_calls": 89,
+   "tool_arg_audited_calls": 290,
+   "regenerations": 20,
+   "wall_s_median": 4.4,
+   "wall_s_p95": 16.2,
+   "first_prompt_tokens_median": 4099,
+   "strata": {
+    "family": {
+     "iv_bolus": [
+      0,
+      4
+     ],
+     "oral_1": [
+      0,
+      5
+     ],
+     "pk2_iv_bolus": [
+      0,
+      4
+     ],
+     "oral_1_lag": [
+      0,
+      3
+     ],
+     "iv_infusion": [
+      0,
+      3
+     ],
+     "oral_0": [
+      0,
+      3
+     ],
+     "pk2_oral_1": [
+      0,
+      3
+     ]
+    },
+    "dose unit": {
+     "mg": [
+      0,
+      18
+     ],
+     "ug": [
+      0,
+      7
+     ]
+    },
+    "time unit": {
+     "h": [
+      0,
+      21
+     ],
+     "min": [
+      0,
+      4
+     ]
+    },
+    "BLQ": {
+     "no": [
+      0,
+      23
+     ],
+     "yes": [
+      0,
+      2
+     ]
+    }
+   },
+   "per_exercise": {
+    "ex01_iv_bolus": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 18,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 6
+    },
+    "ex02_oral_1": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 19,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 5
+    },
+    "ex03_pk2_iv_bolus": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 18,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 6
+    },
+    "ex04_oral_1_lag": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 18,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 6
+    },
+    "ex05_iv_infusion": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 20,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 4
+    },
+    "ex06_oral_0": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 21,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 3
+    },
+    "ex07_iv_bolus": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 19,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 5
+    },
+    "ex08_oral_1": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 20,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 4
+    },
+    "ex09_pk2_oral_1": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 18,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 6
+    },
+    "ex10_oral_1_lag": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 16,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 8
+    },
+    "ex11_pk2_iv_bolus": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 19,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 5
+    },
+    "ex12_iv_infusion": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 18,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 6
+    },
+    "ex13_oral_1": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 19,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 5
+    },
+    "ex14_iv_bolus": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 19,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 5
+    },
+    "ex15_oral_0": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 20,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 4
+    },
+    "ex16_pk2_oral_1": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 18,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 6
+    },
+    "ex17_oral_1": {
+     "seeds_passed": 1,
+     "missing_seeds": [],
+     "turns_correct": 22,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 2
+    },
+    "ex18_pk2_iv_bolus": {
+     "seeds_passed": 1,
+     "missing_seeds": [],
+     "turns_correct": 22,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 2
+    },
+    "ex19_oral_1_lag": {
+     "seeds_passed": 1,
+     "missing_seeds": [],
+     "turns_correct": 21,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 3
+    },
+    "ex20_iv_infusion": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 20,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 4
+    },
+    "ex21_oral_0": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 19,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 5
+    },
+    "ex22_pk2_oral_1": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 19,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 5
+    },
+    "ex23_iv_bolus": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 18,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 6
+    },
+    "ex24_pk2_iv_bolus": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 20,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 4
+    },
+    "ex25_oral_1": {
+     "seeds_passed": 0,
+     "missing_seeds": [],
+     "turns_correct": 20,
+     "turns": 24,
+     "unverified_shown": false,
+     "wrong_unflagged": 4
+    }
+   },
+   "decisions": {}
+  },
   "v1+claude-sonnet-5-5": {
    "seeds": [
     1,
