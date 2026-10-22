@@ -397,7 +397,7 @@ def main():
     rp.add_argument("--seed", type=int, required=True)
     for p in (r, rp):
         p.add_argument("--api-model", default=None, help="run the agent on this hosted model (Anthropic Messages API, key in "
-                       "$ANTHROPIC_API_KEY) instead of llama-server: the frontier API arm, FRONTIER_ARM.md")
+                       "$APOTHICAIRE_API_KEY or $ANTHROPIC_API_KEY) instead of llama-server: the frontier API arm, FRONTIER_ARM.md")
         p.add_argument("--api-thinking", default=None, choices=["between_tools", "adaptive"], help="default: the model's row of FRONTIER_ARM.md §2")
         p.add_argument("--api-effort", default=None, choices=["low", "medium", "high", "xhigh", "max"], help="default: the model's row of FRONTIER_ARM.md §2")
     an.add_argument("--c1", default="v1"); an.add_argument("--c2", default="v2")

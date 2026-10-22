@@ -109,8 +109,9 @@ scores; the arm only runs synthetic exercises and is never run on real data.
 
 ## 7. Running
 
-The key is an environment variable, `ANTHROPIC_API_KEY`, set as a secret of the environment that runs the arm (a cloud session or
-the PC), never written in a file, a commit, a log or a chat. The client reads it, sends it only to `https://api.anthropic.com` (or
+The key is an environment variable, `APOTHICAIRE_API_KEY` (or `ANTHROPIC_API_KEY` where that name is free; a cloud environment
+may keep the `ANTHROPIC_*` names for its own session), set in the environment that runs the arm (a cloud session or the PC), never
+written in a file, a commit, a log or a chat. The client reads it, sends it only to `https://api.anthropic.com` (or
 `APOTHICAIRE_API_BASE_URL`), and ignores `ANTHROPIC_BASE_URL`, which a cloud coding session sets for its own use. No GPU and no
 llama-server are needed; the caladrius-mcp binary is.
 

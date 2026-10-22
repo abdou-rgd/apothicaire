@@ -137,11 +137,12 @@ class TestChat(unittest.TestCase):
         self.assertEqual(llm.refusals, [{"category": "bio", "explanation": "x"}])
 
     def test_the_key_comes_from_the_environment_only(self):
-        old = os.environ.pop("ANTHROPIC_API_KEY", None)
+        old = {v: os.environ.pop(v, None) for v in ("APOTHICAIRE_API_KEY", "ANTHROPIC_API_KEY")}
         try:
             with self.assertRaises(SystemExit): am.AnthropicLLM("claude-sonnet-5-5")
         finally:
-            if old is not None: os.environ["ANTHROPIC_API_KEY"] = old
+            for v, x in old.items():
+                if x is not None: os.environ[v] = x
 
 class TestRunner(unittest.TestCase):
     def test_configuration_names(self):

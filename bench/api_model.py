@@ -23,7 +23,8 @@ What cannot be the same as on llama-server, and is declared in FRONTIER_ARM.md �
 - **No fallback model.** A refusal is a failed call (`LLMError`, so the turn is an ERROR and counts), never a silent switch to
   another model: the arm measures one model.
 
-The key is read from ANTHROPIC_API_KEY and never written anywhere. The endpoint is https://api.anthropic.com unless
+The key is read from APOTHICAIRE_API_KEY, else ANTHROPIC_API_KEY, and never written anywhere (a cloud environment may reserve the
+ANTHROPIC_* names for its own session, hence the first name). The endpoint is https://api.anthropic.com unless
 APOTHICAIRE_API_BASE_URL says otherwise: ANTHROPIC_BASE_URL is ignored on purpose, a cloud coding session sets it for its own use.
 """
 import json, os, re, time
@@ -124,13 +125,14 @@ class AnthropicLLM:
     """Drop-in for optchat.LLM: chat(messages, slot, tools, max_tokens, think, temperature, response_format) -> message dict,
     `last` with the statistics turn() reads, plus `usage` (tokens and cost over every call of the run) and `refusals`."""
 
-    def __init__(self, model, thinking=None, effort=None, client=None, api_key_env="ANTHROPIC_API_KEY", max_retries=8, timeout=600.0):
+    def __init__(self, model, thinking=None, effort=None, client=None, api_key_env=("APOTHICAIRE_API_KEY", "ANTHROPIC_API_KEY"),
+                 max_retries=8, timeout=600.0):
         self.model = model
         d = DEFAULTS.get(model, ("adaptive", "medium"))
         self.thinking, self.effort = thinking or d[0], effort or d[1]
         if client is None:
-            key = os.environ.get(api_key_env)
-            if not key: raise SystemExit(f"{api_key_env} is not set: the frontier API arm needs a key (FRONTIER_ARM.md §7)")
+            key = next((os.environ[v] for v in api_key_env if os.environ.get(v)), None)
+            if not key: raise SystemExit(f"{' or '.join(api_key_env)} is not set: the frontier API arm needs a key (FRONTIER_ARM.md §7)")
             import anthropic
             client = anthropic.Anthropic(api_key=key, base_url=os.environ.get("APOTHICAIRE_API_BASE_URL", BASE_URL),
                                          max_retries=max_retries, timeout=timeout)
