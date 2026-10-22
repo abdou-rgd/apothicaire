@@ -1,0 +1,24 @@
+{
+ "provider": "anthropic",
+ "model": "claude-sonnet-5-5",
+ "thinking": "between_tools",
+ "effort": "high",
+ "thinking_headroom": 0,
+ "prompt_caching": "automatic",
+ "fallback_model": null,
+ "prompt_addendum": {
+  "name": "scope",
+  "text": "\n\nAnswer only what the question asks: give the quantities it names and no other parameter, even when the tool result holds more. When it asks whether a result is acceptable, give one verdict, then its reason."
+ },
+ "calls": 445,
+ "input_tokens": 1482,
+ "output_tokens": 106496,
+ "cache_creation_input_tokens": 772293,
+ "cache_read_input_tokens": 1930758,
+ "cost_usd": 3.384812,
+ "wall_s": 1283.44,
+ "served_by": [
+  "claude-sonnet-5-5"
+ ],
+ "refusals": []
+}

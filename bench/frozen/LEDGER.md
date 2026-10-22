@@ -51,3 +51,14 @@ Dated entries, never edited in place (FROZEN_SET.md, header and §9).
   94 % (Opus) of the turns.
 - Amendment `FRONTIER_ARM.md` §8 written before any run with it: configuration `v1+<model>+scope` (two sentences appended to the
   hosted model's system prompt), Sonnet only on the development tier, reading fixed in advance.
+
+## 2026-10-22: frontier API arm, development run with the scope instruction (§8)
+
+- Run `bench/runs/frontier-dev-2026-10-22/v1+claude-sonnet-5-5+scope/` (apothicaire 5090868, the amendment's commit), seeds 1, 2,
+  3. Development set, exploratory, scope instruction written after the first run.
+- Claude Sonnet 5.5 + scope: 21 / 25 exercises passed (pass^3), pass^1 94.7 %, 596 / 600 turns CORRECT, 0 / 25 with an
+  unverifiable quantity shown, 3 regenerations, 10.30 USD, 0 refusals.
+- Reading of §8 (fixed before the run): 21 ≥ 6, so the first run measured, at least in part, the prompt's fit to the 27B. Against
+  v1 (14 / 25): 8 exercises pass only with Sonnet + scope, 1 only with v1, exact McNemar p = 0.039: the row "the 27B is behind" on
+  the development set, under the limits of §8 (instruction tuned on these exercises for the hosted model, not given to the 27B).
+- Claude Opus 5.5 with the instruction is not run without Abdou's word (§8).
