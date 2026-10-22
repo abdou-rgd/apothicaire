@@ -62,3 +62,10 @@ Dated entries, never edited in place (FROZEN_SET.md, header and §9).
   v1 (14 / 25): 8 exercises pass only with Sonnet + scope, 1 only with v1, exact McNemar p = 0.039: the row "the 27B is behind" on
   the development set, under the limits of §8 (instruction tuned on these exercises for the hosted model, not given to the 27B).
 - Claude Opus 5.5 with the instruction is not run without Abdou's word (§8).
+
+## 2026-10-22: frontier API arm, amendment §9 (the 27B with the scope instruction)
+
+- Amendment `FRONTIER_ARM.md` §9 written before any run with it: configuration `v1+scope`, the 27B with the same two sentences as
+  §8 at the same place in the system prompt (`api_model.with_addendum`, apothicaire e462095), development tier, seeds 1 to 3 on the
+  PC. Reading fixed in advance: p(v1+scope) ≥ 19 no difference detected against Sonnet + scope (21); 14 to 18 the exact McNemar p
+  decides; ≤ 13 the instruction does not help the 27B.

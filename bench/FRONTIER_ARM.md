@@ -171,3 +171,46 @@ the two configurations do not get the same prompt. Every figure is labelled "dev
 after the first run". The slide, if it uses it, shows it next to the first run, in the form of §3 with the instruction named:
 "Claude Sonnet 5.5 passes B / 25 (Q %), and B' / 25 (Q' %) when told to answer only what is asked". This amendment does not decide
 which hosted configuration, if any, runs on the frozen tiers; a dated entry does, before the system freeze.
+
+## 9. Amendment of 2026-10-22: the 27B with the same scope instruction (`v1+scope`)
+
+Written after the run of §8 and before any run of the 27B with the addendum. It adds a configuration; it changes nothing above, and
+the runs of §3 and §8 stay as they are.
+
+**Why.** §8 left one limit open: Claude Sonnet 5.5 got two sentences the 27B never got, so `v1` against `v1+claude-sonnet-5-5+scope`
+compares two prompts as well as two models. Abdou asked (2026-10-22) for the 27B with the same two sentences, so that the comparison
+differs by the model only.
+
+**The configuration.** The agent with gate v1 on the 27B, exactly as `v1` in `bench/runs/decision/v1/` (llama.cpp b11700, the 27B
+Q2_0, temperature 0.3, thinking off, seeds 1 to 3 sent to the sampler), plus the text of `ADDENDA["scope"]`, unchanged, appended at
+the end of the system prompt of every agent call (the gate's regeneration included), never to compaction's calls (structured
+output). This is the place `AnthropicLLM` puts it: `api_model.with_addendum` wraps the llama-server client and a test checks that
+both clients send the same system prompt. The two sentences are in English, as the rest of the system prompt. Grid, gate, rubric,
+caps, harness and wordings are unchanged. The run is stored as `v1+scope`, with the addendum's name and text in `run.json`.
+
+**Run.** Development tier, seeds 1 to 3 in sequence on the PC (one GPU instance), into its own folder so that the earlier analysis
+stays as it is:
+
+```bash
+python bench/run_frozen.py run --tier dev --gate v1 --seeds 1,2,3 --api-addendum scope --out bench/runs/frontier-dev-2026-10-22-27b-scope
+python bench/run_frozen.py analyse --tier dev --out bench/runs/frontier-dev-2026-10-22-27b-scope --c1 v1+scope --c2 v1+claude-sonnet-5-5+scope \
+  --with bench/runs/decision:v1 --with bench/runs/frontier-dev-2026-10-22:v1+claude-sonnet-5-5,v1+claude-opus-5-5,v1+claude-sonnet-5-5+scope
+```
+
+**Reading, decided before the run.** p(X) as in §5: p(v1) = 14, p(Sonnet+scope) = 21; Sonnet+scope fails 4 exercises (ex01, ex12,
+ex13, ex25), so at most 4 exercises can pass with the 27B only.
+
+| p(v1+scope) | Reading |
+|---|---|
+| ≥ 19 | the gap to Sonnet+scope is at most 2 exercises: **no difference detected** with the same instruction; the gap of §8 came from the prompt, not the model |
+| 14 to 18 | a gap of 3 to 7 exercises remains; the exact McNemar p of the paired comparison (§11.3) decides: p < 0.05 is **the 27B is behind with the same instruction**, p ≥ 0.05 is "no difference detected", with the gap given |
+| ≤ 13 | **the instruction does not help the 27B** (no gain over its 14 without it); the gap to Sonnet+scope is read with the McNemar p as in the row above |
+
+Next to it, descriptive: the instruction's effect on the 27B, `v1+scope` against `v1` on the same exercises (exercises gained and
+lost, exact McNemar p); regenerations; exercises with an unverifiable quantity shown (endpoint 2); outcomes by turn kind.
+
+**Limits.** The instruction was written after reading the hosted models' failures on these 25 exercises, and the 27B's prompt, gate
+and caps were tuned on them: every figure stays "development set, in-sample, exploratory". The 27B samples with a fixed seed at
+temperature 0.3, the hosted model with the provider's sampling: the three repetitions are comparable as repetitions, not as replays.
+This amendment does not decide which configuration runs on the frozen tiers, nor whether the demo's 27B gets the instruction; a dated
+entry does, before the system freeze.
