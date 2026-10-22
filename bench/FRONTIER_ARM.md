@@ -130,3 +130,44 @@ Size, from the v1 development runs: 600 turns, about 1,030 model calls plus comp
 5,100 tokens per call at the median (counted by the 27B's tokenizer; Claude's may count more). Upper bounds without any cache hit:
 about 15 USD for Claude Sonnet 5.5 and 35 USD for Claude Opus 5.5 per three-seed run; prompt caching should bring both well below.
 The measured cost is in `api_usage.json`, and the console prints it after each exercise.
+
+## 8. Amendment of 2026-10-22: a scope instruction for the hosted model (`v1+<model>+scope`)
+
+Written after the two development runs of §3 and before any run with the addendum. It adds a configuration; it changes nothing above,
+nothing in the 27B's prompt, the gate, the rubric or the harness, and the two first runs stay as they are.
+
+**Why.** On the development set, Claude Sonnet 5.5 passed 0 / 25 exercises and Claude Opus 5.5 0 / 25, against 14 / 25 for v1
+(`bench/runs/frontier-dev-2026-10-22/ANALYSIS.md`), while the oracle check found the values right in about 99 % (Sonnet) and 94 %
+(Opus) of the turns. Most WRONG turns come from two rules of §6.2: more than 3 quantities the turn did not ask for ("dump", mostly
+on `half_life` and `compare`), and both verdicts stated on `half_life`. The question is whether the gap measured the models or a
+prompt written for a 27B that does not need to be told to stay short.
+
+**The configuration.** The same agent, gate v1, rubric and settings of §2, plus two sentences appended to the system prompt of every
+agent call to the hosted model (`ADDENDA["scope"]` in `bench/api_model.py`, `--api-addendum scope`):
+
+> Answer only what the question asks: give the quantities it names and no other parameter, even when the tool result holds more.
+> When it asks whether a result is acceptable, give one verdict, then its reason.
+
+Compaction's calls (structured output) do not get it; the 27B never gets it. The run is stored as `v1+claude-sonnet-5-5+scope`, with
+the addendum's name and text in `run.json` and `api_usage.json`.
+
+**Run.** Development tier only, Claude Sonnet 5.5 only, seeds 1 to 3, same command as §7 with `--api-addendum scope`. Claude Opus
+5.5 with the addendum runs only on Abdou's explicit word, given after this run is read.
+
+**Reading, decided before the run.** Let p(X) be the exercises passed under the strict rule: p(v1) = 14, p(Sonnet) = 0.
+
+| Result | Reading |
+|---|---|
+| p(Sonnet+scope) ≤ 5 | the instruction does not detectably change the result (fewer than 6 exercises gained): the first run's gap does not come from the prompt alone; the outcomes by turn kind say what remains |
+| p(Sonnet+scope) ≥ 6 | the first run measured, at least in part, the prompt's fit to the 27B rather than the model |
+
+Then against v1, with the bands of §5: a gap of at most 5 exercises either way (9 ≤ p ≤ 19) is "no difference detected"; p ≥ 20 (discordant exercises all
+going to Sonnet) is "the 27B is behind"; p ≤ 8 (all going to v1) is "the harness is still fitted to the 27B"; discordant exercises in
+both directions go to the exact McNemar p, as in §5.
+
+**Limits.** The addendum was written after reading the failures on these same 25 exercises, so `v1+<model>+scope` is in-sample for
+the hosted model too, and leans towards it on the two rules it names. The 27B is not run with the addendum (that needs the PC), so
+the two configurations do not get the same prompt. Every figure is labelled "development set, exploratory, scope instruction written
+after the first run". The slide, if it uses it, shows it next to the first run, in the form of §3 with the instruction named:
+"Claude Sonnet 5.5 passes B / 25 (Q %), and B' / 25 (Q' %) when told to answer only what is asked". This amendment does not decide
+which hosted configuration, if any, runs on the frozen tiers; a dated entry does, before the system freeze.

@@ -43,7 +43,8 @@ SAMPLING = "temperature 0.3, thinking off"
 def base_dir(tier): return DEV_BASE if tier == "dev" else os.path.join(mf.tier_dir(tier), "runs")
 def tier_exercises(tier): return mk.list_exercises() if tier == "dev" else mf.list_exercises(tier)
 def run_dir(base, gate, seed): return os.path.join(base, gate, f"seed-{seed}")
-def config_name(gate, api_model=None): return f"{gate}+{api_model}" if api_model else gate
+def config_name(gate, api_model=None, api_addendum=None):
+    return "+".join([gate] + ([api_model] if api_model else []) + ([api_addendum] if api_model and api_addendum else []))
 def gate_of(config): return config.split("+")[0]           # v1+claude-sonnet-5-5: the agent with gate v1 on that hosted model
 
 def load_wordings(path):
@@ -89,7 +90,7 @@ def run_one(ex_dir, out, gate, seed, wordings=None, wording_seed=0, stub=None, c
 
 def run(tier, gate, seeds, wordings_path=None, wording_seed=None, ids=None, resume=False, stub=False, stub_error_rate=0.0,
         base=None, verbose=False, out=print, decider="decider_unsloth:decide", decider_model=None, api_model=None, api_thinking=None,
-        api_effort=None, api_client=None):
+        api_effort=None, api_client=None, api_addendum=None):
     """Runs every exercise of the tier with one gate, seed after seed (C1 first, all seeds, then C2: §10.2). Returns the base.
     gate `nolm` is the decider-only arm (bench/decider_arm.py): `decider` (module:function) and `decider_model` (its folder) pick the
     decision model, `stub` the gold decisions. `api_model` runs the agent on a hosted model instead of llama-server (the frontier
@@ -100,9 +101,9 @@ def run(tier, gate, seeds, wordings_path=None, wording_seed=None, ids=None, resu
     confirmatory, notes = preflight(tier, wordings_path, stub, gate)
     nolm = gate == decider_arm.ARM
     if api_model and (nolm or stub): raise SystemExit("--api-model runs the agent itself: not with --gate nolm or --stub")
-    api = lambda: api_model and api_model_mod.AnthropicLLM(api_model, api_thinking, api_effort, client=api_client)
+    api = lambda: api_model and api_model_mod.AnthropicLLM(api_model, api_thinking, api_effort, client=api_client, addendum=api_addendum)
     llm = api()
-    config = config_name(gate, api_model)
+    config = config_name(gate, api_model, api_addendum)
     decide = None
     if nolm: decide = decider_arm.StubDecider() if stub else decider_arm.load_decider(decider, decider_model)
     wordings, w_sha = load_wordings(wordings_path) if wordings_path else (None, None)
@@ -400,6 +401,8 @@ def main():
                        "$APOTHICAIRE_API_KEY or $ANTHROPIC_API_KEY) instead of llama-server: the frontier API arm, FRONTIER_ARM.md")
         p.add_argument("--api-thinking", default=None, choices=["between_tools", "adaptive"], help="default: the model's row of FRONTIER_ARM.md §2")
         p.add_argument("--api-effort", default=None, choices=["low", "medium", "high", "xhigh", "max"], help="default: the model's row of FRONTIER_ARM.md §2")
+        p.add_argument("--api-addendum", default=None, choices=sorted(api_model_mod.ADDENDA),
+                       help="a prompt addendum for the hosted model only (FRONTIER_ARM.md §8); stored as <gate>+<model>+<name>")
     an.add_argument("--c1", default="v1"); an.add_argument("--c2", default="v2")
     an.add_argument("--with", dest="with_", action="append", default=[], metavar="BASE:CONFIG[,CONFIG]",
                     help="also read these configurations from another run folder (read only), e.g. bench/runs/decision:v1")
@@ -414,11 +417,11 @@ def main():
     ids = [x for x in a.ids.split(",") if x]
     if a.cmd == "replay":
         if not ids: raise SystemExit("--ids: the exercises to replay (two exercises x one seed, §10.1)")
-        cfg = config_name(a.gate, a.api_model)
+        cfg = config_name(a.gate, a.api_model, a.api_addendum)
         tmp = os.path.join(base, cfg, "replay")
         run(a.tier, a.gate, [a.seed], a.wordings, a.wording_seed, ids, False, a.stub, a.stub_error_rate,
             base=os.path.join(base, cfg, "_replay"), verbose=a.verbose, decider=a.decider, decider_model=a.decider_model,
-            api_model=a.api_model, api_thinking=a.api_thinking, api_effort=a.api_effort)
+            api_model=a.api_model, api_thinking=a.api_thinking, api_effort=a.api_effort, api_addendum=a.api_addendum)
         src = run_dir(os.path.join(base, cfg, "_replay"), cfg, a.seed)
         dst = os.path.join(tmp, f"seed-{a.seed}")
         if os.path.exists(dst): shutil.rmtree(dst)
@@ -426,7 +429,7 @@ def main():
         print("replayed into", dst); return
     run(a.tier, a.gate, [int(s) for s in a.seeds.split(",")], a.wordings, a.wording_seed, ids, a.resume, a.stub,
         a.stub_error_rate, base=base, verbose=a.verbose, decider=a.decider, decider_model=a.decider_model,
-        api_model=a.api_model, api_thinking=a.api_thinking, api_effort=a.api_effort)
+        api_model=a.api_model, api_thinking=a.api_thinking, api_effort=a.api_effort, api_addendum=a.api_addendum)
     print("runs under", base, "- then: python bench/run_frozen.py analyse --tier", a.tier, *(["--out", a.out] if a.out else []))
 
 if __name__ == "__main__":

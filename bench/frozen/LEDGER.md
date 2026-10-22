@@ -31,3 +31,23 @@ Dated entries, never edited in place (FROZEN_SET.md, header and §9).
   order and the reading table (§5) are written before any hosted model has answered any exercise.
 - Development tier first, exploratory and in-sample for the 27B (§3); demo tier after C1, C2 and `nolm`, descriptive (§4);
   declared comparison in the PAGE tier only. Nothing in §8, C1, C2 or NO_LM_ARM.md changes.
+
+## 2026-10-22: frontier API arm, development runs (§3) and amendment §8
+
+- Runs `bench/runs/frontier-dev-2026-10-22/` (apothicaire da70317, cloud session, caladrius-mcp from caladrius 1be2078), seeds 1, 2,
+  3, one process per seed. Development set, in-sample for the 27B, exploratory. v1 read from `bench/runs/decision/v1`.
+
+| | v1 (27B) | Claude Sonnet 5.5 | Claude Opus 5.5 |
+|---|---|---|---|
+| exercises passed (pass^3) | 14 / 25 | 0 / 25 | 0 / 25 |
+| pass^1 | 80.0 % | 2.7 % | 4.0 % |
+| turns CORRECT | 583 / 600 | 468 / 600 | 481 / 600 |
+| exercises with an unverifiable quantity shown | 3 / 25 | 1 / 25 | 0 / 25 |
+| regenerations | 12 | 8 | 20 |
+| cost, refusals | | 12.17 USD, 0 | 20.96 USD, 0 |
+
+- Opus ran because Sonnet passed at most 3 more exercises than v1 (§3). Reading of §5: the harness is fitted to the 27B. Most WRONG
+  turns are the dump rule and both verdicts on `half_life`; the oracle check finds the values right in about 99 % (Sonnet) and
+  94 % (Opus) of the turns.
+- Amendment `FRONTIER_ARM.md` §8 written before any run with it: configuration `v1+<model>+scope` (two sentences appended to the
+  hosted model's system prompt), Sonnet only on the development tier, reading fixed in advance.

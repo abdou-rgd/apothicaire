@@ -113,6 +113,15 @@ class TestRequest(unittest.TestCase):
         self.assertEqual(fmt["schema"]["properties"]["lines"], {"type": "array", "items": {"type": "string"}})
         self.assertEqual(p["output_config"]["effort"], "high")
 
+    def test_the_addendum_goes_to_the_agent_prompt_only(self):
+        hist = [{"role": "system", "content": "base"}, {"role": "user", "content": "q"}]
+        self.assertEqual(self.llm().request(hist, TOOLS, 100)["system"], "base")
+        llm = am.AnthropicLLM("claude-sonnet-5-5", client=Recorder(), addendum="scope")
+        self.assertEqual(llm.request(hist, TOOLS, 100)["system"], "base" + am.ADDENDA["scope"])
+        self.assertEqual(llm.request(hist, None, 100, optchat._json_lines_schema(3))["system"], "base")      # compaction
+        self.assertEqual(llm.config()["prompt_addendum"]["name"], "scope"); self.assertIn("prompt addendum scope", llm.label())
+        with self.assertRaises(SystemExit): am.AnthropicLLM("claude-sonnet-5-5", client=Recorder(), addendum="other")
+
 class TestChat(unittest.TestCase):
     def test_tool_calls_usage_and_cost(self):
         r = response([{"type": "thinking", "thinking": "note", "signature": "s"}, {"type": "text", "text": "Je calcule."},
@@ -148,6 +157,8 @@ class TestRunner(unittest.TestCase):
     def test_configuration_names(self):
         self.assertEqual(rf.config_name("v1", "claude-sonnet-5-5"), "v1+claude-sonnet-5-5")
         self.assertEqual(rf.config_name("v1"), "v1")
+        self.assertEqual(rf.config_name("v1", "claude-sonnet-5-5", "scope"), "v1+claude-sonnet-5-5+scope")
+        self.assertEqual(rf.gate_of("v1+claude-sonnet-5-5+scope"), "v1")
         self.assertEqual(rf.gate_of("v1+claude-sonnet-5-5"), "v1"); self.assertEqual(rf.gate_of("nolm"), "nolm")
 
     def test_not_with_the_stub_or_the_decider_arm(self):

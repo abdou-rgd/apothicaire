@@ -37,6 +37,10 @@ THINKING_HEADROOM = 8000
 PRICES = {"claude-sonnet-5-5": (2.00, 10.00, 0.20), "claude-opus-5-5": (4.00, 20.00, 0.20), "claude-haiku-5-5": (0.10, 0.50, 0.01)}
 # declared configuration per model (FRONTIER_ARM.md §2): thinking off where the model allows it, the effort of its row otherwise
 DEFAULTS = {"claude-sonnet-5-5": ("between_tools", "high"), "claude-opus-5-5": ("adaptive", "medium")}
+# prompt addenda for the hosted models only (FRONTIER_ARM.md §8, amendment of 2026-10-22): appended to the agent's system prompt
+# on every agent call, never to compaction's (structured output) and never sent to the 27B; the configuration is <gate>+<model>+<name>
+ADDENDA = {"scope": ("\n\nAnswer only what the question asks: give the quantities it names and no other parameter, even when the tool "
+                     "result holds more. When it asks whether a result is acceptable, give one verdict, then its reason.")}
 _ID = re.compile(r"[^a-zA-Z0-9_-]")
 
 def _get(b, k, default=None): return b.get(k, default) if isinstance(b, dict) else getattr(b, k, default)
@@ -126,8 +130,9 @@ class AnthropicLLM:
     `last` with the statistics turn() reads, plus `usage` (tokens and cost over every call of the run) and `refusals`."""
 
     def __init__(self, model, thinking=None, effort=None, client=None, api_key_env=("APOTHICAIRE_API_KEY", "ANTHROPIC_API_KEY"),
-                 max_retries=8, timeout=600.0):
-        self.model = model
+                 max_retries=8, timeout=600.0, addendum=None):
+        if addendum is not None and addendum not in ADDENDA: raise SystemExit(f"unknown prompt addendum {addendum!r}: {sorted(ADDENDA)}")
+        self.model, self.addendum = model, addendum
         d = DEFAULTS.get(model, ("adaptive", "medium"))
         self.thinking, self.effort = thinking or d[0], effort or d[1]
         if client is None:
@@ -147,16 +152,17 @@ class AnthropicLLM:
 
     def label(self):
         return (f"{self.model} on the Anthropic Messages API, thinking {self.thinking}, effort {self.effort}, "
-                "provider sampling (no temperature, no seed)")
+                "provider sampling (no temperature, no seed)" + (f", prompt addendum {self.addendum}" if self.addendum else ""))
 
     def config(self):
         return {"provider": "anthropic", "model": self.model, "thinking": self.thinking, "effort": self.effort,
                 "thinking_headroom": THINKING_HEADROOM if self.thinking == "adaptive" else 0, "prompt_caching": "automatic",
-                "fallback_model": None}
+                "fallback_model": None, "prompt_addendum": self.addendum and {"name": self.addendum, "text": ADDENDA[self.addendum]}}
 
     def request(self, messages, tools=None, max_tokens=512, response_format=None):
         """The keyword arguments of messages.create for one optchat call."""
         system, msgs = to_messages(messages, self.replay)
+        if self.addendum and system and not response_format: system += ADDENDA[self.addendum]
         if tools: self.tools = to_tools(tools)
         p = {"model": self.model, "max_tokens": max_tokens + (THINKING_HEADROOM if self.thinking == "adaptive" else 0),
              "messages": msgs, "cache_control": {"type": "ephemeral"}, "thinking": {"type": self.thinking},
