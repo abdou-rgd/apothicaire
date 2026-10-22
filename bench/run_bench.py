@@ -116,11 +116,12 @@ def seed_requests(llm, seed):
     return llm
 
 def run_exercise(ex_dir, run_dir, cfg_base=None, verbose=False, llm=None, script=None, seed=None, gate_version=None, on_turn=None,
-                 allow_frozen=False):
+                 allow_frozen=False, prompt_addendum=None):
     """Runs the 8 turns of one exercise; returns the record (also written to <run_dir>/<id>.json). `script`: the turns to ask
     (default scripts.build_script; the frozen runner passes them with their wordings); `seed`: the sampler seed sent with each
     request; `gate_version`: v1 or v2 (default APOTHICAIRE_GATE); `on_turn(k, turn)`: called before each turn (the stub model);
-    `allow_frozen`: only bench/run_frozen.py runs the exercises of a frozen set."""
+    `allow_frozen`: only bench/run_frozen.py runs the exercises of a frozen set; `prompt_addendum`: a name of api_model.ADDENDA
+    appended to the 27B's system prompt (FRONTIER_ARM.md §9)."""
     meta, csv_text = mk.load(ex_dir)
     if meta.get("frozen") and not allow_frozen:
         raise SystemExit(f"{meta['id']} belongs to {meta['frozen']['tag']}: confirmation only, run it with bench/run_frozen.py")
@@ -133,6 +134,9 @@ def run_exercise(ex_dir, run_dir, cfg_base=None, verbose=False, llm=None, script
     elif seed is not None:
         seed_requests(ag.llm, seed)
         if ag.compactor.llm is not ag.llm: seed_requests(ag.compactor.llm, seed)
+    if prompt_addendum and llm is None:
+        from bench import api_model
+        api_model.with_addendum(ag.llm, prompt_addendum)              # compaction's calls are left as they are
     turns, t_ex = [], time.time()
     try:
         for k, t in enumerate(script):

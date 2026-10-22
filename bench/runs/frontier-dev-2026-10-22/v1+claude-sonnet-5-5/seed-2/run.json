@@ -1,0 +1,51 @@
+{
+ "tier": "dev",
+ "gate": "v1",
+ "config": "v1+claude-sonnet-5-5",
+ "seed": 2,
+ "model": "claude-sonnet-5-5 on the Anthropic Messages API, thinking between_tools, effort high, provider sampling (no temperature, no seed)",
+ "started": "2026-10-22T11:00:32",
+ "wordings_sha256": null,
+ "wording_seed": null,
+ "confirmatory": false,
+ "notes": [
+  "development set: in-sample, never confirmatory (§8)"
+ ],
+ "apothicaire_commit": "da7031725e339e16605557da84d4a604e8cce348",
+ "exercises": [
+  "ex01_iv_bolus",
+  "ex02_oral_1",
+  "ex03_pk2_iv_bolus",
+  "ex04_oral_1_lag",
+  "ex05_iv_infusion",
+  "ex06_oral_0",
+  "ex07_iv_bolus",
+  "ex08_oral_1",
+  "ex09_pk2_oral_1",
+  "ex10_oral_1_lag",
+  "ex11_pk2_iv_bolus",
+  "ex12_iv_infusion",
+  "ex13_oral_1",
+  "ex14_iv_bolus",
+  "ex15_oral_0",
+  "ex16_pk2_oral_1",
+  "ex17_oral_1",
+  "ex18_pk2_iv_bolus",
+  "ex19_oral_1_lag",
+  "ex20_iv_infusion",
+  "ex21_oral_0",
+  "ex22_pk2_oral_1",
+  "ex23_iv_bolus",
+  "ex24_pk2_iv_bolus",
+  "ex25_oral_1"
+ ],
+ "api": {
+  "provider": "anthropic",
+  "model": "claude-sonnet-5-5",
+  "thinking": "between_tools",
+  "effort": "high",
+  "thinking_headroom": 0,
+  "prompt_caching": "automatic",
+  "fallback_model": null
+ }
+}

@@ -1,0 +1,1128 @@
+{
+ "id": "ex18_pk2_iv_bolus",
+ "family": "pk2_iv_bolus",
+ "model": "pk2.iv_bolus",
+ "units": {
+  "time": "min",
+  "conc": "ng/mL"
+ },
+ "dose": {
+  "amount": 200,
+  "unit": "mg"
+ },
+ "blq": false,
+ "wall_s": 55.0,
+ "gate": "v1",
+ "seed": 3,
+ "taxonomy_chance_baseline": {
+  "3": {
+   "unit_conversion": 4,
+   "arithmetic": 0,
+   "unlabelled_misread": 2,
+   "recall_error": 0,
+   "other": 44
+  },
+  "4": {
+   "unit_conversion": 3,
+   "arithmetic": 8,
+   "unlabelled_misread": 4,
+   "recall_error": 0,
+   "other": 35
+  }
+ },
+ "turns": [
+  {
+   "exercise": "ex18_pk2_iv_bolus",
+   "turn": 1,
+   "id": "t1",
+   "kind": "import_nca",
+   "question": "Voici les données d'un exercice (200 mg en bolus intraveineux ; temps en min, concentration en ng/mL) :\ntime (min),conc (ng/mL)\n19,7078\n30,5478\n47,4806\n74,3421\n120,2138\n180,1431\n290,1059\n460,933.3\n730,635.7\n1100,395.3\n1800,172.5\n2900,45.18\nFais l'analyse non compartimentale avec la méthode linéaire des trapèzes et donne-moi Cmax, Tmax, AUC(0-tlast), AUC(0-inf), λz, t½, CL, Vz et MRT, avec les unités.",
+   "tools_withdrawn": false,
+   "max_tool_rounds": 8,
+   "answer": "Résultats de l'analyse non compartimentale (bolus IV, 200 mg, trapèzes linéaires). La concentration à t = 0 a été extrapolée (C0 = 11018.8 ng/mL).\n\n| Paramètre | Valeur |\n|---|---|\n| Cmax | 7078 ng/mL |\n| Tmax | 19 min |\n| AUC(0-tlast) | 1701680 min·ng/mL |\n| AUC(0-inf) (obs) | 1738910 min·ng/mL |\n| λz | 0.00121378 1/min |\n| t½ | 571.067 min |\n| CL (obs) | 0.115015 L/min |\n| Vz (obs) | 94.7579 L |\n| MRT (iv, obs) | 611.145 min |\n\n**Qualité :** aucun drapeau de qualité n'a été levé.\n- λz est estimé sur 4 points (730 à 2900 min), avec un R² ajusté de 0.999861 et un rapport d'étendue de 3.79991.\n- La part extrapolée de l'AUC est de 2.14058 %.\n\nLe Cmax observé est à 19 min, premier prélèvement. Il n'y a pas de prélèvement à t = 0, d'où la rétro-extrapolation de C0.",
+   "wall_s": 13.9,
+   "prompt_tokens": 4157,
+   "rounds": 4,
+   "numbers_total_before": 17,
+   "numbers_unverified_before": 0,
+   "numbers_total_after": 17,
+   "numbers_unverified_after": 0,
+   "regenerated": false,
+   "kept": "first",
+   "badge": false,
+   "findings_before": [],
+   "findings_after": [],
+   "first_answer": null,
+   "tool_calls": [
+    {
+     "name": "data_import",
+     "args": {
+      "name": "Exercice IV bolus 200 mg",
+      "csv": "<135 chars, identical to the exercise CSV>",
+      "columns": [
+       {
+        "name": "time (min)",
+        "role": "time",
+        "unit": "min"
+       },
+       {
+        "name": "conc (ng/mL)",
+        "role": "concentration",
+        "unit": "ng/mL"
+       }
+      ]
+     },
+     "ok": false,
+     "shown": "unknown_column: the CSV has no column `time (min)`; its columns are: time, conc",
+     "status": "invalid",
+     "error": "unknown_column: the CSV has no column `time (min)`; its columns are: time, conc",
+     "csv_identical": true
+    },
+    {
+     "name": "data_import",
+     "args": {
+      "name": "Exercice IV bolus 200 mg",
+      "csv": "<135 chars, identical to the exercise CSV>",
+      "columns": [
+       {
+        "name": "time",
+        "role": "time",
+        "unit": "min"
+       },
+       {
+        "name": "conc",
+        "role": "concentration",
+        "unit": "ng/mL"
+       }
+      ]
+     },
+     "ok": true,
+     "shown": "{\"delimiter\":\",\",\"notes\":[\"unit `min` read from the header of column `time`\",\"unit `ng/mL` read from the header of column `conc`\"],\"worksheet\":{\"columns\":[{\"blq\":0,\"blq_rows\":[],\"max\":2900.0,\"min\":19.0,\"missing\":0,\"name\":\"time\",\"role\":\"time\",\"type\":\"number\",\"unit\":\"min\"},{\"blq\":0,\"blq_rows\":[],\"max\":7078.0,\"min\":45.18,\"missing\":0,\"name\":\"conc\",\"role\":\"concentration\",\"type\":\"number\",\"unit\":\"ng/mL\"}],\"derived_units\":{\"auc\":\"min*ng/mL\",\"aumc\":\"min^2*ng/mL\",\"half_life\":\"min\",\"lambda_z\":\"1/min\",\"mrt\":\"min\"},\"id\":1,\"name\":\"Exercice IV bolus 200 mg\",\"revision\":0,\"rows\":12,\"subjects\":[\"1\"],\"unit_warnings\":[{\"code\":\"missing_unit\",\"message\":\"the dose has no unit; derived units (AUC, clearance, volume) cannot be named\"}]}}",
+     "status": "valid",
+     "csv_identical": true
+    },
+    {
+     "name": "nca_run",
+     "args": {
+      "worksheet": 1,
+      "dose": 200,
+      "route": "iv_bolus",
+      "options": {
+       "auc_method": "linear",
+       "units": {
+        "time": "min",
+        "concentration": "ng/mL",
+        "dose": "mg"
+       }
+      }
+     },
+     "ok": true,
+     "shown": "{\"analysis\":2,\"label\":\"NCA of Exercice IV bolus 200 mg, all subjects\",\"status\":\"fresh\",\"options_used\":{\"auc_method\":\"linear\",\"lambda_z\":{\"adj_r_squared_factor\":0.0001,\"allow_tmax\":false,\"min_points\":3},\"quality_thresholds\":{\"max_extrapolated_percent\":20.0,\"min_adj_r_squared\":0.9,\"min_points\":3,\"min_span_ratio\":2.0},\"blq\":{\"position\":{\"first\":\"keep\",\"last\":\"keep\",\"middle\":\"drop\"}},\"missing\":\"drop\",\"negative\":\"error\",\"start\":\"c0\",\"units\":{\"concentration\":\"ng/mL\",\"dose\":\"mg\",\"time\":\"min\"}},\"subjects\":[{\"subject\":\"1\",\"dose\":200.0,\"route\":\"iv_bolus\",\"flags\":[],\"flag_messages\":[],\"parameters\":{\"c0\":\"11018.8 ng/mL\",\"cmax\":\"7078 ng/mL\",\"tmax\":\"19 min\",\"tfirst\":\"19 min\",\"tlast\":\"2900 min\",\"clast.obs\":\"45.18 ng/mL\",\"auclast\":\"1701680 min·ng/mL\",\"aucall\":\"1701680 min·ng/mL\",\"aumclast\":\"924111000 min²·ng/mL\",\"aumcall\":\"924111000 min²·ng/mL\",\"lambda.z\":\"0.00121378 1/min\",\"r.squared\":0.999907,\"adj.r.squared\":0.999861,\"lambda.z.time.first\":\"730 min\",\"lambda.z.time.last\":\"2900 min\",\"lambda.z.n.points\":4.0,\"clast.pred\":\"45.1683 ng/mL\",\"half.life\":\"571.067 min\",\"span.ratio\":3.79991,\"aucinf.obs\":\"1738910 min·ng/mL\",\"aucinf.pred\":\"1738900 min·ng/mL\",\"aumcinf.obs\":\"1062720000 min²·ng/mL\",\"aumcinf.pred\":\"1062690000 min²·ng/mL\",\"aucpext.obs\":\"2.14058 %\",\"aucpext.pred\":\"2.14004 %\",\"aumcpext.obs\":\"13.0432 %\",\"aumcpext.pred\":\"13.0402 %\",\"mrt.iv.last\":\"543.057 min\",\"mrt.iv.obs\":\"611.145 min\",\"mrt.iv.pred\":\"611.127 min\",\"cl.obs\":\"0.115015 L/min\",\"cl.pred\":\"0.115015 L/min\",\"vz.obs\":\"94.7579 L\",\"vz.pred\":\"94.7584 L\",\"vss.iv.obs\":\"70.2907 L\",\"vss.iv.pred\":\"70.2891 L\",\"vss.obs\":\"70.2907 L\",\"vss.pred\":\"70.2891 L\",\"vss.iv.last\":\"63.8258 L\",\"cmax.dn\":\"35.39 (ng/mL)/mg\",\"clast.obs.dn\":\"0.2259 (ng/mL)/mg\",\"auclast.dn\":\"8508.42 (min·ng/mL)/mg\",\"aucall.dn\":\"8508.42 (min·ng/mL)/mg\",\"aucinf.obs.dn\":\"8694.53 (min·ng/mL)/mg\",\"aucinf.pred.dn\":\"8694.48 (min·ng/mL)/mg\",\"aumclast.dn\":\"4620550 (min²·ng/mL)/mg\",\"aumcall.dn\":\"4620550 (min²·ng/mL)/mg\",\"aumcinf.obs.dn\":\"5313620 (min²·ng/mL)/mg\",\"aumcinf.pred.dn\":\"5313440 (min²·ng/mL)/mg\"},\"not_calculated\":{\"not_applicable_to_route\":[\"tlag\",\"mrt.last\",\"mrt.obs\",\"mrt.pred\"],\"no_start_concentration\":[\"aucivlast\",\"aucivall\",\"aucivinf.obs\",\"aucivinf.pred\",\"aucivpbextlast\",\"aucivpbextall\",\"aucivpbextinf.obs\",\"aucivpbextinf.pred\"]},\"not_calculated_messages\":{\"there is no concentration at the dose time; add a sample at time 0 or choose a start policy\":[\"aucivall\",\"aucivinf.obs\",\"aucivinf.pred\",\"aucivlast\",\"aucivpbextall\",\"aucivpbextinf.obs\",\"aucivpbextinf.pred\",\"aucivpbextlast\"],\"not defined for this route of administration\":[\"mrt.last\",\"mrt.obs\",\"mrt.pred\",\"tlag\"]},\"lambda_z_regression\":{\"adj_r_squared\":0.999861,\"intercept\":7.33035,\"lambda_z\":0.00121378,\"n_points\":4,\"r_squared\":0.999907,\"replaced_points\":0,\"time_first\":730.0,\"time_last\":2900.0}}],\"unit_warnings\":[{\"code\":\"missing_unit\",\"message\":\"the dose has no unit; derived units (AUC, clearance, volume) cannot be named\"}],\"dose_unit\":\"mg\"}",
+     "status": "valid",
+     "dose_ok": true,
+     "route_ok": true
+    }
+   ],
+   "memory_calls": 0,
+   "score": {
+    "found": [
+     "Cmax",
+     "Tmax",
+     "AUC(0-tlast)",
+     "AUC(0-inf)",
+     "lambda_z",
+     "t1/2",
+     "CL",
+     "Vz",
+     "MRT"
+    ],
+    "missing": [],
+    "forbidden": [],
+    "forbidden_from_tools": [],
+    "words_missing": [],
+    "new_numbers": 0,
+    "n_must": 9,
+    "fraction": 1.0,
+    "correct": true
+   },
+   "rubric": {
+    "rubric": "2026-10-21",
+    "correct": true,
+    "reasons": [],
+    "items": [
+     {
+      "label": "Cmax",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "7078",
+       "19",
+       "0"
+      ]
+     },
+     {
+      "label": "Tmax",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "19"
+      ]
+     },
+     {
+      "label": "AUC(0-tlast)",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "1701680"
+      ]
+     },
+     {
+      "label": "AUC(0-inf)",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "1738910"
+      ]
+     },
+     {
+      "label": "lambda_z",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "0.00121378",
+       "4"
+      ]
+     },
+     {
+      "label": "t1/2",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "571.067"
+      ]
+     },
+     {
+      "label": "CL",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "0.115015"
+      ]
+     },
+     {
+      "label": "Vz",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "94.7579"
+      ]
+     },
+     {
+      "label": "MRT",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "611.145"
+      ]
+     }
+    ],
+    "unasked": [],
+    "forbidden": [],
+    "verdict": null
+   },
+   "outcome": "CORRECT",
+   "oracle": {
+    "n_items": 9,
+    "n_ok": 9,
+    "correct": true,
+    "items": [
+     {
+      "label": "Cmax",
+      "key": "cmax",
+      "method": "linear",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "7078 ng/ml",
+       "19 min",
+       "0"
+      ]
+     },
+     {
+      "label": "Tmax",
+      "key": "tmax",
+      "method": "linear",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "19 min"
+      ]
+     },
+     {
+      "label": "AUC(0-tlast)",
+      "key": "auclast",
+      "method": "linear",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "1701680 min*ng/ml"
+      ]
+     },
+     {
+      "label": "AUC(0-inf)",
+      "key": "aucinf.obs",
+      "method": "linear",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "1738910 min*ng/ml"
+      ]
+     },
+     {
+      "label": "lambda_z",
+      "key": "lambda.z",
+      "method": "linear",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "0.00121378 1/min",
+       "4",
+       "730",
+       "2900 min"
+      ]
+     },
+     {
+      "label": "t1/2",
+      "key": "half.life",
+      "method": "linear",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "571.067 min"
+      ]
+     },
+     {
+      "label": "CL",
+      "key": "cl.obs",
+      "method": "linear",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "0.115015 l/min"
+      ]
+     },
+     {
+      "label": "Vz",
+      "key": "vz.obs",
+      "method": "linear",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "94.7579 l"
+      ]
+     },
+     {
+      "label": "MRT",
+      "key": "mrt.iv.obs",
+      "method": "linear",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "611.145 min"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "exercise": "ex18_pk2_iv_bolus",
+   "turn": 2,
+   "id": "t2",
+   "kind": "cmax_tmax",
+   "question": "Quelles sont la concentration initiale C0 (extrapolée), la Cmax et le Tmax ?",
+   "tools_withdrawn": false,
+   "max_tool_rounds": 8,
+   "answer": "D'après l'analyse déjà réalisée (analyse 2) :\n\n- **C0 (extrapolée)** : 11018.8 ng/mL\n- **Cmax** : 7078 ng/mL\n- **Tmax** : 19 min\n\nLe Cmax est observé au premier prélèvement. C0 est supérieure car elle est extrapolée à t = 0, avant ce prélèvement.",
+   "wall_s": 2.2,
+   "prompt_tokens": 7350,
+   "rounds": 1,
+   "numbers_total_before": 3,
+   "numbers_unverified_before": 0,
+   "numbers_total_after": 3,
+   "numbers_unverified_after": 0,
+   "regenerated": false,
+   "kept": "first",
+   "badge": false,
+   "findings_before": [],
+   "findings_after": [],
+   "first_answer": null,
+   "tool_calls": [],
+   "memory_calls": 0,
+   "score": {
+    "found": [
+     "C0",
+     "Cmax",
+     "Tmax"
+    ],
+    "missing": [],
+    "forbidden": [],
+    "forbidden_from_tools": [],
+    "words_missing": [],
+    "new_numbers": 0,
+    "n_must": 3,
+    "fraction": 1.0,
+    "correct": true
+   },
+   "rubric": {
+    "rubric": "2026-10-21",
+    "correct": true,
+    "reasons": [],
+    "items": [
+     {
+      "label": "C0",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "11018.8",
+       "0"
+      ]
+     },
+     {
+      "label": "Cmax",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "7078"
+      ]
+     },
+     {
+      "label": "Tmax",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "19"
+      ]
+     }
+    ],
+    "unasked": [],
+    "forbidden": [],
+    "verdict": null
+   },
+   "outcome": "CORRECT",
+   "oracle": {
+    "n_items": 3,
+    "n_ok": 3,
+    "correct": true,
+    "items": [
+     {
+      "label": "C0",
+      "key": "c0",
+      "method": "linear",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "11018.8 ng/ml",
+       "0"
+      ]
+     },
+     {
+      "label": "Cmax",
+      "key": "cmax",
+      "method": "linear",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "7078 ng/ml"
+      ]
+     },
+     {
+      "label": "Tmax",
+      "key": "tmax",
+      "method": "linear",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "19 min"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "exercise": "ex18_pk2_iv_bolus",
+   "turn": 3,
+   "id": "t3",
+   "kind": "clearance_volume",
+   "question": "Donne-moi CL et Vz avec leurs unités, exactement comme Caladrius les rapporte.",
+   "tools_withdrawn": false,
+   "max_tool_rounds": 8,
+   "answer": "Valeurs rapportées par Caladrius (analyse 2) :\n\n- **CL (obs)** : 0.115015 L/min (cl.pred : 0.115015 L/min)\n- **Vz (obs)** : 94.7579 L (vz.pred : 94.7584 L)\n\nLa dose a été fournie en mg. Caladrius a donc exprimé CL en L/min et Vz en L. Un avertissement signale pourtant que l'unité de la dose est manquante, ce qui empêche de nommer les unités dérivées de l'AUC.",
+   "wall_s": 2.9,
+   "prompt_tokens": 7536,
+   "rounds": 1,
+   "numbers_total_before": 4,
+   "numbers_unverified_before": 0,
+   "numbers_total_after": 4,
+   "numbers_unverified_after": 0,
+   "regenerated": false,
+   "kept": "first",
+   "badge": false,
+   "findings_before": [],
+   "findings_after": [],
+   "first_answer": null,
+   "tool_calls": [],
+   "memory_calls": 0,
+   "score": {
+    "found": [
+     "CL",
+     "Vz"
+    ],
+    "missing": [],
+    "forbidden": [],
+    "forbidden_from_tools": [],
+    "words_missing": [],
+    "new_numbers": 0,
+    "n_must": 2,
+    "fraction": 1.0,
+    "correct": true
+   },
+   "rubric": {
+    "rubric": "2026-10-21",
+    "correct": true,
+    "reasons": [],
+    "items": [
+     {
+      "label": "CL",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "0.115015",
+       "0.115015"
+      ]
+     },
+     {
+      "label": "Vz",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "94.7579",
+       "94.7584"
+      ]
+     }
+    ],
+    "unasked": [],
+    "forbidden": [],
+    "verdict": null
+   },
+   "outcome": "CORRECT",
+   "oracle": {
+    "n_items": 2,
+    "n_ok": 2,
+    "correct": true,
+    "items": [
+     {
+      "label": "CL",
+      "key": "cl.obs",
+      "method": "linear",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "0.115015 l/min",
+       "0.115015 l/min"
+      ]
+     },
+     {
+      "label": "Vz",
+      "key": "vz.obs",
+      "method": "linear",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "94.7579 l",
+       "94.7584 l"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "exercise": "ex18_pk2_iv_bolus",
+   "turn": 4,
+   "id": "t4",
+   "kind": "half_life",
+   "question": "Quelle est la demi-vie terminale et quel pourcentage de l'AUC est extrapolé ? Est-ce acceptable ?",
+   "tools_withdrawn": false,
+   "max_tool_rounds": 8,
+   "answer": "**Demi-vie terminale** : 571.067 min\n\n**AUC extrapolée** : 2.14058 % (aucpext.obs)\n\n**Verdict : acceptable.** Le pourcentage extrapolé (2.14058 %) est bien inférieur au seuil de 20 % utilisé par Caladrius. Aucun drapeau de qualité n'a été levé pour cette analyse.",
+   "wall_s": 2.1,
+   "prompt_tokens": 7784,
+   "rounds": 1,
+   "numbers_total_before": 4,
+   "numbers_unverified_before": 0,
+   "numbers_total_after": 4,
+   "numbers_unverified_after": 0,
+   "regenerated": false,
+   "kept": "first",
+   "badge": false,
+   "findings_before": [],
+   "findings_after": [],
+   "first_answer": null,
+   "tool_calls": [],
+   "memory_calls": 0,
+   "score": {
+    "found": [
+     "t1/2",
+     "AUC % extrapolated"
+    ],
+    "missing": [],
+    "forbidden": [],
+    "forbidden_from_tools": [],
+    "words_missing": [],
+    "new_numbers": 0,
+    "n_must": 2,
+    "fraction": 1.0,
+    "correct": true
+   },
+   "rubric": {
+    "rubric": "2026-10-21",
+    "correct": true,
+    "reasons": [],
+    "items": [
+     {
+      "label": "t1/2",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "571.067"
+      ]
+     },
+     {
+      "label": "AUC % extrapolated",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "2.14058",
+       "2.14058",
+       "20"
+      ]
+     }
+    ],
+    "unasked": [],
+    "forbidden": [],
+    "verdict": "acceptable"
+   },
+   "outcome": "CORRECT",
+   "oracle": {
+    "n_items": 2,
+    "n_ok": 2,
+    "correct": true,
+    "items": [
+     {
+      "label": "t1/2",
+      "key": "half.life",
+      "method": "linear",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "571.067 min"
+      ]
+     },
+     {
+      "label": "AUC % extrapolated",
+      "key": "aucpext.obs",
+      "method": "linear",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "2.14058 %",
+       "2.14058 %",
+       "20 %"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "exercise": "ex18_pk2_iv_bolus",
+   "turn": 5,
+   "id": "t5",
+   "kind": "lambda_z_regression",
+   "question": "Combien de points ont servi à la régression de λz et quel est le R² ajusté ?",
+   "tools_withdrawn": false,
+   "max_tool_rounds": 8,
+   "answer": "- **Nombre de points** : 4 (de 730 à 2900 min)\n- **R² ajusté** : 0.999861\n\nCes deux valeurs respectent les seuils de qualité de l'analyse (au moins 3 points, R² ajusté d'au moins 0.9).",
+   "wall_s": 3.5,
+   "prompt_tokens": 5760,
+   "rounds": 2,
+   "numbers_total_before": 4,
+   "numbers_unverified_before": 0,
+   "numbers_total_after": 4,
+   "numbers_unverified_after": 0,
+   "regenerated": false,
+   "kept": "first",
+   "badge": false,
+   "findings_before": [],
+   "findings_after": [],
+   "first_answer": null,
+   "tool_calls": [
+    {
+     "name": "analysis_get",
+     "args": {
+      "analysis": 2
+     },
+     "ok": true,
+     "shown": "{\"analysis\":2,\"label\":\"NCA of Exercice IV bolus 200 mg, all subjects\",\"status\":\"fresh\",\"options_used\":{\"auc_method\":\"linear\",\"lambda_z\":{\"adj_r_squared_factor\":0.0001,\"allow_tmax\":false,\"min_points\":3},\"quality_thresholds\":{\"max_extrapolated_percent\":20.0,\"min_adj_r_squared\":0.9,\"min_points\":3,\"min_span_ratio\":2.0},\"blq\":{\"position\":{\"first\":\"keep\",\"last\":\"keep\",\"middle\":\"drop\"}},\"missing\":\"drop\",\"negative\":\"error\",\"start\":\"c0\",\"units\":{\"concentration\":\"ng/mL\",\"dose\":\"mg\",\"time\":\"min\"}},\"subjects\":[{\"subject\":\"1\",\"dose\":200.0,\"route\":\"iv_bolus\",\"flags\":[],\"flag_messages\":[],\"parameters\":{\"c0\":\"11018.8 ng/mL\",\"cmax\":\"7078 ng/mL\",\"tmax\":\"19 min\",\"tfirst\":\"19 min\",\"tlast\":\"2900 min\",\"clast.obs\":\"45.18 ng/mL\",\"auclast\":\"1701680 min·ng/mL\",\"aucall\":\"1701680 min·ng/mL\",\"aumclast\":\"924111000 min²·ng/mL\",\"aumcall\":\"924111000 min²·ng/mL\",\"lambda.z\":\"0.00121378 1/min\",\"r.squared\":0.999907,\"adj.r.squared\":0.999861,\"lambda.z.time.first\":\"730 min\",\"lambda.z.time.last\":\"2900 min\",\"lambda.z.n.points\":4.0,\"clast.pred\":\"45.1683 ng/mL\",\"half.life\":\"571.067 min\",\"span.ratio\":3.79991,\"aucinf.obs\":\"1738910 min·ng/mL\",\"aucinf.pred\":\"1738900 min·ng/mL\",\"aumcinf.obs\":\"1062720000 min²·ng/mL\",\"aumcinf.pred\":\"1062690000 min²·ng/mL\",\"aucpext.obs\":\"2.14058 %\",\"aucpext.pred\":\"2.14004 %\",\"aumcpext.obs\":\"13.0432 %\",\"aumcpext.pred\":\"13.0402 %\",\"mrt.iv.last\":\"543.057 min\",\"mrt.iv.obs\":\"611.145 min\",\"mrt.iv.pred\":\"611.127 min\",\"cl.obs\":\"0.115015 L/min\",\"cl.pred\":\"0.115015 L/min\",\"vz.obs\":\"94.7579 L\",\"vz.pred\":\"94.7584 L\",\"vss.iv.obs\":\"70.2907 L\",\"vss.iv.pred\":\"70.2891 L\",\"vss.obs\":\"70.2907 L\",\"vss.pred\":\"70.2891 L\",\"vss.iv.last\":\"63.8258 L\",\"cmax.dn\":\"35.39 (ng/mL)/mg\",\"clast.obs.dn\":\"0.2259 (ng/mL)/mg\",\"auclast.dn\":\"8508.42 (min·ng/mL)/mg\",\"aucall.dn\":\"8508.42 (min·ng/mL)/mg\",\"aucinf.obs.dn\":\"8694.53 (min·ng/mL)/mg\",\"aucinf.pred.dn\":\"8694.48 (min·ng/mL)/mg\",\"aumclast.dn\":\"4620550 (min²·ng/mL)/mg\",\"aumcall.dn\":\"4620550 (min²·ng/mL)/mg\",\"aumcinf.obs.dn\":\"5313620 (min²·ng/mL)/mg\",\"aumcinf.pred.dn\":\"5313440 (min²·ng/mL)/mg\"},\"not_calculated\":{\"not_applicable_to_route\":[\"tlag\",\"mrt.last\",\"mrt.obs\",\"mrt.pred\"],\"no_start_concentration\":[\"aucivlast\",\"aucivall\",\"aucivinf.obs\",\"aucivinf.pred\",\"aucivpbextlast\",\"aucivpbextall\",\"aucivpbextinf.obs\",\"aucivpbextinf.pred\"]},\"not_calculated_messages\":{\"there is no concentration at the dose time; add a sample at time 0 or choose a start policy\":[\"aucivall\",\"aucivinf.obs\",\"aucivinf.pred\",\"aucivlast\",\"aucivpbextall\",\"aucivpbextinf.obs\",\"aucivpbextinf.pred\",\"aucivpbextlast\"],\"not defined for this route of administration\":[\"mrt.last\",\"mrt.obs\",\"mrt.pred\",\"tlag\"]},\"lambda_z_regression\":{\"adj_r_squared\":0.999861,\"intercept\":7.33035,\"lambda_z\":0.00121378,\"n_points\":4,\"r_squared\":0.999907,\"replaced_points\":0,\"time_first\":730.0,\"time_last\":2900.0}}],\"unit_warnings\":[{\"code\":\"missing_unit\",\"message\":\"the dose has no unit; derived units (AUC, clearance, volume) cannot be named\"}],\"dose_unit\":\"mg\"}",
+     "status": "valid"
+    }
+   ],
+   "memory_calls": 0,
+   "score": {
+    "found": [
+     "lambda_z points",
+     "adjusted R2"
+    ],
+    "missing": [],
+    "forbidden": [],
+    "forbidden_from_tools": [],
+    "words_missing": [],
+    "new_numbers": 0,
+    "n_must": 2,
+    "fraction": 1.0,
+    "correct": true
+   },
+   "rubric": {
+    "rubric": "2026-10-21",
+    "correct": true,
+    "reasons": [],
+    "items": [
+     {
+      "label": "lambda_z points",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "4",
+       "730",
+       "2900",
+       "3"
+      ]
+     },
+     {
+      "label": "adjusted R2",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "0.999861",
+       "0.9"
+      ]
+     }
+    ],
+    "unasked": [],
+    "forbidden": [],
+    "verdict": null
+   },
+   "outcome": "CORRECT",
+   "oracle": {
+    "n_items": 2,
+    "n_ok": 2,
+    "correct": true,
+    "items": [
+     {
+      "label": "lambda_z points",
+      "key": "lambda.z.n.points",
+      "method": "linear",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "4",
+       "730",
+       "2900 min",
+       "3"
+      ]
+     },
+     {
+      "label": "adjusted R2",
+      "key": "adj.r.squared",
+      "method": "linear",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "0.999861",
+       "0.9"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "exercise": "ex18_pk2_iv_bolus",
+   "turn": 6,
+   "id": "t6",
+   "kind": "recall",
+   "question": "Rappelle-moi la dose, la voie d'administration et la méthode d'AUC que j'ai indiquées au premier message.",
+   "tools_withdrawn": false,
+   "max_tool_rounds": 8,
+   "answer": "Voici ce que vous avez indiqué dans votre premier message :\n\n- **Dose** : 200 mg\n- **Voie** : bolus intraveineux\n- **Méthode d'AUC** : trapèzes linéaires\n\nCes trois éléments sont ceux de l'analyse 2.",
+   "wall_s": 2.4,
+   "prompt_tokens": 7623,
+   "rounds": 1,
+   "numbers_total_before": 1,
+   "numbers_unverified_before": 0,
+   "numbers_total_after": 1,
+   "numbers_unverified_after": 0,
+   "regenerated": false,
+   "kept": "first",
+   "badge": false,
+   "findings_before": [],
+   "findings_after": [],
+   "first_answer": null,
+   "tool_calls": [],
+   "memory_calls": 0,
+   "score": {
+    "found": [
+     "dose"
+    ],
+    "missing": [],
+    "forbidden": [],
+    "forbidden_from_tools": [],
+    "words_missing": [],
+    "new_numbers": 0,
+    "n_must": 1,
+    "fraction": 1.0,
+    "correct": true
+   },
+   "rubric": {
+    "rubric": "2026-10-21",
+    "correct": true,
+    "reasons": [],
+    "items": [
+     {
+      "label": "dose",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "200"
+      ]
+     }
+    ],
+    "unasked": [],
+    "forbidden": [],
+    "verdict": null
+   },
+   "outcome": "CORRECT",
+   "oracle": {
+    "n_items": 1,
+    "n_ok": 1,
+    "correct": true,
+    "items": [
+     {
+      "label": "dose",
+      "key": "dose",
+      "method": null,
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "200 mg"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "exercise": "ex18_pk2_iv_bolus",
+   "turn": 7,
+   "id": "t7",
+   "kind": "compare",
+   "question": "Refais l'analyse avec la méthode linear-up/log-down. De combien l'AUC(0-tlast) diffère-t-elle de celle de la méthode linéaire, en valeur absolue et en pourcentage ?",
+   "tools_withdrawn": false,
+   "max_tool_rounds": 8,
+   "answer": "AUC(0-tlast), analyses 2 (linéaire) et 3 (linear-up/log-down) :\n\n- **Méthode linéaire** : 1701680 min·ng/mL\n- **Méthode linear-up/log-down** : 1660490 min·ng/mL\n- **Différence (log-down moins linéaire)** : -41195.6 min·ng/mL, soit -2.42087 %\n\nLa méthode linear-up/log-down donne une AUC un peu plus faible. Pendant la décroissance mono-exponentielle, les trapèzes linéaires surestiment l'aire.",
+   "wall_s": 6.2,
+   "prompt_tokens": 7813,
+   "rounds": 3,
+   "numbers_total_before": 4,
+   "numbers_unverified_before": 0,
+   "numbers_total_after": 4,
+   "numbers_unverified_after": 0,
+   "regenerated": false,
+   "kept": "first",
+   "badge": false,
+   "findings_before": [],
+   "findings_after": [],
+   "first_answer": null,
+   "tool_calls": [
+    {
+     "name": "nca_run",
+     "args": {
+      "worksheet": 1,
+      "dose": 200,
+      "route": "iv_bolus",
+      "options": {
+       "auc_method": "lin_up_log_down",
+       "units": {
+        "time": "min",
+        "concentration": "ng/mL",
+        "dose": "mg"
+       }
+      },
+      "name": "NCA lin-up/log-down"
+     },
+     "ok": true,
+     "shown": "{\"analysis\":3,\"label\":\"NCA lin-up/log-down\",\"status\":\"fresh\",\"options_used\":{\"auc_method\":\"lin_up_log_down\",\"lambda_z\":{\"adj_r_squared_factor\":0.0001,\"allow_tmax\":false,\"min_points\":3},\"quality_thresholds\":{\"max_extrapolated_percent\":20.0,\"min_adj_r_squared\":0.9,\"min_points\":3,\"min_span_ratio\":2.0},\"blq\":{\"position\":{\"first\":\"keep\",\"last\":\"keep\",\"middle\":\"drop\"}},\"missing\":\"drop\",\"negative\":\"error\",\"start\":\"c0\",\"units\":{\"concentration\":\"ng/mL\",\"dose\":\"mg\",\"time\":\"min\"}},\"subjects\":[{\"subject\":\"1\",\"dose\":200.0,\"route\":\"iv_bolus\",\"flags\":[],\"flag_messages\":[],\"parameters\":{\"c0\":\"11018.8 ng/mL\",\"cmax\":\"7078 ng/mL\",\"tmax\":\"19 min\",\"tfirst\":\"19 min\",\"tlast\":\"2900 min\",\"clast.obs\":\"45.18 ng/mL\",\"auclast\":\"1660490 min·ng/mL\",\"aucall\":\"1660490 min·ng/mL\",\"aumclast\":\"923531000 min²·ng/mL\",\"aumcall\":\"923531000 min²·ng/mL\",\"lambda.z\":\"0.00121378 1/min\",\"r.squared\":0.999907,\"adj.r.squared\":0.999861,\"lambda.z.time.first\":\"730 min\",\"lambda.z.time.last\":\"2900 min\",\"lambda.z.n.points\":4.0,\"clast.pred\":\"45.1683 ng/mL\",\"half.life\":\"571.067 min\",\"span.ratio\":3.79991,\"aucinf.obs\":\"1697710 min·ng/mL\",\"aucinf.pred\":\"1697700 min·ng/mL\",\"aumcinf.obs\":\"1062140000 min²·ng/mL\",\"aumcinf.pred\":\"1062110000 min²·ng/mL\",\"aucpext.obs\":\"2.19252 %\",\"aucpext.pred\":\"2.19197 %\",\"aumcpext.obs\":\"13.0503 %\",\"aumcpext.pred\":\"13.0473 %\",\"mrt.iv.last\":\"556.18 min\",\"mrt.iv.obs\":\"625.633 min\",\"mrt.iv.pred\":\"625.615 min\",\"cl.obs\":\"0.117806 L/min\",\"cl.pred\":\"0.117806 L/min\",\"vz.obs\":\"97.0572 L\",\"vz.pred\":\"97.0578 L\",\"vss.iv.obs\":\"73.7031 L\",\"vss.iv.pred\":\"73.7015 L\",\"vss.obs\":\"73.7031 L\",\"vss.pred\":\"73.7015 L\",\"vss.iv.last\":\"66.99 L\",\"cmax.dn\":\"35.39 (ng/mL)/mg\",\"clast.obs.dn\":\"0.2259 (ng/mL)/mg\",\"auclast.dn\":\"8302.44 (min·ng/mL)/mg\",\"aucall.dn\":\"8302.44 (min·ng/mL)/mg\",\"aucinf.obs.dn\":\"8488.55 (min·ng/mL)/mg\",\"aucinf.pred.dn\":\"8488.5 (min·ng/mL)/mg\",\"aumclast.dn\":\"4617650 (min²·ng/mL)/mg\",\"aumcall.dn\":\"4617650 (min²·ng/mL)/mg\",\"aumcinf.obs.dn\":\"5310720 (min²·ng/mL)/mg\",\"aumcinf.pred.dn\":\"5310540 (min²·ng/mL)/mg\"},\"not_calculated\":{\"not_applicable_to_route\":[\"tlag\",\"mrt.last\",\"mrt.obs\",\"mrt.pred\"],\"no_start_concentration\":[\"aucivlast\",\"aucivall\",\"aucivinf.obs\",\"aucivinf.pred\",\"aucivpbextlast\",\"aucivpbextall\",\"aucivpbextinf.obs\",\"aucivpbextinf.pred\"]},\"not_calculated_messages\":{\"there is no concentration at the dose time; add a sample at time 0 or choose a start policy\":[\"aucivall\",\"aucivinf.obs\",\"aucivinf.pred\",\"aucivlast\",\"aucivpbextall\",\"aucivpbextinf.obs\",\"aucivpbextinf.pred\",\"aucivpbextlast\"],\"not defined for this route of administration\":[\"mrt.last\",\"mrt.obs\",\"mrt.pred\",\"tlag\"]},\"lambda_z_regression\":{\"adj_r_squared\":0.999861,\"intercept\":7.33035,\"lambda_z\":0.00121378,\"n_points\":4,\"r_squared\":0.999907,\"replaced_points\":0,\"time_first\":730.0,\"time_last\":2900.0}}],\"unit_warnings\":[{\"code\":\"missing_unit\",\"message\":\"the dose has no unit; derived units (AUC, clearance, volume) cannot be named\"}],\"dose_unit\":\"mg\"}",
+     "status": "valid",
+     "dose_ok": true,
+     "route_ok": true
+    },
+    {
+     "name": "analysis_compare",
+     "args": {
+      "a": 2,
+      "b": 3,
+      "parameters": [
+       "auclast"
+      ]
+     },
+     "ok": true,
+     "shown": "{\"a\":{\"analysis\":2,\"label\":\"NCA of Exercice IV bolus 200 mg, all subjects\",\"status\":\"fresh\"},\"b\":{\"analysis\":3,\"label\":\"NCA lin-up/log-down\",\"status\":\"fresh\"},\"subject\":\"1\",\"parameters\":{\"auclast\":\"a 1701680 min·ng/mL | b 1660490 min·ng/mL | difference -41195.6 min·ng/mL | percent -2.42087 % | ratio 0.975791\"},\"not_comparable\":{}}",
+     "status": "valid"
+    }
+   ],
+   "memory_calls": 0,
+   "score": {
+    "found": [
+     "AUC(0-tlast) linear",
+     "AUC(0-tlast) lin-up/log-down",
+     "AUC difference (analysis_compare)",
+     "AUC difference in % (analysis_compare)"
+    ],
+    "missing": [],
+    "forbidden": [],
+    "forbidden_from_tools": [],
+    "words_missing": [],
+    "new_numbers": 0,
+    "n_must": 4,
+    "fraction": 1.0,
+    "correct": true
+   },
+   "compare_tool": {
+    "calls": 1,
+    "valid": 1,
+    "usable": true,
+    "reference": "linear",
+    "row": {
+     "a": 1701680.0,
+     "b": 1660490.0,
+     "difference": -41195.6,
+     "percent": -2.42087,
+     "ratio": 0.975791
+    }
+   },
+   "rubric": {
+    "rubric": "2026-10-21",
+    "correct": true,
+    "reasons": [],
+    "items": [
+     {
+      "label": "AUC(0-tlast) lin-up/log-down",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "1660490"
+      ]
+     },
+     {
+      "label": "AUC(0-tlast) linear",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "3",
+       "1701680",
+       "41195.6",
+       "2.42087"
+      ]
+     },
+     {
+      "label": "AUC difference (linear)",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "41195.6",
+       "2.42087"
+      ]
+     },
+     {
+      "label": "AUC difference in % (linear)",
+      "ok": true,
+      "detail": null,
+      "claimed": [
+       "2.42087"
+      ]
+     }
+    ],
+    "unasked": [],
+    "forbidden": [],
+    "verdict": null
+   },
+   "outcome": "CORRECT",
+   "oracle": {
+    "n_items": 4,
+    "n_ok": 4,
+    "correct": true,
+    "items": [
+     {
+      "label": "AUC(0-tlast) linear",
+      "key": "auclast",
+      "method": "linear",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "3",
+       "1701680 min*ng/ml",
+       "41195.6 min*ng/ml",
+       "2.42087 %"
+      ]
+     },
+     {
+      "label": "AUC(0-tlast) lin-up/log-down",
+      "key": "auclast",
+      "method": "lin_up_log_down",
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "1660490 min*ng/ml"
+      ]
+     },
+     {
+      "label": "AUC difference (analysis_compare)",
+      "key": "compare.difference",
+      "method": null,
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": true,
+      "claimed": [
+       "41195.6 min*ng/ml",
+       "2.42087 %"
+      ]
+     },
+     {
+      "label": "AUC difference in % (analysis_compare)",
+      "key": "compare.percent",
+      "method": null,
+      "ok": true,
+      "class": null,
+      "detail": null,
+      "labelled": false,
+      "claimed": [
+       "0",
+       "2",
+       "3",
+       "1701680 min*ng/ml"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "exercise": "ex18_pk2_iv_bolus",
+   "turn": 8,
+   "id": "t8",
+   "kind": "not_available",
+   "question": "Quel est le temps de latence Tlag ?",
+   "tools_withdrawn": false,
+   "max_tool_rounds": 8,
+   "answer": "Le Tlag n'est pas calculé. Caladrius le déclare « non défini pour cette voie d'administration » : la voie est un bolus intraveineux, où il n'y a pas d'absorption et donc pas de temps de latence. Tlag n'a de sens que pour une voie extravasculaire.",
+   "wall_s": 4.2,
+   "prompt_tokens": 8655,
+   "rounds": 1,
+   "numbers_total_before": 0,
+   "numbers_unverified_before": 0,
+   "numbers_total_after": 0,
+   "numbers_unverified_after": 0,
+   "regenerated": false,
+   "kept": "first",
+   "badge": false,
+   "findings_before": [],
+   "findings_after": [],
+   "first_answer": null,
+   "tool_calls": [],
+   "memory_calls": 0,
+   "score": {
+    "found": [],
+    "missing": [],
+    "forbidden": [],
+    "forbidden_from_tools": [],
+    "words_missing": [],
+    "new_numbers": 0,
+    "n_must": 0,
+    "fraction": 1.0,
+    "correct": true
+   },
+   "rubric": {
+    "rubric": "2026-10-21",
+    "correct": true,
+    "reasons": [],
+    "items": [],
+    "unasked": [],
+    "forbidden": [],
+    "verdict": null
+   },
+   "outcome": "CORRECT"
+  }
+ ],
+ "tool_arg_audit": {
+  "calls": 4,
+  "deviating_calls": 1,
+  "deviations": [
+   {
+    "turn": 7,
+    "tool": "nca_run",
+    "status": "valid",
+    "field": "name",
+    "got": "NCA lin-up/log-down",
+    "intended": null
+   }
+  ]
+ }
+}

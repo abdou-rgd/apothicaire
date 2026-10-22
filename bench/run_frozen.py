@@ -19,6 +19,11 @@ every seed (§6.3, the strict endpoint); pass^k (stats.pass_k_curve) is printed 
   python bench/run_frozen.py analyse --tier demo --c1 v1 --c2 v2 [--out DIR]
   python bench/run_frozen.py run --tier demo --gate nolm --seeds 1,2,3 --wordings PATH --wording-seed N --decider-model DIR
                                                     the decider-only arm, no language model (bench/decider_arm.py, NO_LM_ARM.md)
+  python bench/run_frozen.py run --tier dev --gate v1 --seeds 1,2,3 --api-model claude-sonnet-5-5 --out DIR
+                                                    the frontier API arm: the same agent on a hosted model (bench/api_model.py,
+                                                    FRONTIER_ARM.md), stored as configuration v1+claude-sonnet-5-5
+  python bench/run_frozen.py analyse --tier dev --out DIR --with bench/runs/decision:v1 --c1 v1 --c2 v1+claude-sonnet-5-5
+                                                    an analysis that reads configurations of another run folder too
 
 The frozen runs refuse to start when MANIFEST.json exists and a hashed file differs (§9, T-082); without a manifest
 (before the case freeze) they run and every output says "not confirmatory". A stub run is never confirmatory.
@@ -30,7 +35,7 @@ AGENT = os.path.dirname(HERE)
 if AGENT not in sys.path: sys.path.insert(0, AGENT)
 import apothicaire, optchat  # noqa: E402,F401  (apothicaire puts optchat on the path)
 from bench import make_exercises as mk, make_frozen as mf, run_bench as rb, score, scripts, stats  # noqa: E402
-from bench import decider_arm  # noqa: E402
+from bench import api_model as api_model_mod, decider_arm  # noqa: E402
 
 DEV_BASE = os.path.join(HERE, "runs", "decision")
 SAMPLING = "temperature 0.3, thinking off"
@@ -38,6 +43,9 @@ SAMPLING = "temperature 0.3, thinking off"
 def base_dir(tier): return DEV_BASE if tier == "dev" else os.path.join(mf.tier_dir(tier), "runs")
 def tier_exercises(tier): return mk.list_exercises() if tier == "dev" else mf.list_exercises(tier)
 def run_dir(base, gate, seed): return os.path.join(base, gate, f"seed-{seed}")
+def config_name(gate, api_model=None, api_addendum=None):
+    return "+".join([gate] + ([api_model] if api_model else []) + ([api_addendum] if api_addendum else []))
+def gate_of(config): return config.split("+")[0]           # v1+claude-sonnet-5-5: the agent with gate v1 on that hosted model
 
 def load_wordings(path):
     """The wordings file of §5.3, validated (scripts.validate_wordings), with its SHA-256."""
@@ -62,12 +70,14 @@ def exercise_script(meta, csv_text, wordings, wording_seed):
     script = scripts.build_script(meta, csv_text)
     return scripts.apply_wordings(script, meta, csv_text, wordings, wording_seed) if wordings else script
 
-def run_one(ex_dir, out, gate, seed, wordings=None, wording_seed=0, stub=None, cfg_base=None, verbose=False):
+def run_one(ex_dir, out, gate, seed, wordings=None, wording_seed=0, stub=None, cfg_base=None, verbose=False, llm=None, addendum=None):
     """One exercise on one seed: run_bench.run_exercise with the frozen script; a failure of the whole exercise (the agent or
-    the engine did not start) is a record whose 8 turns are ERROR, so it stays in every denominator (§6.1)."""
+    the engine did not start) is a record whose 8 turns are ERROR, so it stays in every denominator (§6.1). `llm`: a model
+    client standing in for llama-server (api_model.AnthropicLLM, the frontier API arm); `addendum`: the 27B's prompt addendum
+    (FRONTIER_ARM.md §9)."""
     meta, csv_text = mk.load(ex_dir)
     script = exercise_script(meta, csv_text, wordings, wording_seed)
-    kw = {}
+    kw = {"llm": llm} if llm is not None else {"prompt_addendum": addendum} if addendum else {}
     if stub is not None:
         stub.begin(meta, csv_text); kw = {"llm": stub, "on_turn": stub.on_turn}
     try:
@@ -80,14 +90,23 @@ def run_one(ex_dir, out, gate, seed, wordings=None, wording_seed=0, stub=None, c
         return rec
 
 def run(tier, gate, seeds, wordings_path=None, wording_seed=None, ids=None, resume=False, stub=False, stub_error_rate=0.0,
-        base=None, verbose=False, out=print, decider="decider_unsloth:decide", decider_model=None):
+        base=None, verbose=False, out=print, decider="decider_unsloth:decide", decider_model=None, api_model=None, api_thinking=None,
+        api_effort=None, api_client=None, api_addendum=None):
     """Runs every exercise of the tier with one gate, seed after seed (C1 first, all seeds, then C2: §10.2). Returns the base.
     gate `nolm` is the decider-only arm (bench/decider_arm.py): `decider` (module:function) and `decider_model` (its folder) pick the
-    decision model, `stub` the gold decisions."""
+    decision model, `stub` the gold decisions. `api_model` runs the agent on a hosted model instead of llama-server (the frontier
+    API arm, FRONTIER_ARM.md), stored as configuration <gate>+<api_model> with its token use and cost in api_usage.json;
+    `api_client` replaces the Anthropic client (tests)."""
     if tier != "dev" and wordings_path is None and not stub:
         raise SystemExit("a frozen tier runs with its wordings (--wordings PATH, FROZEN_SET.md §5.3); --stub for a dry run")
     confirmatory, notes = preflight(tier, wordings_path, stub, gate)
     nolm = gate == decider_arm.ARM
+    if api_model and (nolm or stub): raise SystemExit("--api-model runs the agent itself: not with --gate nolm or --stub")
+    if api_addendum and (nolm or stub): raise SystemExit("--api-addendum goes to a model's prompt: not with --gate nolm or --stub")
+    if api_addendum and api_addendum not in api_model_mod.ADDENDA: raise SystemExit(f"unknown prompt addendum {api_addendum!r}")
+    api = lambda: api_model and api_model_mod.AnthropicLLM(api_model, api_thinking, api_effort, client=api_client, addendum=api_addendum)
+    llm = api()
+    config = config_name(gate, api_model, api_addendum)
     decide = None
     if nolm: decide = decider_arm.StubDecider() if stub else decider_arm.load_decider(decider, decider_model)
     wordings, w_sha = load_wordings(wordings_path) if wordings_path else (None, None)
@@ -97,16 +116,20 @@ def run(tier, gate, seeds, wordings_path=None, wording_seed=None, ids=None, resu
     cfg = dict(optchat.CFG, raw_max=1000, raw_max_chars=10 ** 9) if stub else None     # the stub has no compaction to do
     label = ("stub model (bench/stub_model.py), no language model" if stub and not nolm else
              f"decision harness (decision/harness.py), decider {getattr(decide, 'name', decider)}, no language model" if nolm else
-             f"{rb.model_label()}, {SAMPLING}")
+             llm.label() if llm else f"{rb.model_label()}, {SAMPLING}" + (f", prompt addendum {api_addendum}" if api_addendum else ""))
     for seed in seeds:
-        rd = run_dir(base, gate, seed); os.makedirs(rd, exist_ok=True)
-        info = {"tier": tier, "gate": gate, "seed": seed, "model": label, "started": datetime.datetime.now().isoformat(timespec="seconds"),
+        rd = run_dir(base, config, seed); os.makedirs(rd, exist_ok=True)
+        if llm and seed != seeds[0]: llm = api()                     # one client per seed: its usage is the seed's
+        info = {"tier": tier, "gate": gate, "config": config, "seed": seed, "model": label,
+                "started": datetime.datetime.now().isoformat(timespec="seconds"),
                 "wordings_sha256": w_sha, "wording_seed": wording_seed, "confirmatory": confirmatory, "notes": notes,
                 "apothicaire_commit": mf._git("rev-parse", "HEAD", cwd=AGENT), "exercises": [os.path.basename(d) for d in dirs]}
+        if llm: info["api"] = llm.config()
+        elif api_addendum: info["prompt_addendum"] = {"name": api_addendum, "text": api_model_mod.ADDENDA[api_addendum]}
         with open(os.path.join(rd, "run.json"), "w", encoding="utf-8") as f: json.dump(info, f, ensure_ascii=False, indent=1)
         for d in dirs:
             i = os.path.basename(d)
-            if resume and os.path.exists(os.path.join(rd, i + ".json")): out(f"skip {gate} seed {seed} {i}"); continue
+            if resume and os.path.exists(os.path.join(rd, i + ".json")): out(f"skip {config} seed {seed} {i}"); continue
             t0 = time.time()
             if nolm:
                 script = exercise_script(*mk.load(d), wordings, wording_seed)
@@ -117,16 +140,23 @@ def run(tier, gate, seeds, wordings_path=None, wording_seed=None, ids=None, resu
             if stub:
                 from bench.stub_model import StubModel
                 model = StubModel(gate, seed, stub_error_rate)
-            r = run_one(d, rd, gate, seed, wordings, wording_seed, model, cfg, verbose)
+            r = run_one(d, rd, gate, seed, wordings, wording_seed, model, cfg, verbose, llm=llm or None, addendum=None if llm else api_addendum)
             oc = [t.get("outcome", "ERROR") for t in r["turns"]]
-            out(f"{gate} seed {seed} {i}: {oc.count('CORRECT')}/{len(oc)} CORRECT, {time.time() - t0:.0f} s")
+            out(f"{config} seed {seed} {i}: {oc.count('CORRECT')}/{len(oc)} CORRECT, {time.time() - t0:.0f} s"
+                + (f", {llm.usage['cost_usd']:.2f} USD so far this seed" if llm else ""))
         meta = {"date": info["started"][:10], "exercises_run": len(dirs), "model": label, "gate": gate}
         rb.write_report(rd, rb.load_records(rd, info["exercises"]), meta)
+        if llm:
+            with open(os.path.join(rd, "api_usage.json"), "w", encoding="utf-8", newline="\n") as f:
+                json.dump({**llm.config(), **llm.usage, "refusals": llm.refusals}, f, ensure_ascii=False, indent=1); f.write("\n")
+            out(f"{config} seed {seed}: {llm.usage['calls']} calls, {llm.usage['cost_usd']:.2f} USD, {len(llm.refusals)} refusals")
     if nolm and hasattr(decide, "summary"):
         with open(os.path.join(base, gate, "decider_summary.json"), "w", encoding="utf-8") as f: json.dump(decide.summary(), f, indent=1)
     return base
 
 # ---------------------------------------------------------------- analysis (§11)
+NOT_RECORDS = ("report.json", "run.json", "api_usage.json")
+
 def _load(path):
     with open(path, encoding="utf-8") as f: return json.load(f)
 
@@ -139,7 +169,7 @@ def load_runs(base, gates=None):
             if not s.startswith("seed-"): continue
             rd = os.path.join(base, g, s)
             recs = {fn[:-5]: _load(os.path.join(rd, fn))
-                    for fn in sorted(os.listdir(rd)) if fn.endswith(".json") and fn not in ("report.json", "run.json")}
+                    for fn in sorted(os.listdir(rd)) if fn.endswith(".json") and fn not in NOT_RECORDS}
             if recs: out.setdefault(g, {})[int(s[5:])] = recs
     return out
 
@@ -227,7 +257,7 @@ def replay_section(base, runs):
         for s_dir in sorted(os.listdir(rp)):
             seed = int(s_dir[5:])
             for fn in sorted(os.listdir(os.path.join(rp, s_dir))):
-                if not fn.endswith(".json") or fn in ("report.json", "run.json"): continue
+                if not fn.endswith(".json") or fn in NOT_RECORDS: continue
                 a = _load(os.path.join(rp, s_dir, fn))
                 o = runs[g].get(seed, {}).get(a["id"])
                 same = o is not None and [t.get("answer") for t in o["turns"]] == [t.get("answer") for t in a["turns"]]
@@ -235,19 +265,29 @@ def replay_section(base, runs):
                             "turns_differing": None if o is None else [t["turn"] for t, u in zip(a["turns"], o["turns"]) if t.get("answer") != u.get("answer")]})
     return out
 
-def analyse(tier, c1="v1", c2="v2", base=None):
-    """The analysis of §11 over the stored runs; writes ANALYSIS.md and analysis.json in base. Returns the dict."""
+def analyse(tier, c1="v1", c2="v2", base=None, extra=()):
+    """The analysis of §11 over the stored runs; writes ANALYSIS.md and analysis.json in base. Returns the dict. `extra`:
+    (folder, [configurations]) read from another base too, without writing there (a new arm next to the stored v1 runs)."""
     base = base or base_dir(tier)
     runs = load_runs(base)
+    where = {g: base for g in runs}
+    for xb, gs in extra:
+        xr = load_runs(xb, gs or None)
+        missing = sorted(set(gs or []) - set(xr))
+        if missing: raise SystemExit(f"no run of {', '.join(missing)} under {xb}")
+        for g in xr:
+            if g in runs: raise SystemExit(f"configuration {g} is both under {base} and under {xb}")
+            runs[g], where[g] = xr[g], xb
     if not runs: raise SystemExit(f"no run under {base}")
-    infos = [_load(os.path.join(base, g, f"seed-{s}", "run.json"))
-             for g in runs for s in runs[g] if os.path.exists(os.path.join(base, g, f"seed-{s}", "run.json"))]
+    infos = [_load(os.path.join(where[g], g, f"seed-{s}", "run.json"))
+             for g in runs for s in runs[g] if os.path.exists(os.path.join(where[g], g, f"seed-{s}", "run.json"))]
     ids = sorted({i for i in (infos[0]["exercises"] if infos else [])} | {i for g in runs for s in runs[g] for i in runs[g][s]})
     configs = {g: config_section(runs[g], ids) for g in runs}
     res = {"tier": tier, "base": os.path.relpath(base, AGENT).replace(os.sep, "/"), "rubric": score.RUBRIC_VERSION, "exercises": ids,
            "confirmatory": bool(infos) and all(x.get("confirmatory") for x in infos),
            "notes": sorted({n for x in infos for n in x.get("notes", [])}), "models": sorted({x["model"] for x in infos}),
-           "c1": c1, "c2": c2, "configurations": configs, "replay": replay_section(base, runs)}
+           "c1": c1, "c2": c2, "configurations": configs, "replay": replay_section(base, runs),
+           "sources": {g: os.path.relpath(where[g], AGENT).replace(os.sep, "/") for g in sorted(runs) if where[g] != base}}
     if c1 in configs and c2 in configs: res["paired"] = paired_section(configs[c1], configs[c2], ids)
     if tier == "dev" and "v1" in configs and "v2" in configs:
         p1, p2 = (configs[g]["exercises"] - configs[g]["failed"]["failed"] for g in ("v1", "v2"))
@@ -265,7 +305,8 @@ def render_md(res):
     L = [f"# Frozen-set analysis: tier {res['tier']} (FROZEN_SET.md §11, rubric {res['rubric']})", ""]
     L += [f"- {'**Confirmatory.**' if res['confirmatory'] else '**Not confirmatory.**'} " + "; ".join(res["notes"] or ["case and system freeze verified"]),
           f"- exercises: {len(res['exercises'])}; model: {'; '.join(res['models']) or 'n/a'}",
-          f"- C1 (confirmatory configuration) = gate {res['c1']}, C2 = gate {res['c2']} (descriptive, §8)", ""]
+          f"- C1 (confirmatory configuration) = gate {res['c1']}, C2 = gate {res['c2']} (descriptive, §8)"]
+    L += [f"- {g} read from `{src}`" for g, src in res.get("sources", {}).items()] + [""]
     if "demo_gate_decision" in res:
         d = res["demo_gate_decision"]
         L += [f"## Demo-gate decision (§8): **{d['demo_gate']}**", "",
@@ -281,7 +322,7 @@ def render_md(res):
               f"2. Exercises with an unverifiable quantity shown on any seed: **{rb._interval_text(c['unverified_shown'])}**"
               + (f" ({', '.join(c['unverified_shown_ids'])})" if c["unverified_shown_ids"] else ""),
               "   " + ("Gate v1: a number that appears in no tool text and no user message, shown with its badge."
-                       if g == "v1" else "Decider-only arm: the harness writes engine values only; gate v1 is run on its answers and "
+                       if gate_of(g) == "v1" else "Decider-only arm: the harness writes engine values only; gate v1 is run on its answers and "
                        "counts a number found in no tool text and no user message." if g == decider_arm.ARM
                        else "Gate v2: a quantity not resolved and typed from a structured result, shown as a marker."), "",
               "### pass^k next to the per-turn rate", "",
@@ -359,27 +400,40 @@ def main():
         p.add_argument("--verbose", action="store_true")
     r.add_argument("--seeds", default="1,2,3"); r.add_argument("--resume", action="store_true")
     rp.add_argument("--seed", type=int, required=True)
+    for p in (r, rp):
+        p.add_argument("--api-model", default=None, help="run the agent on this hosted model (Anthropic Messages API, key in "
+                       "$APOTHICAIRE_API_KEY or $ANTHROPIC_API_KEY) instead of llama-server: the frontier API arm, FRONTIER_ARM.md")
+        p.add_argument("--api-thinking", default=None, choices=["between_tools", "adaptive"], help="default: the model's row of FRONTIER_ARM.md §2")
+        p.add_argument("--api-effort", default=None, choices=["low", "medium", "high", "xhigh", "max"], help="default: the model's row of FRONTIER_ARM.md §2")
+        p.add_argument("--api-addendum", default=None, choices=sorted(api_model_mod.ADDENDA),
+                       help="a prompt addendum (FRONTIER_ARM.md §8, §9): stored as <gate>+<model>+<name>, or <gate>+<name> on the 27B")
     an.add_argument("--c1", default="v1"); an.add_argument("--c2", default="v2")
+    an.add_argument("--with", dest="with_", action="append", default=[], metavar="BASE:CONFIG[,CONFIG]",
+                    help="also read these configurations from another run folder (read only), e.g. bench/runs/decision:v1")
     a = ap.parse_args(); optchat._utf8_stdout()
     base = a.out or base_dir(a.tier)
     if a.cmd == "analyse":
-        res = analyse(a.tier, a.c1, a.c2, base)
+        extra = [(w.rsplit(":", 1)[0], [g for g in w.rsplit(":", 1)[1].split(",") if g]) if ":" in w else (w, []) for w in a.with_]
+        res = analyse(a.tier, a.c1, a.c2, base, extra)
         for g, c in res["configurations"].items():
             print(f"gate {g}: failed {rb._interval_text(c['failed'])}; pass^k {', '.join(f'{k}: {_pct(v)}' for k, v in c['pass_k'].items())}")
         print("written", os.path.join(base, "ANALYSIS.md")); return
     ids = [x for x in a.ids.split(",") if x]
     if a.cmd == "replay":
         if not ids: raise SystemExit("--ids: the exercises to replay (two exercises x one seed, §10.1)")
-        tmp = os.path.join(base, a.gate, "replay")
+        cfg = config_name(a.gate, a.api_model, a.api_addendum)
+        tmp = os.path.join(base, cfg, "replay")
         run(a.tier, a.gate, [a.seed], a.wordings, a.wording_seed, ids, False, a.stub, a.stub_error_rate,
-            base=os.path.join(base, a.gate, "_replay"), verbose=a.verbose, decider=a.decider, decider_model=a.decider_model)
-        src = run_dir(os.path.join(base, a.gate, "_replay"), a.gate, a.seed)
+            base=os.path.join(base, cfg, "_replay"), verbose=a.verbose, decider=a.decider, decider_model=a.decider_model,
+            api_model=a.api_model, api_thinking=a.api_thinking, api_effort=a.api_effort, api_addendum=a.api_addendum)
+        src = run_dir(os.path.join(base, cfg, "_replay"), cfg, a.seed)
         dst = os.path.join(tmp, f"seed-{a.seed}")
         if os.path.exists(dst): shutil.rmtree(dst)
-        shutil.move(src, dst); shutil.rmtree(os.path.join(base, a.gate, "_replay"), ignore_errors=True)
+        shutil.move(src, dst); shutil.rmtree(os.path.join(base, cfg, "_replay"), ignore_errors=True)
         print("replayed into", dst); return
     run(a.tier, a.gate, [int(s) for s in a.seeds.split(",")], a.wordings, a.wording_seed, ids, a.resume, a.stub,
-        a.stub_error_rate, base=base, verbose=a.verbose, decider=a.decider, decider_model=a.decider_model)
+        a.stub_error_rate, base=base, verbose=a.verbose, decider=a.decider, decider_model=a.decider_model,
+        api_model=a.api_model, api_thinking=a.api_thinking, api_effort=a.api_effort, api_addendum=a.api_addendum)
     print("runs under", base, "- then: python bench/run_frozen.py analyse --tier", a.tier, *(["--out", a.out] if a.out else []))
 
 if __name__ == "__main__":
