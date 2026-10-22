@@ -8,3 +8,6 @@ bench/runs/*/*-data/
 decision/models/
 unsloth_compiled_cache/
 torchinductor_abdou/
+
+# Frozen-set wordings stay on the PC until the system freeze (FROZEN_SET.md section 5.3)
+bench/frozen/*/wordings.json

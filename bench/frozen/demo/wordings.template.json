@@ -1,0 +1,218 @@
+{
+  "_instructions": [
+    "Copy this file to bench/frozen/demo/wordings.json (git-ignored) and fill every empty \"text\"; delete the keys starting with _ if you like.",
+    "Per kind: 2 French wordings written by Abdou himself, 1 by dsh (DeepSeek). No wording copied from bench/scripts.py; none written or read by Claude.",
+    "Placeholders in {braces} are filled from each exercise; the required ones must appear, and \"_must_say\" is a regex the text must match.",
+    "Check: the validate_wordings one-liner of bench/frozen/README.md must print ok. Then send only the SHA-256 and the wording seed you pick, never the file."
+  ],
+  "_rules": {
+    "import_nca": {
+      "placeholders": [
+        "table",
+        "dose",
+        "route",
+        "blq_note",
+        "param_list",
+        "time_unit",
+        "conc_unit",
+        "cl_name",
+        "vz_name"
+      ],
+      "required": [
+        "table",
+        "dose",
+        "route",
+        "blq_note",
+        "param_list"
+      ],
+      "must_say": "lin[ée]air|linear|trap[èe]z|trapezoid"
+    },
+    "cmax_tmax": {
+      "placeholders": [
+        "cmax_params"
+      ],
+      "required": [
+        "cmax_params"
+      ],
+      "must_say": null
+    },
+    "clearance_volume": {
+      "placeholders": [
+        "cl_name",
+        "vz_name"
+      ],
+      "required": [
+        "cl_name",
+        "vz_name"
+      ],
+      "must_say": null
+    },
+    "half_life": {
+      "placeholders": [],
+      "required": [],
+      "must_say": "accept"
+    },
+    "lambda_z_regression": {
+      "placeholders": [],
+      "required": [],
+      "must_say": null
+    },
+    "recall": {
+      "placeholders": [],
+      "required": [],
+      "must_say": null
+    },
+    "compare": {
+      "placeholders": [],
+      "required": [],
+      "must_say": "log[\\s_-]*down"
+    },
+    "not_available": {
+      "placeholders": [
+        "missing_param"
+      ],
+      "required": [
+        "missing_param"
+      ],
+      "must_say": null
+    }
+  },
+  "wordings": {
+    "import_nca": [
+      {
+        "text": "",
+        "author": "abdou",
+        "lang": "fr"
+      },
+      {
+        "text": "",
+        "author": "abdou",
+        "lang": "fr"
+      },
+      {
+        "text": "",
+        "author": "dsh",
+        "lang": "fr"
+      }
+    ],
+    "cmax_tmax": [
+      {
+        "text": "",
+        "author": "abdou",
+        "lang": "fr"
+      },
+      {
+        "text": "",
+        "author": "abdou",
+        "lang": "fr"
+      },
+      {
+        "text": "",
+        "author": "dsh",
+        "lang": "fr"
+      }
+    ],
+    "clearance_volume": [
+      {
+        "text": "",
+        "author": "abdou",
+        "lang": "fr"
+      },
+      {
+        "text": "",
+        "author": "abdou",
+        "lang": "fr"
+      },
+      {
+        "text": "",
+        "author": "dsh",
+        "lang": "fr"
+      }
+    ],
+    "half_life": [
+      {
+        "text": "",
+        "author": "abdou",
+        "lang": "fr"
+      },
+      {
+        "text": "",
+        "author": "abdou",
+        "lang": "fr"
+      },
+      {
+        "text": "",
+        "author": "dsh",
+        "lang": "fr"
+      }
+    ],
+    "lambda_z_regression": [
+      {
+        "text": "",
+        "author": "abdou",
+        "lang": "fr"
+      },
+      {
+        "text": "",
+        "author": "abdou",
+        "lang": "fr"
+      },
+      {
+        "text": "",
+        "author": "dsh",
+        "lang": "fr"
+      }
+    ],
+    "recall": [
+      {
+        "text": "",
+        "author": "abdou",
+        "lang": "fr"
+      },
+      {
+        "text": "",
+        "author": "abdou",
+        "lang": "fr"
+      },
+      {
+        "text": "",
+        "author": "dsh",
+        "lang": "fr"
+      }
+    ],
+    "compare": [
+      {
+        "text": "",
+        "author": "abdou",
+        "lang": "fr"
+      },
+      {
+        "text": "",
+        "author": "abdou",
+        "lang": "fr"
+      },
+      {
+        "text": "",
+        "author": "dsh",
+        "lang": "fr"
+      }
+    ],
+    "not_available": [
+      {
+        "text": "",
+        "author": "abdou",
+        "lang": "fr"
+      },
+      {
+        "text": "",
+        "author": "abdou",
+        "lang": "fr"
+      },
+      {
+        "text": "",
+        "author": "dsh",
+        "lang": "fr"
+      }
+    ]
+  }
+}
