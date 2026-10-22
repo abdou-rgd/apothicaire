@@ -69,3 +69,22 @@ Dated entries, never edited in place (FROZEN_SET.md, header and §9).
   §8 at the same place in the system prompt (`api_model.with_addendum`, apothicaire e462095), development tier, seeds 1 to 3 on the
   PC. Reading fixed in advance: p(v1+scope) ≥ 19 no difference detected against Sonnet + scope (21); 14 to 18 the exact McNemar p
   decides; ≤ 13 the instruction does not help the 27B.
+
+## 2026-10-22: frontier API arm, development run of the 27B with the scope instruction (§9)
+
+- Run `bench/runs/frontier-dev-2026-10-22-27b-scope/v1+scope/` (apothicaire f7e9939, the amendment's commit; PC, llama.cpp
+  b11700, the 27B Q2_0), seeds 1, 2, 3 in sequence. Development set, in-sample, exploratory.
+
+| | v1 | Sonnet 5.5 | Opus 5.5 | Sonnet 5.5 + scope | 27B + scope |
+|---|---|---|---|---|---|
+| exercises passed (pass^3) | 14 / 25 | 0 / 25 | 0 / 25 | 21 / 25 | 14 / 25 |
+| pass^1 | 80.0 % | 2.7 % | 4.0 % | 94.7 % | 84.0 % |
+| turns CORRECT | 583 / 600 | 468 / 600 | 481 / 600 | 596 / 600 | 587 / 600 |
+| exercises with an unverifiable quantity shown | 3 / 25 | 1 / 25 | 0 / 25 | 0 / 25 | 0 / 25 |
+| regenerations | 12 | 8 | 20 | 3 | 7 |
+
+- Reading of §9 (fixed before the run): 14 is in the row "14 to 18". Against Sonnet + scope: 11 both, 10 only Sonnet, 3 only the
+  27B, exact McNemar p = 0.092 ≥ 0.05: no difference detected with the same instruction, gap 7 exercises (21 against 14).
+- The instruction's effect on the 27B, against v1: 8 exercises pass with both, 6 only with the instruction, 6 only without it,
+  exact McNemar p = 1.0: no effect on the exercises passed; turns CORRECT 587 against 583, unverifiable quantity shown 0 against 3,
+  regenerations 7 against 12. 10 of the 11 exercises the 27B + scope fails, it fails on one seed of three.
