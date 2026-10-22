@@ -1,0 +1,20 @@
+{
+ "provider": "anthropic",
+ "model": "claude-sonnet-5-5",
+ "thinking": "between_tools",
+ "effort": "high",
+ "thinking_headroom": 0,
+ "prompt_caching": "automatic",
+ "fallback_model": null,
+ "calls": 461,
+ "input_tokens": 1520,
+ "output_tokens": 141636,
+ "cache_creation_input_tokens": 826011,
+ "cache_read_input_tokens": 2156557,
+ "cost_usd": 3.915728,
+ "wall_s": 1546.59,
+ "served_by": [
+  "claude-sonnet-5-5"
+ ],
+ "refusals": []
+}
