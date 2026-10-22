@@ -38,10 +38,24 @@ PRICES = {"claude-sonnet-5-5": (2.00, 10.00, 0.20), "claude-opus-5-5": (4.00, 20
 # declared configuration per model (FRONTIER_ARM.md §2): thinking off where the model allows it, the effort of its row otherwise
 DEFAULTS = {"claude-sonnet-5-5": ("between_tools", "high"), "claude-opus-5-5": ("adaptive", "medium")}
 # prompt addenda for the hosted models only (FRONTIER_ARM.md §8, amendment of 2026-10-22): appended to the agent's system prompt
-# on every agent call, never to compaction's (structured output) and never sent to the 27B; the configuration is <gate>+<model>+<name>
+# on every agent call, never to compaction's (structured output); the configuration is <gate>+<model>+<name>. The 27B gets one
+# only through with_addendum (§9), as <gate>+<name>
 ADDENDA = {"scope": ("\n\nAnswer only what the question asks: give the quantities it names and no other parameter, even when the tool "
                      "result holds more. When it asks whether a result is acceptable, give one verdict, then its reason.")}
 _ID = re.compile(r"[^a-zA-Z0-9_-]")
+
+def with_addendum(llm, name):
+    """Gives an optchat.LLM (the 27B on llama-server) the prompt addendum `name`, where AnthropicLLM puts it (FRONTIER_ARM.md §9):
+    at the end of the system prompt of every agent call, the gate's regeneration included, never on compaction's (structured
+    output). The configuration is <gate>+<name>."""
+    if name not in ADDENDA: raise SystemExit(f"unknown prompt addendum {name!r}: {sorted(ADDENDA)}")
+    chat = llm.chat
+    def chat_with(messages, *a, response_format=None, **kw):
+        if not response_format and messages and messages[0]["role"] == "system":
+            messages = [{**messages[0], "content": (messages[0]["content"] or "") + ADDENDA[name]}] + list(messages[1:])
+        return chat(messages, *a, response_format=response_format, **kw)
+    llm.chat, llm.addendum = chat_with, name
+    return llm
 
 def _get(b, k, default=None): return b.get(k, default) if isinstance(b, dict) else getattr(b, k, default)
 

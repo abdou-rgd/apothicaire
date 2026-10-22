@@ -122,6 +122,23 @@ class TestRequest(unittest.TestCase):
         self.assertEqual(llm.config()["prompt_addendum"]["name"], "scope"); self.assertIn("prompt addendum scope", llm.label())
         with self.assertRaises(SystemExit): am.AnthropicLLM("claude-sonnet-5-5", client=Recorder(), addendum="other")
 
+    def test_the_27b_gets_the_same_addendum_at_the_same_place(self):
+        """§9: with_addendum puts on an optchat.LLM's agent calls the text AnthropicLLM appends, at the end of the system prompt."""
+        class Local:
+            def __init__(self): self.sent = []
+            def chat(self, messages, slot=0, tools=None, max_tokens=512, think=False, temperature=0.3, response_format=None):
+                self.sent.append(messages); return {"role": "assistant", "content": "ok"}
+        hist = [{"role": "system", "content": "base"}, {"role": "user", "content": "q"}]
+        llm = am.with_addendum(Local(), "scope")
+        llm.chat(hist, 0, tools=TOOLS, max_tokens=100)                                      # agent call
+        llm.chat(hist + [{"role": "assistant", "content": "d"}, {"role": "user", "content": "r"}], slot=0, tools=None)  # regeneration
+        llm.chat(hist, slot=1, max_tokens=50, response_format=optchat._json_lines_schema(3))  # compaction
+        remote = am.AnthropicLLM("claude-sonnet-5-5", client=Recorder(), addendum="scope").request(hist, TOOLS, 100)["system"]
+        self.assertEqual([m[0]["content"] for m in llm.sent], [remote, remote, "base"])
+        self.assertEqual(hist[0]["content"], "base")                                        # the caller's messages are not changed
+        self.assertEqual(llm.sent[1][1:], hist[1:] + [{"role": "assistant", "content": "d"}, {"role": "user", "content": "r"}])
+        with self.assertRaises(SystemExit): am.with_addendum(Local(), "other")
+
 class TestChat(unittest.TestCase):
     def test_tool_calls_usage_and_cost(self):
         r = response([{"type": "thinking", "thinking": "note", "signature": "s"}, {"type": "text", "text": "Je calcule."},
@@ -158,6 +175,7 @@ class TestRunner(unittest.TestCase):
         self.assertEqual(rf.config_name("v1", "claude-sonnet-5-5"), "v1+claude-sonnet-5-5")
         self.assertEqual(rf.config_name("v1"), "v1")
         self.assertEqual(rf.config_name("v1", "claude-sonnet-5-5", "scope"), "v1+claude-sonnet-5-5+scope")
+        self.assertEqual(rf.config_name("v1", None, "scope"), "v1+scope"); self.assertEqual(rf.gate_of("v1+scope"), "v1")
         self.assertEqual(rf.gate_of("v1+claude-sonnet-5-5+scope"), "v1")
         self.assertEqual(rf.gate_of("v1+claude-sonnet-5-5"), "v1"); self.assertEqual(rf.gate_of("nolm"), "nolm")
 

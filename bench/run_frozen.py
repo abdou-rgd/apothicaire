@@ -44,7 +44,7 @@ def base_dir(tier): return DEV_BASE if tier == "dev" else os.path.join(mf.tier_d
 def tier_exercises(tier): return mk.list_exercises() if tier == "dev" else mf.list_exercises(tier)
 def run_dir(base, gate, seed): return os.path.join(base, gate, f"seed-{seed}")
 def config_name(gate, api_model=None, api_addendum=None):
-    return "+".join([gate] + ([api_model] if api_model else []) + ([api_addendum] if api_model and api_addendum else []))
+    return "+".join([gate] + ([api_model] if api_model else []) + ([api_addendum] if api_addendum else []))
 def gate_of(config): return config.split("+")[0]           # v1+claude-sonnet-5-5: the agent with gate v1 on that hosted model
 
 def load_wordings(path):
@@ -70,13 +70,14 @@ def exercise_script(meta, csv_text, wordings, wording_seed):
     script = scripts.build_script(meta, csv_text)
     return scripts.apply_wordings(script, meta, csv_text, wordings, wording_seed) if wordings else script
 
-def run_one(ex_dir, out, gate, seed, wordings=None, wording_seed=0, stub=None, cfg_base=None, verbose=False, llm=None):
+def run_one(ex_dir, out, gate, seed, wordings=None, wording_seed=0, stub=None, cfg_base=None, verbose=False, llm=None, addendum=None):
     """One exercise on one seed: run_bench.run_exercise with the frozen script; a failure of the whole exercise (the agent or
     the engine did not start) is a record whose 8 turns are ERROR, so it stays in every denominator (§6.1). `llm`: a model
-    client standing in for llama-server (api_model.AnthropicLLM, the frontier API arm)."""
+    client standing in for llama-server (api_model.AnthropicLLM, the frontier API arm); `addendum`: the 27B's prompt addendum
+    (FRONTIER_ARM.md §9)."""
     meta, csv_text = mk.load(ex_dir)
     script = exercise_script(meta, csv_text, wordings, wording_seed)
-    kw = {"llm": llm} if llm is not None else {}
+    kw = {"llm": llm} if llm is not None else {"prompt_addendum": addendum} if addendum else {}
     if stub is not None:
         stub.begin(meta, csv_text); kw = {"llm": stub, "on_turn": stub.on_turn}
     try:
@@ -101,6 +102,8 @@ def run(tier, gate, seeds, wordings_path=None, wording_seed=None, ids=None, resu
     confirmatory, notes = preflight(tier, wordings_path, stub, gate)
     nolm = gate == decider_arm.ARM
     if api_model and (nolm or stub): raise SystemExit("--api-model runs the agent itself: not with --gate nolm or --stub")
+    if api_addendum and (nolm or stub): raise SystemExit("--api-addendum goes to a model's prompt: not with --gate nolm or --stub")
+    if api_addendum and api_addendum not in api_model_mod.ADDENDA: raise SystemExit(f"unknown prompt addendum {api_addendum!r}")
     api = lambda: api_model and api_model_mod.AnthropicLLM(api_model, api_thinking, api_effort, client=api_client, addendum=api_addendum)
     llm = api()
     config = config_name(gate, api_model, api_addendum)
@@ -113,7 +116,7 @@ def run(tier, gate, seeds, wordings_path=None, wording_seed=None, ids=None, resu
     cfg = dict(optchat.CFG, raw_max=1000, raw_max_chars=10 ** 9) if stub else None     # the stub has no compaction to do
     label = ("stub model (bench/stub_model.py), no language model" if stub and not nolm else
              f"decision harness (decision/harness.py), decider {getattr(decide, 'name', decider)}, no language model" if nolm else
-             llm.label() if llm else f"{rb.model_label()}, {SAMPLING}")
+             llm.label() if llm else f"{rb.model_label()}, {SAMPLING}" + (f", prompt addendum {api_addendum}" if api_addendum else ""))
     for seed in seeds:
         rd = run_dir(base, config, seed); os.makedirs(rd, exist_ok=True)
         if llm and seed != seeds[0]: llm = api()                     # one client per seed: its usage is the seed's
@@ -122,6 +125,7 @@ def run(tier, gate, seeds, wordings_path=None, wording_seed=None, ids=None, resu
                 "wordings_sha256": w_sha, "wording_seed": wording_seed, "confirmatory": confirmatory, "notes": notes,
                 "apothicaire_commit": mf._git("rev-parse", "HEAD", cwd=AGENT), "exercises": [os.path.basename(d) for d in dirs]}
         if llm: info["api"] = llm.config()
+        elif api_addendum: info["prompt_addendum"] = {"name": api_addendum, "text": api_model_mod.ADDENDA[api_addendum]}
         with open(os.path.join(rd, "run.json"), "w", encoding="utf-8") as f: json.dump(info, f, ensure_ascii=False, indent=1)
         for d in dirs:
             i = os.path.basename(d)
@@ -136,7 +140,7 @@ def run(tier, gate, seeds, wordings_path=None, wording_seed=None, ids=None, resu
             if stub:
                 from bench.stub_model import StubModel
                 model = StubModel(gate, seed, stub_error_rate)
-            r = run_one(d, rd, gate, seed, wordings, wording_seed, model, cfg, verbose, llm=llm or None)
+            r = run_one(d, rd, gate, seed, wordings, wording_seed, model, cfg, verbose, llm=llm or None, addendum=None if llm else api_addendum)
             oc = [t.get("outcome", "ERROR") for t in r["turns"]]
             out(f"{config} seed {seed} {i}: {oc.count('CORRECT')}/{len(oc)} CORRECT, {time.time() - t0:.0f} s"
                 + (f", {llm.usage['cost_usd']:.2f} USD so far this seed" if llm else ""))
@@ -402,7 +406,7 @@ def main():
         p.add_argument("--api-thinking", default=None, choices=["between_tools", "adaptive"], help="default: the model's row of FRONTIER_ARM.md §2")
         p.add_argument("--api-effort", default=None, choices=["low", "medium", "high", "xhigh", "max"], help="default: the model's row of FRONTIER_ARM.md §2")
         p.add_argument("--api-addendum", default=None, choices=sorted(api_model_mod.ADDENDA),
-                       help="a prompt addendum for the hosted model only (FRONTIER_ARM.md §8); stored as <gate>+<model>+<name>")
+                       help="a prompt addendum (FRONTIER_ARM.md §8, §9): stored as <gate>+<model>+<name>, or <gate>+<name> on the 27B")
     an.add_argument("--c1", default="v1"); an.add_argument("--c2", default="v2")
     an.add_argument("--with", dest="with_", action="append", default=[], metavar="BASE:CONFIG[,CONFIG]",
                     help="also read these configurations from another run folder (read only), e.g. bench/runs/decision:v1")
