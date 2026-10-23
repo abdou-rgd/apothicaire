@@ -363,11 +363,11 @@
       "unit": "min·mg/L"
      },
      "aumclast": {
-      "value": 4077085.8521760176,
+      "value": 4077085.852176017,
       "unit": "min²·mg/L"
      },
      "aumcall": {
-      "value": 4077085.8521760176,
+      "value": 4077085.852176017,
       "unit": "min²·mg/L"
      },
      "lambda.z": {
@@ -415,11 +415,11 @@
       "unit": "min·mg/L"
      },
      "aumcinf.obs": {
-      "value": 5033354.04805573,
+      "value": 5033354.048055729,
       "unit": "min²·mg/L"
      },
      "aumcinf.pred": {
-      "value": 5028916.16700159,
+      "value": 5028916.167001589,
       "unit": "min²·mg/L"
      },
      "aucpext.obs": {
@@ -431,7 +431,7 @@
       "unit": "%"
      },
      "aumcpext.obs": {
-      "value": 18.99862768940518,
+      "value": 18.99862768940517,
       "unit": "%"
      },
      "aumcpext.pred": {
@@ -439,7 +439,7 @@
       "unit": "%"
      },
      "mrt.iv.last": {
-      "value": 917.96468786039,
+      "value": 917.9646878603899,
       "unit": "min"
      },
      "mrt.iv.obs": {
@@ -447,7 +447,7 @@
       "unit": "min"
      },
      "mrt.iv.pred": {
-      "value": 1089.4730450289755,
+      "value": 1089.4730450289753,
       "unit": "min"
      },
      "cl.obs": {
@@ -471,7 +471,7 @@
       "unit": "L"
      },
      "vss.iv.pred": {
-      "value": 122.8870955317539,
+      "value": 122.88709553175387,
       "unit": "L"
      },
      "vss.obs": {
@@ -479,11 +479,11 @@
       "unit": "L"
      },
      "vss.pred": {
-      "value": 127.96286984683285,
+      "value": 127.96286984683282,
       "unit": "L"
      },
      "vss.iv.last": {
-      "value": 108.40678994293812,
+      "value": 108.4067899429381,
       "unit": "L"
      },
      "cmax.dn": {
@@ -511,19 +511,19 @@
       "unit": "(min·mg/L)/mg"
      },
      "aumclast.dn": {
-      "value": 8154.171704352035,
+      "value": 8154.171704352034,
       "unit": "(min²·mg/L)/mg"
      },
      "aumcall.dn": {
-      "value": 8154.171704352035,
+      "value": 8154.171704352034,
       "unit": "(min²·mg/L)/mg"
      },
      "aumcinf.obs.dn": {
-      "value": 10066.708096111459,
+      "value": 10066.708096111457,
       "unit": "(min²·mg/L)/mg"
      },
      "aumcinf.pred.dn": {
-      "value": 10057.83233400318,
+      "value": 10057.832334003178,
       "unit": "(min²·mg/L)/mg"
      }
     },
