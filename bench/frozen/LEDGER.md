@@ -184,3 +184,19 @@ Dated entries, never edited in place (FROZEN_SET.md, header and §9).
 | `exercises/fd36_pk2_oral_1/meta.json` | `6de23abdde4ae804c9d2b26494de7617d9c0b430fdc0d52133ea0be58afe5259` | `ba8d33f5f5345f4f2c061aa38247aa56e7dbec31db1f1023962fab72e1e3b08d` |
 | `exercises/fd37_iv_bolus/meta.json` | `ce3ce800870126225e3a98f3ff08b19522793df09151f22e34c712c7bc9c5996` | `fdf6b13db0a638f026e7a249954d7f6beef80b8b9a6bc87b20ffef8edc7b83ff` |
 | `exercises/fd40_pk2_iv_bolus/meta.json` | `09813c580d5f2f750563c862e4c0ab97b512f0961d5c031a58fd4d5beb48c99d` | `71d655485e7ea5691c75c464aa527232170f963c84392870556a2b9407576ae9` |
+
+## 2026-10-24: grammar arm (gate v3), development run, interruption N2 and reading
+
+- The run of `bench/GRAMMAR_ARM.md` ran on the PC under the conditions of note N1: seeds 1-3, started 2026-10-23 20:04 at commit
+  6e3758d. Seeds 1 and 2 finished (reports at 21:27 and 22:19). At 23:01, during seed 3, exercise ex21_oral_0, the desktop
+  application that hosted the run and the llama-server stopped, and both processes ended. Windows did not restart (last boot 12:10).
+- Note N2: seed 3 was resumed at about 23:55 with `python bench/run_frozen.py run --tier dev --gate v3 --seeds 3 --resume`, on the
+  same commit, binary and model, after the llama-server was restarted with the same flags. Exercises ex01 to ex20 of seed 3 were kept,
+  and ex21_oral_0 was run again from the start (its first attempt had written no result). `--resume` rewrote
+  `seed-3/run.json`; its original `started` was 2026-10-23T22:19:39. Seeds 1 and 2 were not touched.
+- Reading of §5, as written by `python bench/run_frozen.py analyse --tier dev --c1 v2 --c2 v3` (`bench/runs/grammar-dev/ANALYSIS.md`):
+  **killed**. 557 / 600 turns CORRECT, below the kill threshold of 562 / 600. The other kill conditions did not fire (median 6.2 s
+  per turn, 7 LOOP + ABSTAINED turns of 600, and the server enforced the grammar: 183 of 183 regenerations sent with it, 0
+  violations). Exercises passed on all three seeds: v1 14 / 25, v2 6 / 25, v3 5 / 25. Exercises with an unverifiable quantity shown:
+  v1 3 / 25, v2 17 / 25, v3 5 / 25. Regenerations: 183, as note N1 expected. Gate v1 stays the demo gate; gate v3 stays behind its
+  flag, development tier only.
