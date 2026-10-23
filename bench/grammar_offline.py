@@ -22,8 +22,9 @@ run the rules of the grammar on `gate_v3.Machine`, a Python re-implementation of
 Its rules are the very rules that `Grammar.gbnf` prints, the text the server receives, one rule per line. The printed text is read
 a second time by tests/gbnf_reader.py, an Earley recogniser that shares no code with gate_v3; the two agree on every prefix of the
 texts tested (tests/test_gate_v3.py::TestGrammarText), and tests/test_grammar_offline.py repeats the agreement on stored answers.
-What is not tested here is that b11700 itself takes the text as the two readers do; the first GPU run checks it (`Grammar.accepts`
-on every regenerated answer, recorded in the gate record).
+That b11700 itself takes the text as the two readers do is checked by bench/grammar_llamacpp.py: the same texts through llama.dll
+of the upstream release (ctypes, vocabulary only, CPU), same verdicts. What no offline check reaches is the HTTP path of the server;
+the first GPU run checks it (`gate_v3.conformance` of every regenerated answer, recorded in the gate record).
 
 Two grammars are run: the one the arm uses (`identifiers`: an analysis or subject number after the word that names it, "analyse 3",
 is allowed, as gate v2 exempts it) and `strict` (the letter of the three cases: no such number).

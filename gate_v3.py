@@ -37,7 +37,8 @@ does not know what the model means, only which characters may follow which.
 
 One source of truth. The GBNF text is printed from the same rules that `Machine`, a re-implementation of llama.cpp b11700's
 stack engine (src/llama-grammar.cpp), runs; `Grammar.accepts` is that recognizer; tests/gbnf_reader.py reads the printed text
-independently. See tests/test_gate_v3.py.
+independently, and bench/grammar_llamacpp.py puts it to llama.cpp b11700 itself (llama.dll through ctypes, vocabulary only, CPU).
+See tests/test_gate_v3.py.
 
   build(calls, user_texts, schemas=None, *, idents=True) -> Grammar
   Grammar.gbnf          the text sent as `grammar`
