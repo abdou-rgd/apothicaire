@@ -108,3 +108,13 @@ Dated entries, never edited in place (FROZEN_SET.md, header and §9).
   vocabulary only) agrees with `gate_v3.Machine` on 13,644 texts, 0 disagreements. What no offline check reaches is the HTTP path of the
   server; the first run checks it through the `conformance` field recorded for every regeneration.
 - Nothing in §8, C1, C2, `NO_LM_ARM.md` or `FRONTIER_ARM.md` changes. The demo gate stays v1 whatever this arm finds.
+
+## 2026-10-23: grammar arm (gate v3), run command and reading added, amendment A1 (editorial), before any run
+
+- The thresholds, definitions and readings of `bench/GRAMMAR_ARM.md` §4 and §5 were committed in 31b6edb. The run command (`python
+  bench/run_frozen.py run --tier dev --gate v3 --seeds 1,2,3`) and the code that applies §4 and §5 (`bench/grammar_arm.py`, with
+  `tests/test_grammar_arm.py`, which pins every number to the text of §4 and §5) came in the next commit, c5259e0, as §4 and §8 say.
+  Nothing in §4 or §5 was changed to fit them. No run has been made, no llama-server was started, and the engine binary was not rebuilt.
+- Amendment A1 (§9): §5 says "the five kill conditions of §4"; §4 has four (fewer than 562 / 600 turns CORRECT, median above 13.5 s per
+  turn, LOOP + ABSTAINED above 2 % of the turns, a server that does not enforce the grammar). Five is the number of success thresholds.
+  The sentence of §5 stays as written and A1 corrects it. No threshold, definition or reading changes.

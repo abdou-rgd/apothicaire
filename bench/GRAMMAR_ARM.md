@@ -278,4 +278,8 @@ says nothing about a model).
 
 ## 9. Amendments
 
-None.
+**A1 (2026-10-23, before any run; editorial).** §5 speaks of "the five kill conditions of §4". The Kill column of §4 holds four: fewer
+than 562 / 600 turns CORRECT; a median above 13.5 s per turn; LOOP + ABSTAINED above 2 % of the turns (more than 12 of 600); a server that
+does not enforce the grammar. Five is the number of success thresholds. No threshold, definition or reading changes: the sentence of §5
+is left as it was written, and this entry corrects it. `bench/grammar_arm.py` implements the four kill conditions, and
+`tests/test_grammar_arm.py` counts the cells of both columns of the table of §4 in this file.
