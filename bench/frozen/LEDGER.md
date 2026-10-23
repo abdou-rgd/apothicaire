@@ -118,3 +118,16 @@ Dated entries, never edited in place (FROZEN_SET.md, header and §9).
 - Amendment A1 (§9): §5 says "the five kill conditions of §4"; §4 has four (fewer than 562 / 600 turns CORRECT, median above 13.5 s per
   turn, LOOP + ABSTAINED above 2 % of the turns, a server that does not enforce the grammar). Five is the number of success thresholds.
   The sentence of §5 stays as written and A1 corrects it. No threshold, definition or reading changes.
+
+## 2026-10-23: grammar arm (gate v3), note N1, before any run
+
+- The success threshold "at most 50 regenerations" of `bench/GRAMMAR_ARM.md` §4 cannot be met by construction. Gate v3 applies
+  the grammar only to the regeneration call, which happens after gate v2 has refused a first draft, so the number of regenerations
+  is set by the first drafts, which the grammar does not touch (188 regenerations in the stored v2 development runs). The orchestrator
+  saw this in the offline check of PR #18 (no model output of a v3 run exists yet). The threshold stays as registered; nothing in §4 or
+  §5 changes. The report will state it as an unmet threshold and give the counts that bear on it: regenerations per refused first
+  draft, and refused regenerations.
+- Run conditions declared before the run: the PC (RTX 3060 12 GB), upstream llama.cpp b11700 with the 27B Q2_0 file
+  (`optchat/start_servers_upstream.sh` flags), the `caladrius-mcp` binary built on 2026-10-21 that served the stored v1 and v2
+  runs (caladrius e1baee3, before T-111), branch `gate-v3/grammar`. Another agent may compile Rust in a separate folder during the
+  first part of the run; the timing thresholds are read with that in mind.
