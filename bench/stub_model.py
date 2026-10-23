@@ -3,11 +3,12 @@
 It plays the part of llama-server's chat endpoint for one exercise at a time: it calls the tools a correct assistant calls
 (data_import and nca_run on turn 1; nca_run with lin-up/log-down and analysis_compare on the compare turn), reads the ids and
 the gate v2 references from the tool results it is shown, and answers from the gold of meta.json: numbers for gate v1 (the
-canonical answers of bench/mutations.py), `{{call_N.param}}` references for gate v2. The real Apothicaire client, the real
-caladrius-mcp, both gates, the rubric, the report and the analysis all run unchanged around it.
+canonical answers of bench/mutations.py), `{{call_N.param}}` references for gate v2 and for gate v3 (whose grammar, sent with a
+regeneration, it only records in `grammars`). The real Apothicaire client, the real caladrius-mcp, the gates, the rubric, the
+report and the analysis all run unchanged around it.
 
 With `error_rate` > 0 it errs on purpose, on a seeded draw per (gate, seed, exercise, turn): under gate v1 a value multiplied
-by 1.37 (the gate flags it, the regeneration repeats it, the badge is shown); under gate v2 a reference to the wrong parameter
+by 1.37 (the gate flags it, the regeneration repeats it, the badge is shown); under gate v2 and v3 a reference to the wrong parameter
 (the gate renders it, the rubric rejects it). This is only there to give the statistics mixed outcomes across seeds and
 gates; nothing measured with the stub says anything about a model.
 """
@@ -32,6 +33,7 @@ class StubModel:
     def __init__(self, gate_version="v1", seed=0, error_rate=0.0):
         self.gate_version, self.seed, self.error_rate = gate_version, seed, error_rate
         self.last, self.total_slots, self.calls = {}, 2, 0
+        self.grammars = []                                           # the grammar of each request that came with one (gate v3)
         self.meta = self.csv = self.turn = None
         self.plan, self.answer_text, self.erred = [], "", False
 
@@ -51,6 +53,7 @@ class StubModel:
     # -- the chat endpoint
     def chat(self, messages, slot=0, tools=None, max_tokens=512, think=False, **kw):
         self.calls += 1
+        if kw.get("grammar") is not None: self.grammars.append(kw["grammar"])
         self.last = {"wall_s": 0.0, "prompt_tokens": 1000, "completion_tokens": 10, "prompt_eval_n": 10, "cache_n": 990,
                      "prompt_ms": 0, "predicted_ms": 0, "gen_tps": None, "finish_reason": "stop"}
         if slot == 1 or not self.plan:                               # a compaction call, or a regeneration after the gate
@@ -95,7 +98,7 @@ class StubModel:
 
     def _answer(self, seen):
         turn, meta = self.turn, self.meta
-        if self.gate_version != "v2" or turn["kind"] in ("recall", "not_available"):
+        if self.gate_version not in ("v2", "v3") or turn["kind"] in ("recall", "not_available"):
             text = mutations.canonical(turn, meta)
             if self.erred:
                 items, _ = scripts.score.rubric_items(turn, meta)

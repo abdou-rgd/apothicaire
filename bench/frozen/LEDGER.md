@@ -89,6 +89,48 @@ Dated entries, never edited in place (FROZEN_SET.md, header and §9).
   exact McNemar p = 1.0: no effect on the exercises passed; turns CORRECT 587 against 583, unverifiable quantity shown 0 against 3,
   regenerations 7 against 12. 10 of the 11 exercises the 27B + scope fails, it fails on one seed of three.
 
+## 2026-10-23: grammar arm (gate v3) declared, before any run
+
+- `bench/GRAMMAR_ARM.md` (binding from the commit that adds it) declares one exploratory configuration, `v3`: gate v2 with its one
+  regeneration sampled under a GBNF grammar built per turn (`gate_v3.py`). Digits are allowed only inside a reference that resolves, a
+  closed label or a number the user typed; no unit may follow a reference. Development tier only, 25 exercises, seeds 1, 2, 3, the 27B
+  Q2_0 on upstream llama.cpp b11700 (23f7aabc1), the `caladrius-mcp` of the stored runs (sha256 `e38211b5ce30...`, built from caladrius
+  f119618 and never rebuilt). v1 and v2 are read from `bench/runs/decision`, not rerun. No run has been made and no llama-server started.
+- Declared before the run command exists (§4). Success: 0 free digits shown, an unverifiable quantity shown in at most 3 / 25 exercises,
+  at least 576 / 600 turns CORRECT, at most 50 regenerations, median at most 9 s per turn. Kill: fewer than 562 / 600 turns CORRECT,
+  median above 13.5 s per turn, LOOP + ABSTAINED above 2 % of the turns (more than 12), or a server that does not enforce the grammar
+  (an error that mentions the grammar, or one regeneration whose text breaks the grammar it was sent). Baselines: v1 583 / 600, 14 / 25
+  exercises passed, 3 / 25 unverifiable shown, 12 regenerations, 4.5 s; v2 562 / 600, 6 / 25, 17 / 25, 188 regenerations, 6.85 s.
+- Reading (§5): the four effects without the 50-regeneration bound are read as "the grammar does what it is for, the regeneration count
+  is unchanged", not as success. The first drafts are not under the grammar, so I expect regenerations of the order of v2's 188.
+- Offline, no GPU (§7): the grammar accepts 541 of the 564 final answers gate v2 passed and refuses 184 of the 188 first drafts that had
+  findings, touching 646 of their 651 findings; the 5 it cannot see are spelled-out numbers. llama.cpp b11700's own sampler (llama.dll,
+  vocabulary only) agrees with `gate_v3.Machine` on 13,644 texts, 0 disagreements. What no offline check reaches is the HTTP path of the
+  server; the first run checks it through the `conformance` field recorded for every regeneration.
+- Nothing in §8, C1, C2, `NO_LM_ARM.md` or `FRONTIER_ARM.md` changes. The demo gate stays v1 whatever this arm finds.
+
+## 2026-10-23: grammar arm (gate v3), run command and reading added, amendment A1 (editorial), before any run
+
+- The thresholds, definitions and readings of `bench/GRAMMAR_ARM.md` §4 and §5 were committed in 31b6edb. The run command (`python
+  bench/run_frozen.py run --tier dev --gate v3 --seeds 1,2,3`) and the code that applies §4 and §5 (`bench/grammar_arm.py`, with
+  `tests/test_grammar_arm.py`, which pins every number to the text of §4 and §5) came in the next commit, c5259e0, as §4 and §8 say.
+  Nothing in §4 or §5 was changed to fit them. No run has been made, no llama-server was started, and the engine binary was not rebuilt.
+- Amendment A1 (§9): §5 says "the five kill conditions of §4"; §4 has four (fewer than 562 / 600 turns CORRECT, median above 13.5 s per
+  turn, LOOP + ABSTAINED above 2 % of the turns, a server that does not enforce the grammar). Five is the number of success thresholds.
+  The sentence of §5 stays as written and A1 corrects it. No threshold, definition or reading changes.
+
+## 2026-10-23: grammar arm (gate v3), note N1, before any run
+
+- The success threshold "at most 50 regenerations" of `bench/GRAMMAR_ARM.md` §4 cannot be met by construction. Gate v3 applies
+  the grammar only to the regeneration call, which happens after gate v2 has refused a first draft, so the number of regenerations
+  is set by the first drafts, which the grammar does not touch (188 regenerations in the stored v2 development runs). The orchestrator
+  saw this in the offline check of PR #18 (no model output of a v3 run exists yet). The threshold stays as registered; nothing in §4 or
+  §5 changes. The report will state it as an unmet threshold and give the counts that bear on it: regenerations per refused first
+  draft, and refused regenerations.
+- Run conditions declared before the run: the PC (RTX 3060 12 GB), upstream llama.cpp b11700 with the 27B Q2_0 file
+  (`optchat/start_servers_upstream.sh` flags), the `caladrius-mcp` binary built on 2026-10-21 that served the stored v1 and v2
+  runs (caladrius e1baee3, before T-111), branch `gate-v3/grammar`. Another agent may compile Rust in a separate folder during the
+  first part of the run; the timing thresholds are read with that in mind.
 ## 2026-10-23: gold regenerated after Caladrius T-111 (the same bits on every platform)
 
 - Cause: Caladrius main took merge 634ad58 (T-111): every platform-dependent float function of the engine (exp, ln, pow...) now goes
@@ -142,3 +184,19 @@ Dated entries, never edited in place (FROZEN_SET.md, header and §9).
 | `exercises/fd36_pk2_oral_1/meta.json` | `6de23abdde4ae804c9d2b26494de7617d9c0b430fdc0d52133ea0be58afe5259` | `ba8d33f5f5345f4f2c061aa38247aa56e7dbec31db1f1023962fab72e1e3b08d` |
 | `exercises/fd37_iv_bolus/meta.json` | `ce3ce800870126225e3a98f3ff08b19522793df09151f22e34c712c7bc9c5996` | `fdf6b13db0a638f026e7a249954d7f6beef80b8b9a6bc87b20ffef8edc7b83ff` |
 | `exercises/fd40_pk2_iv_bolus/meta.json` | `09813c580d5f2f750563c862e4c0ab97b512f0961d5c031a58fd4d5beb48c99d` | `71d655485e7ea5691c75c464aa527232170f963c84392870556a2b9407576ae9` |
+
+## 2026-10-24: grammar arm (gate v3), development run, interruption N2 and reading
+
+- The run of `bench/GRAMMAR_ARM.md` ran on the PC under the conditions of note N1: seeds 1-3, started 2026-10-23 20:04 at commit
+  6e3758d. Seeds 1 and 2 finished (reports at 21:27 and 22:19). At 23:01, during seed 3, exercise ex21_oral_0, the desktop
+  application that hosted the run and the llama-server stopped, and both processes ended. Windows did not restart (last boot 12:10).
+- Note N2: seed 3 was resumed at about 23:55 with `python bench/run_frozen.py run --tier dev --gate v3 --seeds 3 --resume`, on the
+  same commit, binary and model, after the llama-server was restarted with the same flags. Exercises ex01 to ex20 of seed 3 were kept,
+  and ex21_oral_0 was run again from the start (its first attempt had written no result). `--resume` rewrote
+  `seed-3/run.json`; its original `started` was 2026-10-23T22:19:39. Seeds 1 and 2 were not touched.
+- Reading of §5, as written by `python bench/run_frozen.py analyse --tier dev --c1 v2 --c2 v3` (`bench/runs/grammar-dev/ANALYSIS.md`):
+  **killed**. 557 / 600 turns CORRECT, below the kill threshold of 562 / 600. The other kill conditions did not fire (median 6.2 s
+  per turn, 7 LOOP + ABSTAINED turns of 600, and the server enforced the grammar: 183 of 183 regenerations sent with it, 0
+  violations). Exercises passed on all three seeds: v1 14 / 25, v2 6 / 25, v3 5 / 25. Exercises with an unverifiable quantity shown:
+  v1 3 / 25, v2 17 / 25, v3 5 / 25. Regenerations: 183, as note N1 expected. Gate v1 stays the demo gate; gate v3 stays behind its
+  flag, development tier only.

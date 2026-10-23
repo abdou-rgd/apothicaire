@@ -119,7 +119,7 @@ def run_exercise(ex_dir, run_dir, cfg_base=None, verbose=False, llm=None, script
                  allow_frozen=False, prompt_addendum=None):
     """Runs the 8 turns of one exercise; returns the record (also written to <run_dir>/<id>.json). `script`: the turns to ask
     (default scripts.build_script; the frozen runner passes them with their wordings); `seed`: the sampler seed sent with each
-    request; `gate_version`: v1 or v2 (default APOTHICAIRE_GATE); `on_turn(k, turn)`: called before each turn (the stub model);
+    request; `gate_version`: v1, v2 or v3 (default APOTHICAIRE_GATE); `on_turn(k, turn)`: called before each turn (the stub model);
     `allow_frozen`: only bench/run_frozen.py runs the exercises of a frozen set; `prompt_addendum`: a name of api_model.ADDENDA
     appended to the 27B's system prompt (FRONTIER_ARM.md §9)."""
     meta, csv_text = mk.load(ex_dir)
@@ -636,8 +636,9 @@ def main():
     ap.add_argument("--rescore", action="store_true", help="recompute the scores of the stored turns with the current rules, then the report")
     ap.add_argument("--rubric-delta", default="", metavar="RUN,RUN", help="stored run folders (names under bench/runs/) rescored with the frozen-set "
                     "rubric, without modifying them; writes bench/runs/RUBRIC-RESCORE.md")
-    ap.add_argument("--gate", default=os.environ.get("APOTHICAIRE_GATE", "v1"), choices=["v1", "v2"],
-                    help="v1: the number gate (gate.py); v2: typed rendering (gate_v2.py, GATE_V2.md). Sets APOTHICAIRE_GATE for the run.")
+    ap.add_argument("--gate", default=os.environ.get("APOTHICAIRE_GATE", "v1"), choices=["v1", "v2", "v3"],
+                    help="v1: the number gate (gate.py); v2: typed rendering (gate_v2.py, GATE_V2.md); v3: v2 plus a grammar on the one "
+                         "regeneration (gate_v3.py, exploratory; the pre-registered run is bench/run_frozen.py --gate v3). Sets APOTHICAIRE_GATE for the run.")
     a = ap.parse_args(); optchat._utf8_stdout()
     if a.rubric_delta:
         out = os.path.join(RUNS, "RUBRIC-RESCORE.md")

@@ -15,16 +15,17 @@ Usage:
 Environment: APOTHICAIRE_MCP (path of caladrius-mcp), APOTHICAIRE_DATA (memory folder),
 APOTHICAIRE_INPUTS (the only folder data_import may read a file path from, default agent/inputs/),
 OPTCHAT_URL (llama-server, default http://127.0.0.1:18435), APOTHICAIRE_GATE (v1, the default: the number gate of
-gate.py; v2: the typed rendering of gate_v2.py, see GATE_V2.md).
+gate.py; v2: the typed rendering of gate_v2.py, see GATE_V2.md; v3: gate v2 and a llama.cpp grammar on the one
+regeneration, gate_v3.py, exploratory, see bench/GRAMMAR_ARM.md).
 """
-import json, os, re, subprocess, sys, threading, argparse
+import hashlib, json, os, re, subprocess, sys, threading, argparse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OFFICINA = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(OFFICINA, "optchat"))
 import optchat  # noqa: E402
 sys.path.insert(0, HERE)
-import gate, gate_v2  # noqa: E402
+import gate, gate_v2, gate_v3  # noqa: E402
 from numtext import value_text  # noqa: E402
 
 optchat.CFG["data_dir"] = os.environ.get("APOTHICAIRE_DATA", os.path.join(HERE, "data"))
@@ -88,10 +89,29 @@ def install_prompt(addition):
     for a in _ADDITIONS: base = base.replace(a, "")
     optchat.SYSTEM_PROMPT = base + addition
 
+TYPED_GATES = ("v2", "v3")            # the gates with typed rendering: references, the v2 prompt, the v2 check; v3 adds a grammar to the regeneration
+GRAMMAR_MAX_BYTES = 1_000_000         # a grammar larger than this is not sent: the regeneration then runs as gate v2's
+
 def gate_version_of(value=None):
     v = (value or os.environ.get("APOTHICAIRE_GATE") or "v1").strip().lower()
-    if v not in ("v1", "v2"): raise ValueError(f"APOTHICAIRE_GATE must be v1 or v2, not {value!r}")
+    if v not in ("v1", "v2", "v3"): raise ValueError(f"APOTHICAIRE_GATE must be v1, v2 or v3, not {value!r}")
     return v
+
+def chat_with_grammar(llm, grammar, *args, **kw):
+    """`llm.chat(*args, **kw)` with `grammar`, a GBNF text, in the request body (llama-server's `grammar` field of
+    /v1/chat/completions, which it enforces when the request has no tools). optchat.LLM.chat has no such argument and optchat is not
+    changed here, so the one request gets the field through `llm.http.post`, the way bench/run_bench.seed_requests adds the seed;
+    whatever `post` was before is put back, also when the call fails. A model without an HTTP client (bench/stub_model.py) is given
+    `grammar` as a keyword."""
+    http = getattr(llm, "http", None)
+    if http is None: return llm.chat(*args, grammar=grammar, **kw)
+    had, prev, post = "post" in vars(http), vars(http).get("post"), http.post
+    def with_grammar(url, *a, json=None, **k): return post(url, *a, json={**(json or {}), "grammar": grammar}, **k)
+    http.post = with_grammar
+    try: return llm.chat(*args, **kw)
+    finally:
+        if had: http.post = prev
+        else: del http.post
 
 # ---------------------------------------------------------------- MCP stdio client
 class MCPError(Exception): pass
@@ -416,12 +436,13 @@ FAILED_TURN = {
 # ---------------------------------------------------------------- agent
 class Apothicaire(optchat.Agent):
     def __init__(self, cfg=optchat.CFG, mcp_bin=MCP_BIN, gate_version=None):
-        self.gate_version = gate_version_of(gate_version)             # "v1" (gate.py) or "v2" (gate_v2.py), APOTHICAIRE_GATE
+        self.gate_version = gate_version_of(gate_version)             # "v1" (gate.py), "v2" (gate_v2.py) or "v3" (v2 + a grammar), APOTHICAIRE_GATE
+        self.typed = self.gate_version in TYPED_GATES                 # typed rendering: v2 and v3 cite values by reference
         self.mcp = MCPClient([mcp_bin])
         self.mcp_tools = [to_openai(self.mcp.tools[n]) for n in EXPOSED if n in self.mcp.tools]
         # optchat reads these module globals at call time (in turn() and build_messages())
         optchat.TOOLS = optchat.TOOLS[:2] + self.mcp_tools
-        install_prompt(SYSTEM_ADDITION_V2 if self.gate_version == "v2" else SYSTEM_ADDITION)
+        install_prompt(SYSTEM_ADDITION_V2 if self.typed else SYSTEM_ADDITION)
         self.tool_log = []           # every MCP call of the session: turn, name, args, ok, text, shown
         self.refused_log = []        # the calls the client refused before the engine: turn, name, args, reason
         self._turn_calls = set()     # (name, arguments) of the MCP calls of the current turn: an identical one is refused
@@ -430,12 +451,12 @@ class Apothicaire(optchat.Agent):
         self.units = {}              # worksheet id -> derived units reported by Caladrius
         self.gate_log = []           # one record per turn: the gate's counts and findings
         self._gate_rec = None
-        self.refs = {}               # gate v2: ref ("call_3") -> record (structuredContent + unit labels), persisted in refs.jsonl
-        self.schemas = self.mcp.output_schemas() if self.gate_version == "v2" else {}
+        self.refs = {}               # gate v2, v3: ref ("call_3") -> record (structuredContent + unit labels), persisted in refs.jsonl
+        self.schemas = self.mcp.output_schemas() if self.typed else {}
         self.lang = "fr" if str(cfg.get("digest_lang", "")).lower().startswith("fr") else "en"
         self.decimal_mark = "," if self.lang == "fr" else "."
         super().__init__(cfg)
-        if self.gate_version == "v2": self._load_refs()
+        if self.typed: self._load_refs()
 
     # -- gate v2: the citable results of the whole chat memory survive a restart
     def _refs_path(self): return os.path.join(self.cfg["data_dir"], "refs.jsonl")
@@ -491,7 +512,7 @@ class Apothicaire(optchat.Agent):
         try: ok, text, structured = self.mcp.call_full(name, args)
         except MCPError as e: ok, text, structured = False, f"mcp error: {e}", None
         ref = None
-        if self.gate_version == "v2" and ok and structured is not None:    # a citable result gets the next ref
+        if self.typed and ok and structured is not None:                   # a citable result gets the next ref
             ref = f"call_{len(self.refs) + 1}"
         shown = render_tool_result(name, ok, text, self.units, ref=ref)
         if ref: self._remember_ref(ref_record(ref, name, structured, self.units))
@@ -542,6 +563,19 @@ class Apothicaire(optchat.Agent):
         units = nca_units(self.units.get(ws), dose_unit)
         if units: args["options"] = {**opts, "units": units}
 
+    # -- gate v3: the grammar of one regeneration
+    def _regen_grammar(self, users):
+        """(Grammar, record) for the regeneration of this turn: built from the references the model can cite and the user's messages,
+        so it forbids exactly what gate v2 would send back again. The record says what was sent (a hash of the text, its size and
+        vocabulary) and is completed with the text that came back and its conformance. Nothing the grammar does may stop a chat: if it cannot be
+        built, or is too large, there is no grammar, the regeneration is gate v2's, and the record says why."""
+        try:
+            gr = gate_v3.build(self.refs, users, self.schemas)
+            if gr.stats["bytes"] > GRAMMAR_MAX_BYTES: raise ValueError(f"the grammar has {gr.stats['bytes']} bytes, the limit is {GRAMMAR_MAX_BYTES}")
+        except Exception as e:
+            return None, {"sent": False, "error": f"{type(e).__name__}: {e}"}
+        return gr, {"sent": True, "sha256": hashlib.sha256(gr.gbnf.encode("utf-8")).hexdigest(), **gr.stats}
+
     # -- number gate: every final answer is checked against the tool results and the user's messages
     def _chat_call(self, msgs, tools=None):
         m = super()._chat_call(msgs, None if self._withdraw_tools else tools)
@@ -552,7 +586,7 @@ class Apothicaire(optchat.Agent):
             raw_call, draft = draft, FAILED_TURN[self.lang]
             m = {**m, "content": draft}
         tool_texts, users = gate_context(self.store.log, self.mcp.tools)
-        if self.gate_version == "v2":
+        if self.typed:
             # typed rendering: the sources are the user's messages only; tool values are cited and rendered
             allowed = gate_v2.user_numbers(users)
             run = lambda text: gate_v2.check(text, self.refs, schemas=self.schemas, decimal_mark=self.decimal_mark, allowed=allowed)
@@ -572,16 +606,23 @@ class Apothicaire(optchat.Agent):
             first_last = dict(self.llm.last)
             msgs2 = list(msgs) + [{"role": "assistant", "content": draft},
                                   {"role": "user", "content": remind(g1["findings"])}]
+            gram, grec = self._regen_grammar(users) if self.gate_version == "v3" else (None, None)
+            kw = dict(slot=0, tools=None, max_tokens=self.cfg["agent_max_tokens"], think=self.cfg["agent_think"])
+            raw = new = ""
             try:
-                m2 = self.llm.chat(msgs2, slot=0, tools=None, max_tokens=self.cfg["agent_max_tokens"],
-                                   think=self.cfg["agent_think"])
+                m2 = chat_with_grammar(self.llm, gram.gbnf, msgs2, **kw) if gram else self.llm.chat(msgs2, **kw)
                 regen_stats = dict(self.llm.last)
-                new = (m2.get("content") or "").strip()
-                if tool_call_text(new): new = ""              # not an answer: the first one is kept
+                raw = (m2.get("content") or "").strip()
+                new = "" if tool_call_text(raw) else raw      # a tool call is not an answer: the first one is kept
             except optchat.LLMError as e:
-                regen_stats, new = {"error": str(e)}, ""
+                regen_stats = {"error": str(e)}
             self.llm.last = first_last                        # turn() reads the stats of the first call
             rec.update(regenerated=True, first_answer=draft, first_findings=g1["findings"], regen_stats=regen_stats)
+            if grec is not None:                              # gate v3: what was sent, and whether the text that came back obeys it
+                if gram and "error" not in regen_stats:
+                    grec["conformance"] = gate_v3.conformance(gram, raw, regen_stats.get("finish_reason"))
+                    grec["text"] = raw                        # kept even when the first answer wins, so that a violation can be audited
+                rec["grammar"] = grec
             if new:
                 g2 = run(new)
                 rec["after_regeneration"] = _counts(g2)
@@ -601,7 +642,7 @@ class Apothicaire(optchat.Agent):
             stat["gate"] = rec
             self.gate_log.append({"turn": len(self.turn_stats), **rec})
             self._append_gate_jsonl(self.gate_log[-1])
-            if rec.get("version") == "v2" and "rendered" in rec:
+            if rec.get("version") in TYPED_GATES and "rendered" in rec:
                 ans = rec["rendered"]                         # the memory keeps the references; the user sees the values
                 if rec["findings"]: ans = ans + "\n\n" + gate_v2.badge(rec["findings"])
             elif rec["findings"]:                             # shown, not stored in the memory
