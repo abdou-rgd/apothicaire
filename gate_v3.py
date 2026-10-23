@@ -44,6 +44,8 @@ independently. See tests/test_gate_v3.py.
   Grammar.accepts(text) True when the grammar derives the whole text
   Grammar.scan(text)    [(start, end, modes)] the spans the grammar refuses (skipping to the next acceptable character)
   Grammar.stats         sizes and vocabulary counts
+  conformance(grammar, text, finish_reason)
+                        what the agent records for a regeneration: did the text that came back obey the grammar it was sent
 """
 import bisect, itertools, re, time
 
@@ -761,3 +763,16 @@ def build(calls, user_texts=(), schemas=None, *, idents=True):
     if vocab.numbers: rules.update(trie_rules("ph-num", vocab.numbers))
     if vocab.idents: rules.update(trie_rules("ph-id", vocab.idents))
     return Grammar(factor_classes(rules), vocab, (time.perf_counter() - t0) * 1000)
+
+
+def conformance(grammar, text, finish_reason=None):
+    """How a regeneration sampled under `grammar` looks to the grammar. llama.cpp's sampler gives no token the grammar refuses a
+    chance, so the text that comes back is a prefix of the language, and a text that stopped by itself is a sentence of it; if it
+    is not, the server did not enforce the grammar it was sent. `alive`: no character of `text` is refused. `accepted`: `text` may
+    end where it does. A text cut at the token limit (`finish_reason` "length") is owed to be alive only, and so is one whose
+    reason is unknown; an empty text is owed nothing. `violation` is the verdict: the grammar was not enforced."""
+    spans = grammar.scan(text)
+    refused = [s[0] for s in spans if s[0] < len(text)]
+    stopped = finish_reason not in (None, "length")
+    return {"accepted": not spans, "alive": not refused, "refused_at": refused[0] if refused else None, "finish_reason": finish_reason,
+            "violation": bool(refused) or (bool(text) and stopped and bool(spans))}

@@ -835,7 +835,8 @@ class TestStaticPrefixBudget(unittest.TestCase):
         apothicaire.install_prompt(apothicaire.SYSTEM_ADDITION); self.assertTrue(optchat.SYSTEM_PROMPT.endswith(apothicaire.SYSTEM_ADDITION))
         self.assertNotIn(a2, optchat.SYSTEM_PROMPT); self.assertEqual(optchat.SYSTEM_PROMPT.count("You are Apothicaire"), 1)
         self.assertEqual(apothicaire.gate_version_of("V2"), "v2"); self.assertEqual(apothicaire.gate_version_of(None), os.environ.get("APOTHICAIRE_GATE", "v1"))
-        with self.assertRaises(ValueError): apothicaire.gate_version_of("v3")
+        self.assertEqual(apothicaire.gate_version_of("V3"), "v3")          # gate v3 (gate_v3.py): v2 plus a grammar on the regeneration
+        with self.assertRaises(ValueError): apothicaire.gate_version_of("v4")
 
 
 if __name__ == "__main__":
