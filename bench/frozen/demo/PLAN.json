@@ -5,8 +5,8 @@
  "n": 40,
  "generator": "bench/make_frozen.py",
  "development_seed_excluded": 20261009,
- "caladrius_commit": "da818d26fc5975cbb94ef0fa6bd88a2451a014d7",
- "mcp_binary_sha256": "6bbf99ab7618725ec218f1f57b64aef4a2bfec8861a7678fce386f1f4c60c13f",
+ "caladrius_commit": "cb327a0811442edc89a0184c000abf081760aced",
+ "mcp_binary_sha256": "2b246b5dedf3bf7554b163127917d57f1e0f96ecabf0ff5cf450f73bdbdc041c",
  "exercises": [
   {
    "id": "fd01_oral_1",

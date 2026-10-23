@@ -348,19 +348,19 @@
       "unit": "ng/mL"
      },
      "auclast": {
-      "value": 233225.85472885318,
+      "value": 233225.85472885324,
       "unit": "min·ng/mL"
      },
      "aucall": {
-      "value": 233225.85472885318,
+      "value": 233225.85472885324,
       "unit": "min·ng/mL"
      },
      "aumclast": {
-      "value": 68541269.61754005,
+      "value": 68541269.6175401,
       "unit": "min²·ng/mL"
      },
      "aumcall": {
-      "value": 68541269.61754005,
+      "value": 68541269.6175401,
       "unit": "min²·ng/mL"
      },
      "lambda.z": {
@@ -400,19 +400,19 @@
       "unit": ""
      },
      "aucinf.obs": {
-      "value": 242270.50626087014,
+      "value": 242270.5062608702,
       "unit": "min·ng/mL"
      },
      "aucinf.pred": {
-      "value": 242110.69271559417,
+      "value": 242110.69271559422,
       "unit": "min·ng/mL"
      },
      "aumcinf.obs": {
-      "value": 81483643.57811972,
+      "value": 81483643.57811978,
       "unit": "min²·ng/mL"
      },
      "aumcinf.pred": {
-      "value": 81254959.62500046,
+      "value": 81254959.62500052,
       "unit": "min²·ng/mL"
      },
      "aucpext.obs": {
@@ -424,59 +424,59 @@
       "unit": "%"
      },
      "aumcpext.obs": {
-      "value": 15.883401124756535,
+      "value": 15.883401124756524,
       "unit": "%"
      },
      "aumcpext.pred": {
-      "value": 15.646663374316262,
+      "value": 15.64666337431625,
       "unit": "%"
      },
      "mrt.iv.last": {
-      "value": 293.8836678172995,
+      "value": 293.88366781729974,
       "unit": "min"
      },
      "mrt.iv.obs": {
-      "value": 336.3333194606049,
+      "value": 336.3333194606051,
       "unit": "min"
      },
      "mrt.iv.pred": {
-      "value": 335.61078494145704,
+      "value": 335.6107849414572,
       "unit": "min"
      },
      "cl.obs": {
-      "value": 0.4127617576871812,
+      "value": 0.4127617576871811,
       "unit": "L/min"
      },
      "cl.pred": {
-      "value": 0.41303421537630863,
+      "value": 0.4130342153763085,
       "unit": "L/min"
      },
      "vz.obs": {
-      "value": 136.60030237919418,
+      "value": 136.60030237919415,
       "unit": "L"
      },
      "vz.pred": {
-      "value": 136.69047013826395,
+      "value": 136.6904701382639,
       "unit": "L"
      },
      "vss.iv.obs": {
-      "value": 138.82553210932352,
+      "value": 138.82553210932355,
       "unit": "L"
      },
      "vss.iv.pred": {
-      "value": 138.61873723012178,
+      "value": 138.6187372301218,
       "unit": "L"
      },
      "vss.obs": {
-      "value": 138.82553210932352,
+      "value": 138.82553210932355,
       "unit": "L"
      },
      "vss.pred": {
-      "value": 138.61873723012178,
+      "value": 138.6187372301218,
       "unit": "L"
      },
      "vss.iv.last": {
-      "value": 126.00818556714766,
+      "value": 126.0081855671477,
       "unit": "L"
      },
      "cmax.dn": {
@@ -488,35 +488,35 @@
       "unit": "(ng/mL)/mg"
      },
      "auclast.dn": {
-      "value": 2332.2585472885316,
+      "value": 2332.2585472885326,
       "unit": "(min·ng/mL)/mg"
      },
      "aucall.dn": {
-      "value": 2332.2585472885316,
+      "value": 2332.2585472885326,
       "unit": "(min·ng/mL)/mg"
      },
      "aucinf.obs.dn": {
-      "value": 2422.7050626087016,
+      "value": 2422.705062608702,
       "unit": "(min·ng/mL)/mg"
      },
      "aucinf.pred.dn": {
-      "value": 2421.106927155942,
+      "value": 2421.1069271559422,
       "unit": "(min·ng/mL)/mg"
      },
      "aumclast.dn": {
-      "value": 685412.6961754005,
+      "value": 685412.6961754011,
       "unit": "(min²·ng/mL)/mg"
      },
      "aumcall.dn": {
-      "value": 685412.6961754005,
+      "value": 685412.6961754011,
       "unit": "(min²·ng/mL)/mg"
      },
      "aumcinf.obs.dn": {
-      "value": 814836.4357811973,
+      "value": 814836.4357811979,
       "unit": "(min²·ng/mL)/mg"
      },
      "aumcinf.pred.dn": {
-      "value": 812549.5962500046,
+      "value": 812549.5962500052,
       "unit": "(min²·ng/mL)/mg"
      }
     },

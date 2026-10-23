@@ -343,19 +343,19 @@
       "unit": "mg/L"
      },
      "auclast": {
-      "value": 85.58681140034149,
+      "value": 85.5868114003415,
       "unit": "h·mg/L"
      },
      "aucall": {
-      "value": 85.58681140034149,
+      "value": 85.5868114003415,
       "unit": "h·mg/L"
      },
      "aumclast": {
-      "value": 1276.31596254336,
+      "value": 1276.3159625433602,
       "unit": "h²·mg/L"
      },
      "aumcall": {
-      "value": 1276.31596254336,
+      "value": 1276.3159625433602,
       "unit": "h²·mg/L"
      },
      "lambda.z": {
@@ -395,19 +395,19 @@
       "unit": ""
      },
      "aucinf.obs": {
-      "value": 88.66711966323423,
+      "value": 88.66711966323425,
       "unit": "h·mg/L"
      },
      "aucinf.pred": {
-      "value": 88.6485821341813,
+      "value": 88.64858213418131,
       "unit": "h·mg/L"
      },
      "aumcinf.obs": {
-      "value": 1490.988314263996,
+      "value": 1490.9883142639962,
       "unit": "h²·mg/L"
      },
      "aumcinf.pred": {
-      "value": 1489.696399748549,
+      "value": 1489.6963997485493,
       "unit": "h²·mg/L"
      },
      "aucpext.obs": {
@@ -423,7 +423,7 @@
       "unit": "%"
      },
      "aumcpext.pred": {
-      "value": 14.323753299075326,
+      "value": 14.323753299075314,
       "unit": "%"
      },
      "mrt.last": {
@@ -443,7 +443,7 @@
       "unit": "L/h"
      },
      "cl.pred": {
-      "value": 4.512198507524321,
+      "value": 4.51219850752432,
       "unit": "L/h"
      },
      "vz.obs": {
@@ -451,7 +451,7 @@
       "unit": "L"
      },
      "vz.pred": {
-      "value": 70.80469865786775,
+      "value": 70.80469865786773,
       "unit": "L"
      },
      "vss.obs": {
@@ -459,7 +459,7 @@
       "unit": "L"
      },
      "vss.pred": {
-      "value": 75.8253060543644,
+      "value": 75.82530605436439,
       "unit": "L"
      },
      "cmax.dn": {
@@ -471,35 +471,35 @@
       "unit": "(mg/L)/mg"
      },
      "auclast.dn": {
-      "value": 0.21396702850085372,
+      "value": 0.21396702850085375,
       "unit": "(h·mg/L)/mg"
      },
      "aucall.dn": {
-      "value": 0.21396702850085372,
+      "value": 0.21396702850085375,
       "unit": "(h·mg/L)/mg"
      },
      "aucinf.obs.dn": {
-      "value": 0.22166779915808557,
+      "value": 0.22166779915808563,
       "unit": "(h·mg/L)/mg"
      },
      "aucinf.pred.dn": {
-      "value": 0.22162145533545324,
+      "value": 0.22162145533545327,
       "unit": "(h·mg/L)/mg"
      },
      "aumclast.dn": {
-      "value": 3.1907899063584,
+      "value": 3.1907899063584004,
       "unit": "(h²·mg/L)/mg"
      },
      "aumcall.dn": {
-      "value": 3.1907899063584,
+      "value": 3.1907899063584004,
       "unit": "(h²·mg/L)/mg"
      },
      "aumcinf.obs.dn": {
-      "value": 3.7274707856599902,
+      "value": 3.7274707856599907,
       "unit": "(h²·mg/L)/mg"
      },
      "aumcinf.pred.dn": {
-      "value": 3.7242409993713728,
+      "value": 3.724240999371373,
       "unit": "(h²·mg/L)/mg"
      }
     },

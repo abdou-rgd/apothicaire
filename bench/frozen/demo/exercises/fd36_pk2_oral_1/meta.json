@@ -122,11 +122,11 @@
       "unit": "1/h"
      },
      "r.squared": {
-      "value": 0.9253046107809353,
+      "value": 0.9253046107809352,
       "unit": ""
      },
      "adj.r.squared": {
-      "value": 0.8879569161714029,
+      "value": 0.8879569161714027,
       "unit": ""
      },
      "lambda.z.time.first": {
@@ -142,7 +142,7 @@
       "unit": ""
      },
      "clast.pred": {
-      "value": 1.4848620021383125,
+      "value": 1.4848620021383123,
       "unit": "ng/mL"
      },
      "half.life": {
@@ -300,18 +300,18 @@
      {
       "code": "low_adjusted_r_squared",
       "threshold": 0.9,
-      "value": 0.8879569161714029
+      "value": 0.8879569161714027
      }
     ],
     "flag_messages": [
      "the terminal phase fits poorly (adjusted R² 0.8880 < 0.9); check the selected points or choose them manually"
     ],
     "lambda_z_regression": {
-     "adj_r_squared": 0.8879569161714029,
+     "adj_r_squared": 0.8879569161714027,
      "intercept": 4.028978702623957,
      "lambda_z": 0.30280473854502854,
      "n_points": 4,
-     "r_squared": 0.9253046107809353,
+     "r_squared": 0.9253046107809352,
      "replaced_points": 0,
      "selected": true,
      "time_first": 2.0,
@@ -358,19 +358,19 @@
       "unit": "ng/mL"
      },
      "auclast": {
-      "value": 174.07050787042863,
+      "value": 174.07050787042866,
       "unit": "h·ng/mL"
      },
      "aucall": {
-      "value": 183.55050787042862,
+      "value": 183.55050787042865,
       "unit": "h·ng/mL"
      },
      "aumclast": {
-      "value": 506.5704614856337,
+      "value": 506.57046148563376,
       "unit": "h²·ng/mL"
      },
      "aumcall": {
-      "value": 620.3304614856337,
+      "value": 620.3304614856338,
       "unit": "h²·ng/mL"
      },
      "lambda.z": {
@@ -378,11 +378,11 @@
       "unit": "1/h"
      },
      "r.squared": {
-      "value": 0.9253046107809353,
+      "value": 0.9253046107809352,
       "unit": ""
      },
      "adj.r.squared": {
-      "value": 0.8879569161714029,
+      "value": 0.8879569161714027,
       "unit": ""
      },
      "lambda.z.time.first": {
@@ -398,7 +398,7 @@
       "unit": ""
      },
      "clast.pred": {
-      "value": 1.4848620021383125,
+      "value": 1.4848620021383123,
       "unit": "ng/mL"
      },
      "half.life": {
@@ -410,15 +410,15 @@
       "unit": ""
      },
      "aucinf.obs": {
-      "value": 180.3319686689295,
+      "value": 180.33196866892953,
       "unit": "h·ng/mL"
      },
      "aucinf.pred": {
-      "value": 178.97420260543524,
+      "value": 178.97420260543527,
       "unit": "h·ng/mL"
      },
      "aumcinf.obs": {
-      "value": 602.3862037950507,
+      "value": 602.3862037950508,
       "unit": "h²·ng/mL"
      },
      "aumcinf.pred": {
@@ -434,11 +434,11 @@
       "unit": "%"
      },
      "aumcpext.obs": {
-      "value": 15.906031995051517,
+      "value": 15.906031995051528,
       "unit": "%"
      },
      "aumcpext.pred": {
-      "value": 12.90189422665865,
+      "value": 12.901894226658639,
       "unit": "%"
      },
      "mrt.last": {
@@ -450,31 +450,31 @@
       "unit": "h"
      },
      "mrt.pred": {
-      "value": 3.2496808861806943,
+      "value": 3.249680886180694,
       "unit": "h"
      },
      "cl.obs": {
-      "value": 11.09065694098748,
+      "value": 11.090656940987477,
       "unit": "L/h"
      },
      "cl.pred": {
-      "value": 11.174794863644008,
+      "value": 11.174794863644006,
       "unit": "L/h"
      },
      "vz.obs": {
-      "value": 36.626431258235556,
+      "value": 36.62643125823555,
       "unit": "L"
      },
      "vz.pred": {
-      "value": 36.904293233120136,
+      "value": 36.90429323312013,
       "unit": "L"
      },
      "vss.obs": {
-      "value": 37.04755613542949,
+      "value": 37.04755613542948,
       "unit": "L"
      },
      "vss.pred": {
-      "value": 36.31451727537413,
+      "value": 36.31451727537412,
       "unit": "L"
      },
      "cmax.dn": {
@@ -486,31 +486,31 @@
       "unit": "(ng/mL)/ug"
      },
      "auclast.dn": {
-      "value": 0.08703525393521432,
+      "value": 0.08703525393521433,
       "unit": "(h·ng/mL)/ug"
      },
      "aucall.dn": {
-      "value": 0.09177525393521431,
+      "value": 0.09177525393521432,
       "unit": "(h·ng/mL)/ug"
      },
      "aucinf.obs.dn": {
-      "value": 0.09016598433446475,
+      "value": 0.09016598433446477,
       "unit": "(h·ng/mL)/ug"
      },
      "aucinf.pred.dn": {
-      "value": 0.08948710130271761,
+      "value": 0.08948710130271763,
       "unit": "(h·ng/mL)/ug"
      },
      "aumclast.dn": {
-      "value": 0.25328523074281684,
+      "value": 0.2532852307428169,
       "unit": "(h²·ng/mL)/ug"
      },
      "aumcall.dn": {
-      "value": 0.3101652307428168,
+      "value": 0.3101652307428169,
       "unit": "(h²·ng/mL)/ug"
      },
      "aumcinf.obs.dn": {
-      "value": 0.30119310189752535,
+      "value": 0.3011931018975254,
       "unit": "(h²·ng/mL)/ug"
      },
      "aumcinf.pred.dn": {
@@ -556,18 +556,18 @@
      {
       "code": "low_adjusted_r_squared",
       "threshold": 0.9,
-      "value": 0.8879569161714029
+      "value": 0.8879569161714027
      }
     ],
     "flag_messages": [
      "the terminal phase fits poorly (adjusted R² 0.8880 < 0.9); check the selected points or choose them manually"
     ],
     "lambda_z_regression": {
-     "adj_r_squared": 0.8879569161714029,
+     "adj_r_squared": 0.8879569161714027,
      "intercept": 4.028978702623957,
      "lambda_z": 0.30280473854502854,
      "n_points": 4,
-     "r_squared": 0.9253046107809353,
+     "r_squared": 0.9253046107809352,
      "replaced_points": 0,
      "selected": true,
      "time_first": 2.0,

@@ -135,7 +135,7 @@
       "unit": ""
      },
      "clast.pred": {
-      "value": 0.15311796376403516,
+      "value": 0.15311796376403514,
       "unit": "mg/L"
      },
      "half.life": {
@@ -159,7 +159,7 @@
       "unit": "h²·mg/L"
      },
      "aumcinf.pred": {
-      "value": 252.85133928095658,
+      "value": 252.85133928095655,
       "unit": "h²·mg/L"
      },
      "aucpext.obs": {
@@ -175,7 +175,7 @@
       "unit": "%"
      },
      "aumcpext.pred": {
-      "value": 18.382957398263354,
+      "value": 18.382957398263343,
       "unit": "%"
      },
      "mrt.last": {
@@ -187,7 +187,7 @@
       "unit": "h"
      },
      "mrt.pred": {
-      "value": 8.613836110677621,
+      "value": 8.61383611067762,
       "unit": "h"
      },
      "cl.obs": {
@@ -211,7 +211,7 @@
       "unit": "L"
      },
      "vss.pred": {
-      "value": 88.03375068443069,
+      "value": 88.03375068443067,
       "unit": "L"
      },
      "cmax.dn": {
@@ -383,7 +383,7 @@
       "unit": ""
      },
      "clast.pred": {
-      "value": 0.15311796376403516,
+      "value": 0.15311796376403514,
       "unit": "mg/L"
      },
      "half.life": {
@@ -407,7 +407,7 @@
       "unit": "h²·mg/L"
      },
      "aumcinf.pred": {
-      "value": 257.59325561248295,
+      "value": 257.5932556124829,
       "unit": "h²·mg/L"
      },
      "aucpext.obs": {
@@ -423,7 +423,7 @@
       "unit": "%"
      },
      "aumcpext.pred": {
-      "value": 18.04455395015556,
+      "value": 18.04455395015555,
       "unit": "%"
      },
      "mrt.last": {
@@ -435,7 +435,7 @@
       "unit": "h"
      },
      "mrt.pred": {
-      "value": 9.54746171299358,
+      "value": 9.547461712993579,
       "unit": "h"
      },
      "cl.obs": {
@@ -459,7 +459,7 @@
       "unit": "L"
      },
      "vss.pred": {
-      "value": 106.1604174507677,
+      "value": 106.16041745076767,
       "unit": "L"
      },
      "cmax.dn": {
@@ -499,7 +499,7 @@
       "unit": "(h²·mg/L)/mg"
      },
      "aumcinf.pred.dn": {
-      "value": 0.8586441853749431,
+      "value": 0.858644185374943,
       "unit": "(h²·mg/L)/mg"
      }
     },
