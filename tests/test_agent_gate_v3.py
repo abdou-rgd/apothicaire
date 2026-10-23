@@ -113,6 +113,7 @@ class TestAgentGateV3(unittest.TestCase):
         self.assertTrue(rec["sent"]); self.assertEqual(rec["sha256"], hashlib.sha256(gr.gbnf.encode("utf-8")).hexdigest())
         self.assertEqual({k: rec[k] for k in ("rules", "bytes", "refs", "numbers", "idents")}, {k: gr.stats[k] for k in ("rules", "bytes", "refs", "numbers", "idents")})
         self.assertEqual({k: v for k, v in rec["conformance"].items()}, {"accepted": True, "alive": True, "refused_at": None, "finish_reason": "stop", "violation": False})
+        self.assertEqual(rec["text"], "Cmax = {{call_2.cmax}}.")                      # the text that came back is kept with its verdict
         with open(os.path.join(self.dir, "gate.jsonl"), encoding="utf-8") as f: logged = [json.loads(line) for line in f]
         self.assertEqual(logged[-1]["grammar"], rec); self.assertEqual(logged[-1]["version"], "v3")       # the record goes to gate.jsonl
         p = shown_params(ag)["subjects"][0]["parameters"]["cmax"]
@@ -166,6 +167,7 @@ class TestAgentGateV3(unittest.TestCase):
         ans, st = ag.turn(USER, verbose=False)
         c = st["gate"]["grammar"]["conformance"]
         self.assertEqual((c["accepted"], c["alive"], c["violation"]), (False, False, True))
+        self.assertTrue(st["gate"]["grammar"]["text"].startswith("Demi-vie = "))       # the refused text is kept too: a violation can be audited
         typed = shown_params(ag)["subjects"][0]["parameters"]["half.life"]
         start = len("Demi-vie = ")
         self.assertIn(c["refused_at"], range(start, start + len(typed)))              # inside the typed number: no user number begins like it
@@ -190,7 +192,7 @@ class TestAgentGateV3(unittest.TestCase):
         g = st["gate"]
         self.assertTrue(g["regenerated"]); self.assertEqual(g["kept"], "first")
         self.assertIn("HTTP 500", g["regen_stats"]["error"]); self.assertIn("failed to parse grammar", g["regen_stats"]["error"])
-        self.assertTrue(g["grammar"]["sent"]); self.assertNotIn("conformance", g["grammar"])
+        self.assertTrue(g["grammar"]["sent"]); self.assertNotIn("conformance", g["grammar"]); self.assertNotIn("text", g["grammar"])
         self.assertIn("grammar", self.server.bodies[3]); self.assertIn("⚠", ans)
 
     def test_a_grammar_that_cannot_be_built_gives_the_v2_regeneration_and_the_record_says_why(self):

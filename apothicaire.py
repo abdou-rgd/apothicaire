@@ -567,7 +567,7 @@ class Apothicaire(optchat.Agent):
     def _regen_grammar(self, users):
         """(Grammar, record) for the regeneration of this turn: built from the references the model can cite and the user's messages,
         so it forbids exactly what gate v2 would send back again. The record says what was sent (a hash of the text, its size and
-        vocabulary) and is completed with the conformance of the answer. Nothing the grammar does may stop a chat: if it cannot be
+        vocabulary) and is completed with the text that came back and its conformance. Nothing the grammar does may stop a chat: if it cannot be
         built, or is too large, there is no grammar, the regeneration is gate v2's, and the record says why."""
         try:
             gr = gate_v3.build(self.refs, users, self.schemas)
@@ -619,7 +619,9 @@ class Apothicaire(optchat.Agent):
             self.llm.last = first_last                        # turn() reads the stats of the first call
             rec.update(regenerated=True, first_answer=draft, first_findings=g1["findings"], regen_stats=regen_stats)
             if grec is not None:                              # gate v3: what was sent, and whether the text that came back obeys it
-                if gram and "error" not in regen_stats: grec["conformance"] = gate_v3.conformance(gram, raw, regen_stats.get("finish_reason"))
+                if gram and "error" not in regen_stats:
+                    grec["conformance"] = gate_v3.conformance(gram, raw, regen_stats.get("finish_reason"))
+                    grec["text"] = raw                        # kept even when the first answer wins, so that a violation can be audited
                 rec["grammar"] = grec
             if new:
                 g2 = run(new)
