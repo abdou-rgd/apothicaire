@@ -134,7 +134,7 @@
       "unit": ""
      },
      "clast.pred": {
-      "value": 186.30148521860954,
+      "value": 186.3014852186095,
       "unit": "ng/mL"
      },
      "half.life": {
@@ -158,7 +158,7 @@
       "unit": "min²·ng/mL"
      },
      "aumcinf.pred": {
-      "value": 6436434281.216113,
+      "value": 6436434281.216112,
       "unit": "min²·ng/mL"
      },
      "aucpext.obs": {
@@ -174,7 +174,7 @@
       "unit": "%"
      },
      "aumcpext.pred": {
-      "value": 11.417994018223043,
+      "value": 11.417994018223032,
       "unit": "%"
      },
      "mrt.iv.last": {
@@ -186,7 +186,7 @@
       "unit": "min"
      },
      "mrt.iv.pred": {
-      "value": 915.7499255278918,
+      "value": 915.7499255278917,
       "unit": "min"
      },
      "cl.obs": {
@@ -210,7 +210,7 @@
       "unit": "L"
      },
      "vss.iv.pred": {
-      "value": 65.14460409793021,
+      "value": 65.1446040979302,
       "unit": "L"
      },
      "vss.obs": {
@@ -218,7 +218,7 @@
       "unit": "L"
      },
      "vss.pred": {
-      "value": 65.14460409793021,
+      "value": 65.1446040979302,
       "unit": "L"
      },
      "vss.iv.last": {
@@ -262,7 +262,7 @@
       "unit": "(min²·ng/mL)/mg"
      },
      "aumcinf.pred.dn": {
-      "value": 12872868.562432226,
+      "value": 12872868.562432224,
       "unit": "(min²·ng/mL)/mg"
      }
     },
@@ -388,7 +388,7 @@
       "unit": ""
      },
      "clast.pred": {
-      "value": 186.30148521860954,
+      "value": 186.3014852186095,
       "unit": "ng/mL"
      },
      "half.life": {

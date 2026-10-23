@@ -136,7 +136,7 @@
       "unit": ""
      },
      "clast.pred": {
-      "value": 0.710885064238527,
+      "value": 0.7108850642385267,
       "unit": "ng/mL"
      },
      "half.life": {
@@ -160,7 +160,7 @@
       "unit": "h²·ng/mL"
      },
      "aumcinf.pred": {
-      "value": 887.6977985352562,
+      "value": 887.6977985352561,
       "unit": "h²·ng/mL"
      },
      "aucpext.obs": {
@@ -176,7 +176,7 @@
       "unit": "%"
      },
      "aumcpext.pred": {
-      "value": 14.225747629838326,
+      "value": 14.225747629838315,
       "unit": "%"
      },
      "mrt.last": {
@@ -188,7 +188,7 @@
       "unit": "h"
      },
      "mrt.pred": {
-      "value": 8.544966341953778,
+      "value": 8.544966341953776,
       "unit": "h"
      },
      "cl.obs": {
@@ -212,7 +212,7 @@
       "unit": "L"
      },
      "vss.pred": {
-      "value": 164.50744815545008,
+      "value": 164.50744815545005,
       "unit": "L"
      },
      "cmax.dn": {
@@ -252,7 +252,7 @@
       "unit": "(h²·ng/mL)/ug"
      },
      "aumcinf.pred.dn": {
-      "value": 0.4438488992676281,
+      "value": 0.44384889926762805,
       "unit": "(h²·ng/mL)/ug"
      }
     },
@@ -294,7 +294,7 @@
     "flag_messages": [],
     "lambda_z_regression": {
      "adj_r_squared": 0.9872691499344806,
-     "intercept": 3.1612683013032745,
+     "intercept": 3.161268301303274,
      "lambda_z": 0.1592051280555678,
      "n_points": 4,
      "r_squared": 0.991512766622987,
@@ -384,7 +384,7 @@
       "unit": ""
      },
      "clast.pred": {
-      "value": 0.710885064238527,
+      "value": 0.7108850642385267,
       "unit": "ng/mL"
      },
      "half.life": {
@@ -408,7 +408,7 @@
       "unit": "h²·ng/mL"
      },
      "aumcinf.pred": {
-      "value": 879.7796082830098,
+      "value": 879.7796082830097,
       "unit": "h²·ng/mL"
      },
      "aucpext.obs": {
@@ -424,7 +424,7 @@
       "unit": "%"
      },
      "aumcpext.pred": {
-      "value": 14.35378216843526,
+      "value": 14.353782168435247,
       "unit": "%"
      },
      "mrt.last": {
@@ -500,7 +500,7 @@
       "unit": "(h²·ng/mL)/ug"
      },
      "aumcinf.pred.dn": {
-      "value": 0.4398898041415049,
+      "value": 0.43988980414150486,
       "unit": "(h²·ng/mL)/ug"
      }
     },
@@ -542,7 +542,7 @@
     "flag_messages": [],
     "lambda_z_regression": {
      "adj_r_squared": 0.9872691499344806,
-     "intercept": 3.1612683013032745,
+     "intercept": 3.161268301303274,
      "lambda_z": 0.1592051280555678,
      "n_points": 4,
      "r_squared": 0.991512766622987,

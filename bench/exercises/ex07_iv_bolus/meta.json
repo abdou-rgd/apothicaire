@@ -119,11 +119,11 @@
       "unit": "1/h"
      },
      "r.squared": {
-      "value": 0.9980980429774516,
+      "value": 0.9980980429774515,
       "unit": ""
      },
      "adj.r.squared": {
-      "value": 0.997717651572942,
+      "value": 0.9977176515729418,
       "unit": ""
      },
      "lambda.z.time.first": {
@@ -302,11 +302,11 @@
     "flags": [],
     "flag_messages": [],
     "lambda_z_regression": {
-     "adj_r_squared": 0.997717651572942,
+     "adj_r_squared": 0.9977176515729418,
      "intercept": 3.33733284757934,
      "lambda_z": 0.1557533652886699,
      "n_points": 7,
-     "r_squared": 0.9980980429774516,
+     "r_squared": 0.9980980429774515,
      "replaced_points": 0,
      "selected": true,
      "time_first": 3.2,
@@ -373,11 +373,11 @@
       "unit": "1/h"
      },
      "r.squared": {
-      "value": 0.9980980429774516,
+      "value": 0.9980980429774515,
       "unit": ""
      },
      "adj.r.squared": {
-      "value": 0.997717651572942,
+      "value": 0.9977176515729418,
       "unit": ""
      },
      "lambda.z.time.first": {
@@ -556,11 +556,11 @@
     "flags": [],
     "flag_messages": [],
     "lambda_z_regression": {
-     "adj_r_squared": 0.997717651572942,
+     "adj_r_squared": 0.9977176515729418,
      "intercept": 3.33733284757934,
      "lambda_z": 0.1557533652886699,
      "n_points": 7,
-     "r_squared": 0.9980980429774516,
+     "r_squared": 0.9980980429774515,
      "replaced_points": 0,
      "selected": true,
      "time_first": 3.2,

@@ -111,15 +111,15 @@
       "unit": "h²·mg/L"
      },
      "lambda.z": {
-      "value": 0.058542835140985364,
+      "value": 0.05854283514098537,
       "unit": "1/h"
      },
      "r.squared": {
-      "value": 0.9999103774590418,
+      "value": 0.9999103774590413,
       "unit": ""
      },
      "adj.r.squared": {
-      "value": 0.9998207549180835,
+      "value": 0.9998207549180826,
       "unit": ""
      },
      "lambda.z.time.first": {
@@ -139,11 +139,11 @@
       "unit": "mg/L"
      },
      "half.life": {
-      "value": 11.840000213359646,
+      "value": 11.840000213359644,
       "unit": "h"
      },
      "span.ratio": {
-      "value": 3.8006756071865877,
+      "value": 3.800675607186588,
       "unit": ""
      },
      "aucinf.obs": {
@@ -203,7 +203,7 @@
       "unit": "L"
      },
      "vz.pred": {
-      "value": 92.33789039648856,
+      "value": 92.33789039648855,
       "unit": "L"
      },
      "vss.obs": {
@@ -292,11 +292,11 @@
     "flags": [],
     "flag_messages": [],
     "lambda_z_regression": {
-     "adj_r_squared": 0.9998207549180835,
-     "intercept": 1.7819263255892321,
-     "lambda_z": 0.058542835140985364,
+     "adj_r_squared": 0.9998207549180826,
+     "intercept": 1.7819263255892326,
+     "lambda_z": 0.05854283514098537,
      "n_points": 3,
-     "r_squared": 0.9999103774590418,
+     "r_squared": 0.9999103774590413,
      "replaced_points": 0,
      "selected": true,
      "time_first": 16.0,
@@ -359,15 +359,15 @@
       "unit": "h²·mg/L"
      },
      "lambda.z": {
-      "value": 0.058542835140985364,
+      "value": 0.05854283514098537,
       "unit": "1/h"
      },
      "r.squared": {
-      "value": 0.9999103774590418,
+      "value": 0.9999103774590413,
       "unit": ""
      },
      "adj.r.squared": {
-      "value": 0.9998207549180835,
+      "value": 0.9998207549180826,
       "unit": ""
      },
      "lambda.z.time.first": {
@@ -387,11 +387,11 @@
       "unit": "mg/L"
      },
      "half.life": {
-      "value": 11.840000213359646,
+      "value": 11.840000213359644,
       "unit": "h"
      },
      "span.ratio": {
-      "value": 3.8006756071865877,
+      "value": 3.800675607186588,
       "unit": ""
      },
      "aucinf.obs": {
@@ -447,11 +447,11 @@
       "unit": "L/h"
      },
      "vz.obs": {
-      "value": 97.61468566231353,
+      "value": 97.61468566231352,
       "unit": "L"
      },
      "vz.pred": {
-      "value": 97.63000957913982,
+      "value": 97.63000957913981,
       "unit": "L"
      },
      "vss.obs": {
@@ -540,11 +540,11 @@
     "flags": [],
     "flag_messages": [],
     "lambda_z_regression": {
-     "adj_r_squared": 0.9998207549180835,
-     "intercept": 1.7819263255892321,
-     "lambda_z": 0.058542835140985364,
+     "adj_r_squared": 0.9998207549180826,
+     "intercept": 1.7819263255892326,
+     "lambda_z": 0.05854283514098537,
      "n_points": 3,
-     "r_squared": 0.9999103774590418,
+     "r_squared": 0.9999103774590413,
      "replaced_points": 0,
      "selected": true,
      "time_first": 16.0,

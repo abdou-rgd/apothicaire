@@ -1,3 +1,6 @@
 # Exercise data and gold are hashed (make_frozen.py --check, MANIFEST.json): keep LF on every OS so
 # a Windows checkout with core.autocrlf hashes the same bytes as the cloud.
 bench/** text=auto eol=lf
+# decision/exercises/ is regenerated and compared byte for byte with the committed files (test_exercises_regenerate_byte_identical
+# in tests/test_decision_dataset.py): LF here too, or every data.csv of a Windows checkout differs by its line ending alone.
+decision/exercises/** text=auto eol=lf
