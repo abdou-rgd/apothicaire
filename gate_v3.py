@@ -17,7 +17,7 @@ What the grammar lets the model write. A "free digit" is a digit that is none of
 
 One extension, switchable (`idents=False`), kept apart because it goes beyond the letter of (a) to (c): an analysis id or a
 subject label that is in this chat's tool results, after the words the model uses to name it ("analyse 3", "sujet 1"). Gate v2
-exempts those small integers; without them the grammar would refuse about a quarter of the answers gate v2 passes.
+exempts those small integers; without them the grammar would refuse about one in six of the answers gate v2 passes (95 of 564).
 
 Everything else is prose: no digit, no brace (PROSE below). The prose is a deterministic automaton of "modes", one GBNF rule
 each, that mirrors what gate v2 flags around a reference and a number (gate_v2._adjacent, gate._read_unit):

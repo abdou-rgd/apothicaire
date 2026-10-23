@@ -24,6 +24,11 @@ every seed (§6.3, the strict endpoint); pass^k (stats.pass_k_curve) is printed 
                                                     FRONTIER_ARM.md), stored as configuration v1+claude-sonnet-5-5
   python bench/run_frozen.py analyse --tier dev --out DIR --with bench/runs/decision:v1 --c1 v1 --c2 v1+claude-sonnet-5-5
                                                     an analysis that reads configurations of another run folder too
+  python bench/run_frozen.py run --tier dev --gate v3 --seeds 1,2,3                     the grammar arm: gate v2 plus a grammar on the
+                                                    one regeneration (bench/grammar_arm.py, GRAMMAR_ARM.md); development tier only,
+                                                    stored under bench/runs/grammar-dev/v3
+  python bench/run_frozen.py analyse --tier dev --c1 v2 --c2 v3                         v1, v2 (read from bench/runs/decision, not
+                                                    rerun) and v3 side by side, with the reading of GRAMMAR_ARM.md §5
 
 The frozen runs refuse to start when MANIFEST.json exists and a hashed file differs (§9, T-082); without a manifest
 (before the case freeze) they run and every output says "not confirmatory". A stub run is never confirmatory.
@@ -35,12 +40,15 @@ AGENT = os.path.dirname(HERE)
 if AGENT not in sys.path: sys.path.insert(0, AGENT)
 import apothicaire, optchat  # noqa: E402,F401  (apothicaire puts optchat on the path)
 from bench import make_exercises as mk, make_frozen as mf, run_bench as rb, score, scripts, stats  # noqa: E402
-from bench import api_model as api_model_mod, decider_arm  # noqa: E402
+from bench import api_model as api_model_mod, decider_arm, grammar_arm  # noqa: E402
 
 DEV_BASE = os.path.join(HERE, "runs", "decision")
+GRAMMAR_BASE = os.path.join(HERE, "runs", "grammar-dev")    # GRAMMAR_ARM.md §3: the default folder of gate v3, so that DEV_BASE stays the decision's
 SAMPLING = "temperature 0.3, thinking off"
 
-def base_dir(tier): return DEV_BASE if tier == "dev" else os.path.join(mf.tier_dir(tier), "runs")
+def base_dir(tier, gate=None):
+    if tier != "dev": return os.path.join(mf.tier_dir(tier), "runs")
+    return GRAMMAR_BASE if gate == grammar_arm.ARM else DEV_BASE
 def tier_exercises(tier): return mk.list_exercises() if tier == "dev" else mf.list_exercises(tier)
 def run_dir(base, gate, seed): return os.path.join(base, gate, f"seed-{seed}")
 def config_name(gate, api_model=None, api_addendum=None):
@@ -56,7 +64,9 @@ def load_wordings(path):
 
 def preflight(tier, wordings_path, stub, gate=None):
     """(confirmatory, notes): refuses a frozen run whose hashed files differ from MANIFEST.json (§9)."""
-    if tier == "dev": return False, ["development set: in-sample, never confirmatory (§8)"]
+    if tier == "dev":
+        return False, ["development set: in-sample, never confirmatory (§8)"] + (
+            ["gate v3: exploratory arm (GRAMMAR_ARM.md), v2 plus a grammar on the one regeneration"] if gate == grammar_arm.ARM else [])
     notes = []
     bad = mf.verify_manifest(tier, wordings_path)
     if bad: raise SystemExit(f"MANIFEST.json mismatch, the run does not start (§9): {', '.join(bad)}")
@@ -96,7 +106,11 @@ def run(tier, gate, seeds, wordings_path=None, wording_seed=None, ids=None, resu
     gate `nolm` is the decider-only arm (bench/decider_arm.py): `decider` (module:function) and `decider_model` (its folder) pick the
     decision model, `stub` the gold decisions. `api_model` runs the agent on a hosted model instead of llama-server (the frontier
     API arm, FRONTIER_ARM.md), stored as configuration <gate>+<api_model> with its token use and cost in api_usage.json;
-    `api_client` replaces the Anthropic client (tests)."""
+    `api_client` replaces the Anthropic client (tests). Gate `v3` is the grammar arm (bench/grammar_arm.py, GRAMMAR_ARM.md): the 27B
+    on the development tier only, stored under bench/runs/grammar-dev unless `base` says otherwise."""
+    if gate == grammar_arm.ARM:
+        if tier != "dev": raise SystemExit("gate v3 is exploratory and runs on the development tier only (GRAMMAR_ARM.md §3): --tier dev")
+        if api_model or api_addendum: raise SystemExit("gate v3 runs the 27B behind llama-server: not with --api-model or --api-addendum (GRAMMAR_ARM.md §3)")
     if tier != "dev" and wordings_path is None and not stub:
         raise SystemExit("a frozen tier runs with its wordings (--wordings PATH, FROZEN_SET.md §5.3); --stub for a dry run")
     confirmatory, notes = preflight(tier, wordings_path, stub, gate)
@@ -111,7 +125,7 @@ def run(tier, gate, seeds, wordings_path=None, wording_seed=None, ids=None, resu
     if nolm: decide = decider_arm.StubDecider() if stub else decider_arm.load_decider(decider, decider_model)
     wordings, w_sha = load_wordings(wordings_path) if wordings_path else (None, None)
     if wordings and wording_seed is None: raise SystemExit("--wording-seed is required with --wordings (recorded in the manifest)")
-    base = base or base_dir(tier)
+    base = base or base_dir(tier, gate)
     dirs = [d for d in tier_exercises(tier) if not ids or os.path.basename(d) in ids]
     cfg = dict(optchat.CFG, raw_max=1000, raw_max_chars=10 ** 9) if stub else None     # the stub has no compaction to do
     label = ("stub model (bench/stub_model.py), no language model" if stub and not nolm else
@@ -267,8 +281,9 @@ def replay_section(base, runs):
 
 def analyse(tier, c1="v1", c2="v2", base=None, extra=()):
     """The analysis of §11 over the stored runs; writes ANALYSIS.md and analysis.json in base. Returns the dict. `extra`:
-    (folder, [configurations]) read from another base too, without writing there (a new arm next to the stored v1 runs)."""
-    base = base or base_dir(tier)
+    (folder, [configurations]) read from another base too, without writing there (a new arm next to the stored v1 runs). With gate v3
+    among the runs the grammar arm is read too (bench/grammar_arm.py) and its default folder is bench/runs/grammar-dev."""
+    base = base or base_dir(tier, grammar_arm.ARM if grammar_arm.ARM in (c1, c2) else None)
     runs = load_runs(base)
     where = {g: base for g in runs}
     for xb, gs in extra:
@@ -279,8 +294,9 @@ def analyse(tier, c1="v1", c2="v2", base=None, extra=()):
             if g in runs: raise SystemExit(f"configuration {g} is both under {base} and under {xb}")
             runs[g], where[g] = xr[g], xb
     if not runs: raise SystemExit(f"no run under {base}")
-    infos = [_load(os.path.join(where[g], g, f"seed-{s}", "run.json"))
-             for g in runs for s in runs[g] if os.path.exists(os.path.join(where[g], g, f"seed-{s}", "run.json"))]
+    infos_of = {g: [_load(os.path.join(where[g], g, f"seed-{s}", "run.json")) for s in runs[g]
+                    if os.path.exists(os.path.join(where[g], g, f"seed-{s}", "run.json"))] for g in runs}
+    infos = [x for g in runs for x in infos_of[g]]
     ids = sorted({i for i in (infos[0]["exercises"] if infos else [])} | {i for g in runs for s in runs[g] for i in runs[g][s]})
     configs = {g: config_section(runs[g], ids) for g in runs}
     res = {"tier": tier, "base": os.path.relpath(base, AGENT).replace(os.sep, "/"), "rubric": score.RUBRIC_VERSION, "exercises": ids,
@@ -289,7 +305,10 @@ def analyse(tier, c1="v1", c2="v2", base=None, extra=()):
            "c1": c1, "c2": c2, "configurations": configs, "replay": replay_section(base, runs),
            "sources": {g: os.path.relpath(where[g], AGENT).replace(os.sep, "/") for g in sorted(runs) if where[g] != base}}
     if c1 in configs and c2 in configs: res["paired"] = paired_section(configs[c1], configs[c2], ids)
-    if tier == "dev" and "v1" in configs and "v2" in configs:
+    if grammar_arm.ARM in configs:
+        res["grammar_arm"] = grammar_arm.read(configs, where, runs, infos_of)
+        res["grammar_arm"]["paired"] = {g: paired_section(configs[g], configs[grammar_arm.ARM], ids) for g in ("v2", "v1") if g in configs}
+    elif tier == "dev" and "v1" in configs and "v2" in configs:             # the decision of 2026-10-21 is not recomputed with the grammar arm
         p1, p2 = (configs[g]["exercises"] - configs[g]["failed"]["failed"] for g in ("v1", "v2"))
         res["demo_gate_decision"] = {"v1_exercises_passed": p1, "v2_exercises_passed": p2, "demo_gate": "v2" if p2 >= p1 else "v1",
                                      "rule": "v2 if it passes at least as many development exercises as v1 (strict rule of §6.3), ties to v2 (§8)"}
@@ -305,15 +324,19 @@ def render_md(res):
     L = [f"# Frozen-set analysis: tier {res['tier']} (FROZEN_SET.md §11, rubric {res['rubric']})", ""]
     L += [f"- {'**Confirmatory.**' if res['confirmatory'] else '**Not confirmatory.**'} " + "; ".join(res["notes"] or ["case and system freeze verified"]),
           f"- exercises: {len(res['exercises'])}; model: {'; '.join(res['models']) or 'n/a'}",
-          f"- C1 (confirmatory configuration) = gate {res['c1']}, C2 = gate {res['c2']} (descriptive, §8)"]
+          (f"- exploratory arm: gate {grammar_arm.ARM} (GRAMMAR_ARM.md); the other configurations are stored runs, read and not rerun"
+           if "grammar_arm" in res else f"- C1 (confirmatory configuration) = gate {res['c1']}, C2 = gate {res['c2']} (descriptive, §8)")]
     L += [f"- {g} read from `{src}`" for g, src in res.get("sources", {}).items()] + [""]
+    if "grammar_arm" in res: L += grammar_arm.render(res["grammar_arm"])
     if "demo_gate_decision" in res:
         d = res["demo_gate_decision"]
         L += [f"## Demo-gate decision (§8): **{d['demo_gate']}**", "",
               f"v1 passes {d['v1_exercises_passed']} / {len(res['exercises'])} development exercises, v2 passes {d['v2_exercises_passed']} "
               f"(strict rule: the 8 turns CORRECT on every seed). Rule: {d['rule']}. In-sample figures.", ""]
-    for g, c in sorted(res["configurations"].items(), key=lambda x: (x[0] != res["c1"], x[0])):
-        role = "C1" if g == res["c1"] else "C2" if g == res["c2"] else "exploratory"
+    arm = "grammar_arm" in res
+    for g, c in sorted(res["configurations"].items(), key=lambda x: (False if arm else x[0] != res["c1"], x[0])):
+        role = (("exploratory arm" if g == grammar_arm.ARM else "stored run") if arm else
+                "C1" if g == res["c1"] else "C2" if g == res["c2"] else "exploratory")
         k = len(c["seeds"])
         L += [f"## Gate {g} ({role}), seeds {', '.join(map(str, c['seeds']))}", "",
               "### Primary endpoints (§11.1)", "",
@@ -324,7 +347,8 @@ def render_md(res):
               "   " + ("Gate v1: a number that appears in no tool text and no user message, shown with its badge."
                        if gate_of(g) == "v1" else "Decider-only arm: the harness writes engine values only; gate v1 is run on its answers and "
                        "counts a number found in no tool text and no user message." if g == decider_arm.ARM
-                       else "Gate v2: a quantity not resolved and typed from a structured result, shown as a marker."), "",
+                       else "Gate v2: a quantity not resolved and typed from a structured result, shown as a marker."
+                       + (" Gate v3 reads every answer with gate v2." if gate_of(g) == grammar_arm.ARM else "")), "",
               "### pass^k next to the per-turn rate", "",
               "| | value |", "|---|---|",
               f"| turns CORRECT (descriptive, cluster bootstrap 95 %) | {c['turns_correct']} / {c['turns']} = {_pct(c['turns_correct'] / c['turns'] if c['turns'] else None)}"
@@ -359,7 +383,7 @@ def render_md(res):
                 L.append(f"| {kk} | {b['turns']} | {b['decisions_all_right']} | {b['failed_with_right_decisions']} | "
                          f"{', '.join(b['questions_wrong']) or '-'} |")
             L.append("")
-    if "paired" in res:
+    if "paired" in res and not arm:                       # with the grammar arm the pairs are v3 against v2 and v3 against v1 (above)
         p = res["paired"]
         L += [f"## Paired comparison C1 = {res['c1']} vs C2 = {res['c2']} (§11.3)" + (", descriptive in this tier" if res["tier"] != "page" else ""), "",
               f"- both pass {p['both_pass']}, neither {p['neither_passes']}, only C1 {len(p['only_c1_passes'])}"
@@ -386,10 +410,12 @@ def main():
     r = sub.add_parser("run"); rp = sub.add_parser("replay"); an = sub.add_parser("analyse")
     for p in (r, rp, an):
         p.add_argument("--tier", default="demo", choices=["dev"] + sorted(mf.TIERS))
-        p.add_argument("--out", default=None, help="base folder (default bench/frozen/<tier>/runs, or bench/runs/decision for dev)")
+        p.add_argument("--out", default=None, help="base folder (default bench/frozen/<tier>/runs, bench/runs/decision for dev, "
+                       "bench/runs/grammar-dev for dev with gate v3)")
     for p in (r, rp):
-        p.add_argument("--gate", required=True, choices=["v1", "v2", decider_arm.ARM],
-                       help=f"v1, v2 (the 27B agent with that gate) or {decider_arm.ARM} (the decider-only arm, no language model)")
+        p.add_argument("--gate", required=True, choices=["v1", "v2", grammar_arm.ARM, decider_arm.ARM],
+                       help=f"v1, v2 (the 27B agent with that gate), {grammar_arm.ARM} (gate v2 plus a grammar on the one regeneration: the "
+                            f"grammar arm, development tier only, GRAMMAR_ARM.md) or {decider_arm.ARM} (the decider-only arm, no language model)")
         p.add_argument("--decider", default="decider_unsloth:decide", help=f"{decider_arm.ARM}: the decision model, module:function")
         p.add_argument("--decider-model", default=None, help=f"{decider_arm.ARM}: its folder (sets $D01_MODEL; serve the adapters)")
         p.add_argument("--wordings", default=None, help="wordings.json (FROZEN_SET.md §5.3), required for a frozen tier")
@@ -411,12 +437,19 @@ def main():
     an.add_argument("--with", dest="with_", action="append", default=[], metavar="BASE:CONFIG[,CONFIG]",
                     help="also read these configurations from another run folder (read only), e.g. bench/runs/decision:v1")
     a = ap.parse_args(); optchat._utf8_stdout()
-    base = a.out or base_dir(a.tier)
+    arm = a.cmd == "analyse" and grammar_arm.ARM in (a.c1, a.c2)
+    base = a.out or base_dir(a.tier, grammar_arm.ARM if arm else getattr(a, "gate", None))
     if a.cmd == "analyse":
         extra = [(w.rsplit(":", 1)[0], [g for g in w.rsplit(":", 1)[1].split(",") if g]) if ":" in w else (w, []) for w in a.with_]
+        if arm and not a.with_:                           # GRAMMAR_ARM.md §8: v1 and v2 are the stored runs of the decision, read and not rerun
+            missing = [g for g in ("v1", "v2") if g not in load_runs(base)]
+            extra = [(DEV_BASE, missing)] if missing else []
         res = analyse(a.tier, a.c1, a.c2, base, extra)
         for g, c in res["configurations"].items():
             print(f"gate {g}: failed {rb._interval_text(c['failed'])}; pass^k {', '.join(f'{k}: {_pct(v)}' for k, v in c['pass_k'].items())}")
+        if "grammar_arm" in res:
+            j = res["grammar_arm"]["v3"]["judgement"]
+            print(f"grammar arm (GRAMMAR_ARM.md §5): {j['reading']}" + ("" if j["valid"] else " - " + "; ".join(j["invalid_reasons"])))
         print("written", os.path.join(base, "ANALYSIS.md")); return
     ids = [x for x in a.ids.split(",") if x]
     if a.cmd == "replay":
@@ -434,7 +467,8 @@ def main():
     run(a.tier, a.gate, [int(s) for s in a.seeds.split(",")], a.wordings, a.wording_seed, ids, a.resume, a.stub,
         a.stub_error_rate, base=base, verbose=a.verbose, decider=a.decider, decider_model=a.decider_model,
         api_model=a.api_model, api_thinking=a.api_thinking, api_effort=a.api_effort, api_addendum=a.api_addendum)
-    print("runs under", base, "- then: python bench/run_frozen.py analyse --tier", a.tier, *(["--out", a.out] if a.out else []))
+    print("runs under", base, "- then: python bench/run_frozen.py analyse --tier", a.tier,
+          *(["--c1", "v2", "--c2", grammar_arm.ARM] if a.gate == grammar_arm.ARM else []), *(["--out", a.out] if a.out else []))
 
 if __name__ == "__main__":
     main()

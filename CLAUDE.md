@@ -6,7 +6,9 @@ checks every final answer.
 
 - **Gates.** `gate.py` (v1) is the default and the demo gate. `gate_v2.py` (typed rendering,
   `GATE_V2.md`) runs only with `APOTHICAIRE_GATE=v2`. `--gate nolm` in `bench/run_frozen.py` is the
-  decider-only arm (`bench/NO_LM_ARM.md`).
+  decider-only arm (`bench/NO_LM_ARM.md`). `gate_v3.py` (gate v2 plus a GBNF grammar on the one
+  regeneration, `bench/GRAMMAR_ARM.md`) runs only with `APOTHICAIRE_GATE=v3` and `--gate v3` in
+  `bench/run_frozen.py`: exploratory, development tier only.
 - **Siblings.** `apothicaire.py` imports `../optchat/optchat.py` unchanged and starts
   `../caladrius/target/agent-apothicaire/release/caladrius-mcp`. Both checkouts must sit next to this
   one. On the PC this repository is the folder `agent/`.

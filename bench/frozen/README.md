@@ -75,6 +75,11 @@ python bench/run_frozen.py run --tier dev --gate v1 --seeds 1,2,3
 python bench/run_frozen.py run --tier dev --gate v2 --seeds 1,2,3
 python bench/run_frozen.py analyse --tier dev
 
+# the grammar arm (gate v3), development set only, exploratory: GRAMMAR_ARM.md, llama-server running, the caladrius-mcp hash checked first.
+# v1 and v2 are read from bench/runs/decision, not rerun; the output goes to bench/runs/grammar-dev, not to bench/runs/decision
+python bench/run_frozen.py run --tier dev --gate v3 --seeds 1,2,3
+python bench/run_frozen.py analyse --tier dev --c1 v2 --c2 v3
+
 # frozen runs: C1 first, every seed, then C2; then the replay check of §10.1 and the analysis
 python bench/run_frozen.py run --tier demo --gate <C1> --seeds 1,2,3 --wordings <path> --wording-seed <N>
 python bench/run_frozen.py run --tier demo --gate <C2> --seeds 1,2,3 --wordings <path> --wording-seed <N>
