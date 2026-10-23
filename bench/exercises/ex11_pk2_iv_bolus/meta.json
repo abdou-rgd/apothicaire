@@ -72,7 +72,7 @@
     },
     "parameters": {
      "c0": {
-      "value": 78.26637560513201,
+      "value": 78.26637560513203,
       "unit": "ng/mL"
      },
      "cmax": {
@@ -116,11 +116,11 @@
       "unit": "1/h"
      },
      "r.squared": {
-      "value": 0.9992510537341175,
+      "value": 0.9992510537341173,
       "unit": ""
      },
      "adj.r.squared": {
-      "value": 0.9988765806011762,
+      "value": 0.9988765806011759,
       "unit": ""
      },
      "lambda.z.time.first": {
@@ -299,11 +299,11 @@
     "flags": [],
     "flag_messages": [],
     "lambda_z_regression": {
-     "adj_r_squared": 0.9988765806011762,
+     "adj_r_squared": 0.9988765806011759,
      "intercept": 1.5134150881000106,
      "lambda_z": 0.07919002683474041,
      "n_points": 4,
-     "r_squared": 0.9992510537341175,
+     "r_squared": 0.9992510537341173,
      "replaced_points": 0,
      "selected": true,
      "time_first": 6.5,
@@ -326,7 +326,7 @@
     },
     "parameters": {
      "c0": {
-      "value": 78.26637560513201,
+      "value": 78.26637560513203,
       "unit": "ng/mL"
      },
      "cmax": {
@@ -350,19 +350,19 @@
       "unit": "ng/mL"
      },
      "auclast": {
-      "value": 111.15400746886039,
+      "value": 111.15400746886041,
       "unit": "h·ng/mL"
      },
      "aucall": {
-      "value": 111.15400746886039,
+      "value": 111.15400746886041,
       "unit": "h·ng/mL"
      },
      "aumclast": {
-      "value": 678.3591960767411,
+      "value": 678.359196076741,
       "unit": "h²·ng/mL"
      },
      "aumcall": {
-      "value": 678.3591960767411,
+      "value": 678.359196076741,
       "unit": "h²·ng/mL"
      },
      "lambda.z": {
@@ -370,11 +370,11 @@
       "unit": "1/h"
      },
      "r.squared": {
-      "value": 0.9992510537341175,
+      "value": 0.9992510537341173,
       "unit": ""
      },
      "adj.r.squared": {
-      "value": 0.9988765806011762,
+      "value": 0.9988765806011759,
       "unit": ""
      },
      "lambda.z.time.first": {
@@ -402,19 +402,19 @@
       "unit": ""
      },
      "aucinf.obs": {
-      "value": 112.7552192005424,
+      "value": 112.75521920054243,
       "unit": "h·ng/mL"
      },
      "aucinf.pred": {
-      "value": 112.77943161125921,
+      "value": 112.77943161125924,
       "unit": "h·ng/mL"
      },
      "aumcinf.obs": {
-      "value": 770.6335900093413,
+      "value": 770.6335900093411,
       "unit": "h²·ng/mL"
      },
      "aumcinf.pred": {
-      "value": 772.0288992494213,
+      "value": 772.0288992494212,
       "unit": "h²·ng/mL"
      },
      "aucpext.obs": {
@@ -426,7 +426,7 @@
       "unit": "%"
      },
      "aumcpext.obs": {
-      "value": 11.97383492347922,
+      "value": 11.97383492347921,
       "unit": "%"
      },
      "aumcpext.pred": {
@@ -434,51 +434,51 @@
       "unit": "%"
      },
      "mrt.iv.last": {
-      "value": 6.102876644072255,
+      "value": 6.1028766440722535,
       "unit": "h"
      },
      "mrt.iv.obs": {
-      "value": 6.834571343777178,
+      "value": 6.834571343777174,
       "unit": "h"
      },
      "mrt.iv.pred": {
-      "value": 6.845476060834719,
+      "value": 6.8454760608347165,
       "unit": "h"
      },
      "cl.obs": {
-      "value": 8.868769065327571,
+      "value": 8.86876906532757,
       "unit": "L/h"
      },
      "cl.pred": {
-      "value": 8.866865045453606,
+      "value": 8.866865045453604,
       "unit": "L/h"
      },
      "vz.obs": {
-      "value": 111.99351003928277,
+      "value": 111.99351003928274,
       "unit": "L"
      },
      "vz.pred": {
-      "value": 111.96946635663647,
+      "value": 111.96946635663646,
       "unit": "L"
      },
      "vss.iv.obs": {
-      "value": 60.61423490846533,
+      "value": 60.614234908465285,
       "unit": "L"
      },
      "vss.iv.pred": {
-      "value": 60.69791240330482,
+      "value": 60.697912403304784,
       "unit": "L"
      },
      "vss.obs": {
-      "value": 60.61423490846533,
+      "value": 60.614234908465285,
       "unit": "L"
      },
      "vss.pred": {
-      "value": 60.69791240330482,
+      "value": 60.697912403304784,
       "unit": "L"
      },
      "vss.iv.last": {
-      "value": 54.90469289451364,
+      "value": 54.9046928945136,
       "unit": "L"
      },
      "cmax.dn": {
@@ -490,35 +490,35 @@
       "unit": "(ng/mL)/ug"
      },
      "auclast.dn": {
-      "value": 0.11115400746886038,
+      "value": 0.11115400746886041,
       "unit": "(h·ng/mL)/ug"
      },
      "aucall.dn": {
-      "value": 0.11115400746886038,
+      "value": 0.11115400746886041,
       "unit": "(h·ng/mL)/ug"
      },
      "aucinf.obs.dn": {
-      "value": 0.1127552192005424,
+      "value": 0.11275521920054243,
       "unit": "(h·ng/mL)/ug"
      },
      "aucinf.pred.dn": {
-      "value": 0.11277943161125921,
+      "value": 0.11277943161125924,
       "unit": "(h·ng/mL)/ug"
      },
      "aumclast.dn": {
-      "value": 0.6783591960767411,
+      "value": 0.678359196076741,
       "unit": "(h²·ng/mL)/ug"
      },
      "aumcall.dn": {
-      "value": 0.6783591960767411,
+      "value": 0.678359196076741,
       "unit": "(h²·ng/mL)/ug"
      },
      "aumcinf.obs.dn": {
-      "value": 0.7706335900093413,
+      "value": 0.7706335900093411,
       "unit": "(h²·ng/mL)/ug"
      },
      "aumcinf.pred.dn": {
-      "value": 0.7720288992494213,
+      "value": 0.7720288992494212,
       "unit": "(h²·ng/mL)/ug"
      }
     },
@@ -553,11 +553,11 @@
     "flags": [],
     "flag_messages": [],
     "lambda_z_regression": {
-     "adj_r_squared": 0.9988765806011762,
+     "adj_r_squared": 0.9988765806011759,
      "intercept": 1.5134150881000106,
      "lambda_z": 0.07919002683474041,
      "n_points": 4,
-     "r_squared": 0.9992510537341175,
+     "r_squared": 0.9992510537341173,
      "replaced_points": 0,
      "selected": true,
      "time_first": 6.5,
