@@ -88,3 +88,23 @@ Dated entries, never edited in place (FROZEN_SET.md, header and §9).
 - The instruction's effect on the 27B, against v1: 8 exercises pass with both, 6 only with the instruction, 6 only without it,
   exact McNemar p = 1.0: no effect on the exercises passed; turns CORRECT 587 against 583, unverifiable quantity shown 0 against 3,
   regenerations 7 against 12. 10 of the 11 exercises the 27B + scope fails, it fails on one seed of three.
+
+## 2026-10-23: grammar arm (gate v3) declared, before any run
+
+- `bench/GRAMMAR_ARM.md` (binding from the commit that adds it) declares one exploratory configuration, `v3`: gate v2 with its one
+  regeneration sampled under a GBNF grammar built per turn (`gate_v3.py`). Digits are allowed only inside a reference that resolves, a
+  closed label or a number the user typed; no unit may follow a reference. Development tier only, 25 exercises, seeds 1, 2, 3, the 27B
+  Q2_0 on upstream llama.cpp b11700 (23f7aabc1), the `caladrius-mcp` of the stored runs (sha256 `e38211b5ce30...`, built from caladrius
+  f119618 and never rebuilt). v1 and v2 are read from `bench/runs/decision`, not rerun. No run has been made and no llama-server started.
+- Declared before the run command exists (§4). Success: 0 free digits shown, an unverifiable quantity shown in at most 3 / 25 exercises,
+  at least 576 / 600 turns CORRECT, at most 50 regenerations, median at most 9 s per turn. Kill: fewer than 562 / 600 turns CORRECT,
+  median above 13.5 s per turn, LOOP + ABSTAINED above 2 % of the turns (more than 12), or a server that does not enforce the grammar
+  (an error that mentions the grammar, or one regeneration whose text breaks the grammar it was sent). Baselines: v1 583 / 600, 14 / 25
+  exercises passed, 3 / 25 unverifiable shown, 12 regenerations, 4.5 s; v2 562 / 600, 6 / 25, 17 / 25, 188 regenerations, 6.85 s.
+- Reading (§5): the four effects without the 50-regeneration bound are read as "the grammar does what it is for, the regeneration count
+  is unchanged", not as success. The first drafts are not under the grammar, so I expect regenerations of the order of v2's 188.
+- Offline, no GPU (§7): the grammar accepts 541 of the 564 final answers gate v2 passed and refuses 184 of the 188 first drafts that had
+  findings, touching 646 of their 651 findings; the 5 it cannot see are spelled-out numbers. llama.cpp b11700's own sampler (llama.dll,
+  vocabulary only) agrees with `gate_v3.Machine` on 13,644 texts, 0 disagreements. What no offline check reaches is the HTTP path of the
+  server; the first run checks it through the `conformance` field recorded for every regeneration.
+- Nothing in §8, C1, C2, `NO_LM_ARM.md` or `FRONTIER_ARM.md` changes. The demo gate stays v1 whatever this arm finds.
