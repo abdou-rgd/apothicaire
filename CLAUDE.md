@@ -33,3 +33,5 @@ Tests that need `llama-server`, the decision datasets or `datasets` skip outside
   goes into `bench/frozen/LEDGER.md`. `bench/frozen/*/wordings.json` is git-ignored and written by a
   human: never open, generate or commit it. No trained-model prediction on the 74 requests of
   `decision/ood/gold.jsonl` before the frozen run (`FROZEN_SET.md`).
+- **README.** It states no figure that a run can change (no count, ratio or percentage): each figure lives
+  in its owner file under `docs/` (or `bench/`, `decision/`) and the README links to it (caladrius T-124).
