@@ -51,7 +51,7 @@ The paths in the server script point to the author's PC. The pinned runtimes, th
 Every final answer goes through a deterministic number gate. It flags any number that is not found in a tool result or in the user's own message; the model is asked once to regenerate, and if a flagged number remains, a badge listing it is appended to the answer.
 
 - **Gate v1** (`gate.py`) is the default and the demo gate.
-- **Gate v2** (`gate_v2.py`, typed rendering, specified in [GATE_V2.md](GATE_V2.md)) runs only with `APOTHICAIRE_GATE=v2`. Gate v3 (`gate_v3.py`, `APOTHICAIRE_GATE=v3`) is exploratory. The rule, its known limits and the results are in [docs/gates.md](docs/gates.md).
+- **Gate v2** (`gate_v2.py`, typed rendering, specified in [GATE_V2.md](GATE_V2.md)) runs only with `APOTHICAIRE_GATE=v2`. Gate v3 (`gate_v3.py`, `APOTHICAIRE_GATE=v3`) stays behind its flag since its pre-registered rule killed it on 2026-10-24. The rule, its known limits and the results are in [docs/gates.md](docs/gates.md).
 
 ## Tests
 
