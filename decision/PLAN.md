@@ -1,6 +1,6 @@
 # Spike: a decision harness for Apothicaire (D-01)
 
-- **State:** in progress (validated by the human on 2026-10-09, evening); steps 1 to 5 done (2026-10-09, night): the trained harness scores 175 / 175 on the benchmark; open: free-wording test, fit/simulate wiring
+- **State:** in progress (validated by the human on 2026-10-09, evening); steps 1 to 5 done (2026-10-09, night): the trained harness scores 175 / 175 oracle-correct turns on the 25 benchmark exercises, in-distribution (the generator's wordings); blind, on the 74 requests of a reviewer who had not seen the generator, whole requests right (2026-10-10, steps 6 and 7 below): v1 4 / 74, v2 22 / 74; the free-wording test is that blind set; open: fit/simulate wiring
 - **Depends on:** the benchmark of `bench/` (runs 2026-10-09 and 2026-10-09b), Caladrius v0.2.0 MCP server
 - **Order:** this spike first, then the Saluki 27B test (`notes/`), then the out-of-sample benchmark of the 27B pipeline
 
