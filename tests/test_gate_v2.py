@@ -796,7 +796,7 @@ def _tokenizer():
     return None, None
 
 class TestStaticPrefixBudget(unittest.TestCase):
-    MEASURED_V1 = 2434          # README: static prefix with the v1 addition and 7 tools, llama.cpp count of 2026-10-09b
+    MEASURED_V1 = 2434          # docs/design.md: static prefix with the v1 addition and 7 tools, llama.cpp count of 2026-10-09b
     BUDGET = 2500
 
     def test_v2_addition_keeps_the_prefix_under_the_budget(self):

@@ -273,7 +273,7 @@ Units of dependence:
 
 | headline figure | counted items | grouping that applies | why the items are not independent trials |
 |---|---|---|---|
-| 27B first drafts 76/932, then 0/926 and 0/827 unverified numbers | numbers | exercise, and turn kind: all 76 failures are in the compare kind (76 of its 168 numbers, 0 of the other 764) | numbers of one turn are in one answer from one model call; 25 exercises are 25 clusters. The README's confidence interval resamples exercises. The rule of three on the numbers gives upper bounds of 0.32 % (926) and 0.36 % (827); with the exercise as the unit the same "all successes" count gives an upper bound of 0.113 only if the 25 exercises are independent and representative, which a generator plan does not establish: an illustration, not a bound |
+| 27B first drafts 76/932, then 0/926 and 0/827 unverified numbers | numbers | exercise, and turn kind: all 76 failures are in the compare kind (76 of its 168 numbers, 0 of the other 764) | numbers of one turn are in one answer from one model call; 25 exercises are 25 clusters. The confidence interval of `docs/benchmark.md` resamples exercises. The rule of three on the numbers gives upper bounds of 0.32 % (926) and 0.36 % (827); with the exercise as the unit the same "all successes" count gives an upper bound of 0.113 only if the 25 exercises are independent and representative, which a generator plan does not establish: an illustration, not a bound |
 | oracle 549/556 and 558/558 slots, 170/175 and 175/175 turns | slots, turns | exercise, then turn kind | 22 or 23 slots per exercise come from the same two analyses and the same CSV; a wrong `start: zero` option (ex07) fails 10 slots at once |
 | harness 175/175 with gold or trained decisions | turns | exercise and kind | a template test: with gold decisions the result is a property of `harness.py`, with the trained model of one fixed decision vector per turn; the 225 calls differ from gold in 44 cells that did not change a scored answer |
 | v1 held-out 14386/14400 cells, 706/720 vectors | cells, rows | exercise (20), wording (83 sentences, all in train) | 36 rows per exercise, 20 cells per row; the 14 errors fall on 14 rows in 12 exercises and 13 of them are in the `not_available` kind (60 rows): one question of one kind, not 14,400 trials |
@@ -284,7 +284,7 @@ Units of dependence:
 
 Neither the 558 slots nor the 14,400 labels are that many independent demonstrations. The informative counts are 25 benchmark exercises, 20
 held-out exercises, the held-out wordings, the 14 families, the 8 or 15 turn kinds and the 74 requests of one author. Cluster intervals
-(resampling exercises, as the benchmark README does for its 7.1 to 9.1 % and 89.7 to 100 %) are the right presentation; this ledger does
+(resampling exercises, as `docs/benchmark.md` does for its 7.1 to 9.1 % and 89.7 to 100 %) are the right presentation; this ledger does
 not compute new ones.
 
 ## 8. Not reconciled, and what the ledger could not do
